@@ -1,35 +1,21 @@
 #include <ncurses.h>
 #define DATA_SET_SIZE 12
+#define BAR '\219'
 
-/*
- * Things I hope to learn here: 
- * - Display text at some screen pos
- * - Replace text on the screen
- * - Change colors
- * - Graphing something
- * */
-
+/**
+ * throwaway code while I work on a console histogram
+ */
 
 int main()
 {
 	initscr();
-	mvprintw(10,5,"3");
 	refresh();
-	sleep(1);
-	mvprintw(10,5,"2");
-	initscr();
-	refresh();
-	sleep(1);
-	mvprintw(10,5,"1");
-	initscr();
-	refresh();
-	sleep(1);
 	start_color();
 	// hardcoded graph attempt
 	// graph starts at 10,5 too
 	// to keep this one-off example simple, I won't include values out of range
-	int xorigin = 5;
-	int yorigin = 10;
+	int roworigin = 10;
+	int colorigin = 5;
 	init_pair(1,COLOR_GREEN, COLOR_WHITE);
 	init_pair(2,COLOR_YELLOW, COLOR_WHITE);
 	init_pair(3,COLOR_RED, COLOR_WHITE);
@@ -50,13 +36,12 @@ int main()
 				break; 
 		}
 		attron(COLOR_PAIR(color_pair));
-		mvprintw(yorigin+data_points[i], xorigin+i, ".");
+		for (int j=0; j<data_points[i]; j++) {
+			mvaddch(roworigin - j, colorigin + i, BAR);
+		}
 		attroff(COLOR_PAIR(color_pair));
+		refresh();
 	}
-	attron(COLOR_PAIR(3));
-	mvprintw(20,5,"ncurses test. type something to exit");
-	attroff(COLOR_PAIR(1));
-	initscr();
 	refresh();
 	getch();
 	endwin();
