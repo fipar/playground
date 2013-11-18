@@ -8,6 +8,7 @@ import (
 	"github.com/tncardoso/gocurses"
 	"math/rand"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -19,6 +20,8 @@ const (
 	BLANK        = ' '
 )
 
+var wl sync.Mutex
+
 // eventually this one will do any needed transformation to fit a (potentially floating point) number into a gauge
 func normalize(num int) int {
 	if num > GAUGE_MAX {
@@ -29,13 +32,16 @@ func normalize(num int) int {
 }
 
 // for now, gauges will have a fixed height
-func gauge(datasource chan int, rowstart int, colstart int) {
-	win := gocurses.NewWindow(GAUGE_HEIGHT, GAUGE_WIDTH, colstart, rowstart)
+// also, I'm not counting runes, just bytes, for label.
+func gauge(datasource chan int, rowstart int, colstart int, label string) {
+	win := gocurses.NewWindow(GAUGE_HEIGHT, GAUGE_WIDTH, rowstart, colstart)
 	win.Box(0, 0)
-	win.Refresh()
+	gocurses.Mvaddstr(rowstart+GAUGE_HEIGHT, colstart+1-(len(label)/2), label)
 	for {
+		wl.Lock()
+		win.Refresh()
+		wl.Unlock()
 		num := <-datasource
-		gocurses.Refresh()
 		num = normalize(num)
 		color_pair := 1
 		switch num {
@@ -46,7 +52,7 @@ func gauge(datasource chan int, rowstart int, colstart int) {
 		case 5:
 			color_pair = 3
 		}
-		gocurses.Mvaddstr(1, 0, strconv.Itoa(num))
+		gocurses.Mvaddstr(rowstart+GAUGE_HEIGHT+4, colstart, strconv.Itoa(num))
 		for i := rowstart + GAUGE_HEIGHT - 2; i >= rowstart+GAUGE_HEIGHT-6; i-- {
 			if i > rowstart+GAUGE_MAX-num {
 				gocurses.Attron(gocurses.ColorPair(color_pair))
@@ -71,10 +77,15 @@ func main() {
 	gocurses.Refresh()
 
 	source := make(chan int)
-	go gauge(source, 10, 10)
+	source2 := make(chan int)
+
+	go gauge(source, 10, 10, "Random")
+	go gauge(source2, 10, 20, "Random 2")
 	r := rand.New(rand.NewSource(99))
 	for {
 		source <- r.Intn(7)
+		source2 <- r.Intn(5)
 		time.Sleep(1 * time.Second)
+		gocurses.Refresh()
 	}
 }
