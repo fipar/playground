@@ -1,2 +1,2 @@
 default: 
-	gcc -std=c99 -lncurses hello.c -o hello
+	gcc -std=c99 -lncursesw hello.c -o hello

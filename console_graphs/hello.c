@@ -1,6 +1,11 @@
 #include <ncurses.h>
+#include <locale.h>
 #define DATA_SET_SIZE 12
-#define BAR ' '
+#define BAR 'O'
+
+#define LOBLOCK '\334'
+#define BLOCK '\333'
+#define HIBLOCK '\337'
 
 /**
  * throwaway code while I work on a console histogram
@@ -9,6 +14,7 @@
 int main()
 {
 	initscr();
+//	setlocale(LC_CTYPE,"C-UTF-8");
 	start_color();
 	assume_default_colors(-1,-1);
 	refresh();
@@ -17,9 +23,9 @@ int main()
 	// to keep this one-off example simple, I won't include values out of range
 	int roworigin = 10;
 	int colorigin = 5;
-	init_pair(1,COLOR_GREEN, COLOR_GREEN);
-	init_pair(2,COLOR_YELLOW, COLOR_YELLOW);
-	init_pair(3,COLOR_RED, COLOR_RED);
+	init_pair(1,COLOR_GREEN, -1);
+	init_pair(2,COLOR_YELLOW, -1);
+	init_pair(3,COLOR_RED, -1);
 	int data_points[DATA_SET_SIZE] = {0,1,2,5,1,0,0,1,2,3,2,0};
 	for (int i=0; i<DATA_SET_SIZE; i++) {
 		// init color
