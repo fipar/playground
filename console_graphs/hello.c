@@ -1,6 +1,6 @@
 #include <ncurses.h>
 #define DATA_SET_SIZE 12
-#define BAR '\219'
+#define BAR ' '
 
 /**
  * throwaway code while I work on a console histogram
@@ -9,16 +9,17 @@
 int main()
 {
 	initscr();
-	refresh();
 	start_color();
+	assume_default_colors(-1,-1);
+	refresh();
 	// hardcoded graph attempt
 	// graph starts at 10,5 too
 	// to keep this one-off example simple, I won't include values out of range
 	int roworigin = 10;
 	int colorigin = 5;
-	init_pair(1,COLOR_GREEN, COLOR_WHITE);
-	init_pair(2,COLOR_YELLOW, COLOR_WHITE);
-	init_pair(3,COLOR_RED, COLOR_WHITE);
+	init_pair(1,COLOR_GREEN, COLOR_GREEN);
+	init_pair(2,COLOR_YELLOW, COLOR_YELLOW);
+	init_pair(3,COLOR_RED, COLOR_RED);
 	int data_points[DATA_SET_SIZE] = {0,1,2,5,1,0,0,1,2,3,2,0};
 	for (int i=0; i<DATA_SET_SIZE; i++) {
 		// init color
@@ -43,6 +44,7 @@ int main()
 		refresh();
 	}
 	refresh();
+	move(0,0);
 	getch();
 	endwin();
 
