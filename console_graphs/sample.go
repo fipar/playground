@@ -8,7 +8,6 @@ import (
 	"github.com/tncardoso/gocurses"
 	"math/rand"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -19,8 +18,6 @@ const (
 	ITEM         = 'X'
 	BLANK        = ' '
 )
-
-var wl sync.Mutex
 
 // eventually this one will do any needed transformation to fit a (potentially floating point) number into a gauge
 func normalize(num int) int {
@@ -34,13 +31,8 @@ func normalize(num int) int {
 // for now, gauges will have a fixed height
 // also, I'm not counting runes, just bytes, for label.
 func gauge(datasource chan int, rowstart int, colstart int, label string) {
-	win := gocurses.NewWindow(GAUGE_HEIGHT, GAUGE_WIDTH, rowstart, colstart)
-	win.Box(0, 0)
 	gocurses.Mvaddstr(rowstart+GAUGE_HEIGHT, colstart+1-(len(label)/2), label)
 	for {
-		wl.Lock()
-		win.Refresh()
-		wl.Unlock()
 		num := <-datasource
 		num = normalize(num)
 		color_pair := 1

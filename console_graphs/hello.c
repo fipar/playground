@@ -1,5 +1,5 @@
 #include <ncurses.h>
-#include <locale.h>
+#include <cdk.h>
 #define DATA_SET_SIZE 12
 #define BAR 'O'
 
@@ -14,7 +14,6 @@
 int main()
 {
 	initscr();
-//	setlocale(LC_CTYPE,"C-UTF-8");
 	start_color();
 	assume_default_colors(-1,-1);
 	refresh();
