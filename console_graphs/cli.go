@@ -5,13 +5,18 @@ import (
 	"math/rand"
 	"strconv"
 	"time"
+	"unicode/utf8"
+	"fmt"
 )
 
 // for now let's only display integers
 func LabeledOutput(label string, source chan int, x int, y int) {
 	for {
+		box := term.NewBox(utf8.RuneCountInString(label) + 10, 3,0)
 		term.MoveCursor(x, y)
-		term.Print(label + strconv.Itoa(<-source))
+		fmt.Fprint(box, label + strconv.Itoa(<-source))
+		term.Print(term.MoveTo(box.String(), x, y))
+		//term.Print(label + strconv.Itoa(<-source))
 		term.Flush()
 	}
 }
