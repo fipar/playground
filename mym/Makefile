@@ -3,6 +3,6 @@ default:
 	go build mym.go
 
 run: 
-	go run mym.go
+	go run mym.go 2>run.log
 
 
