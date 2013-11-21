@@ -25,6 +25,9 @@ type Any interface{}
 var db *sql.DB
 var err error
 
+// A global channel for status/error messages
+var chan_status = make(chan Any)
+
 /*
 LabeledOutput runs forever, so it is desgined to be called like go LabeledOutput(...)
 It displays label and the contents of the source channel at the screen positions x,y
@@ -38,7 +41,7 @@ func LabeledOutput(label string, source chan Any, x int, y int) {
 	for {
 		term.MoveCursor(x, y)
 		term.Print(label, <-source)
-		term.Flush()
+		//term.Flush()
 	}
 }
 
@@ -46,6 +49,10 @@ func LabeledOutput(label string, source chan Any, x int, y int) {
 ThreadsRunning runs forever.
 It writes the value of the Threads_running status variable to the dest channel.
 If there is an error, it continues the loop, but sleeps a few seconds so it does not flood the server
+
+I think data source points could match multiple data source displays, to, i.e., have a single ShowStatus function that receives a group of channels
+so that multiple data source displays get updated with a single query.
+Will probably use map[string]chan Any for this, where string == name of status variable, chan Any == channel to link that variable with a data point display
 */
 func ThreadsRunning(dest chan Any) {
 	var threads_running int
@@ -74,6 +81,44 @@ func ThreadsRunning(dest chan Any) {
 	}
 }
 
+// And this is POC for the ShowStatus function
+// The crude idea is to run 'show global status', itereate over the result, and for anything that exists in the map, send the value
+func ShowStatus(dests map[string]chan Any) {
+	var value int
+	var variable string
+	for {
+		rows, err_ := db.Query("show global status")
+		if err_ != nil {
+			chan_status <- err.Error()
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		if !rows.Next() {
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		defer rows.Close()
+		for rows.Next() {
+			err_ = rows.Scan(&variable, &value)
+			if err_ != nil {
+				chan_status <- err
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			_, ok := dests[variable]
+			if ok {
+				chan_status <- value
+				dests[variable] <- value
+			} else {
+				chan_status <- variable
+			}
+			time.Sleep(1 * time.Second)
+		}
+		rows.Close()
+		time.Sleep(1 * time.Second)
+	}
+}
+
 // main will be a mess while I test
 // all will be hardcoded
 func main() {
@@ -83,12 +128,21 @@ func main() {
 	}
 	term.Clear()
 	chan_tr := make(chan Any)
-	go LabeledOutput("Threads_running: ", chan_tr, 1, 4)
-	go ThreadsRunning(chan_tr)
+	chan_extra := make(chan Any)
+	dests := map[string]chan Any{
+		"Threads_running":       chan_tr,
+		"Binlog_cache_usek_use": chan_extra,
+	}
+	go LabeledOutput("Threads_running: ", chan_tr, 3, 10)
+	go LabeledOutput("Status: ", chan_status, 3, 15)
+	go LabeledOutput("Chan extra: ", chan_extra, 3, 20)
+	//go ThreadsRunning(chan_tr)
+	go ShowStatus(dests)
 	for {
 		//var input Any
 		//fmt.Scan(&input)
 		time.Sleep(1 * time.Second)
+		term.Flush()
 		//term.MoveCursor(5, 5)
 		//term.Print(input)
 	}
