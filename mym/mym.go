@@ -12,9 +12,14 @@ import (
 	term "github.com/buger/goterm"
 	_ "github.com/go-sql-driver/mysql"
 	//	"strconv"
+	"strings"
 	"time"
 	//	"unicode/utf8"
 //	"fmt"
+)
+
+const (
+	CHAN_BUF_SIZE int = 40
 )
 
 // Any will be used to make generic functions
@@ -30,17 +35,21 @@ var chan_status = make(chan Any)
 /*
 LabeledOutput runs forever, so it is desgined to be called like go LabeledOutput(...)
 It displays label and the contents of the source channel at the screen positions x,y
+Length l is needed so we refresh the whole area. Otherwise, it happened that if a variable
+jumped fom single digit to two digit, and back to single digit, it would not be updated.
 
 usage would be like:
    source := make(chan Any)
    go LabeledOutput("Label: ", source, 1,1)
 
 */
-func LabeledOutput(label string, source chan Any, x int, y int) {
-	println("starting display for ", label)
+func LabeledOutput(label string, source chan Any, x int, y int, l int) {
+	//println("starting display for ", label)
 	for {
+		term.MoveCursor(x, y) // clean up the display width
+		term.Print(label, strings.Repeat(" ", l))
 		term.MoveCursor(x, y)
-		println("will read from channel for ", label)
+		//println("will read from channel for ", label)
 		term.Print(label, <-source)
 		term.Flush()
 	}
@@ -90,13 +99,13 @@ func ShowStatus(dests map[string]chan Any) {
 	for {
 		rows, err_ := db.Query("show global status")
 		if err_ != nil {
-			println("got error ", err.Error(), ", writing to chan_status and sleeping 5 seconds")
+			//println("got error ", err.Error(), ", writing to chan_status and sleeping 5 seconds")
 			chan_status <- err.Error()
 			time.Sleep(5 * time.Second)
 			continue
 		}
 		if !rows.Next() {
-			println("did not get rows, sleeping 5 secs")
+			//println("did not get rows, sleeping 5 secs")
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -109,7 +118,7 @@ func ShowStatus(dests map[string]chan Any) {
 			}
 			_, ok := dests[variable]
 			if ok {
-				println("got ", value, " for ", variable)
+				//println("got ", value, " for ", variable)
 				dests[variable] <- value
 			}
 		}
@@ -126,18 +135,18 @@ func main() {
 		panic(err.Error())
 	}
 	term.Clear()
-	chan_tr := make(chan Any, 20)
-	chan_tc := make(chan Any, 20)
-	chan_com_select := make(chan Any, 20)
+	chan_tr := make(chan Any, CHAN_BUF_SIZE)
+	chan_tc := make(chan Any, CHAN_BUF_SIZE)
+	chan_com_select := make(chan Any, CHAN_BUF_SIZE)
 	dests := map[string]chan Any{
 		"Threads_running":   chan_tr,
 		"Threads_connected": chan_tc,
 		"Com_select":        chan_com_select,
 	}
-	go LabeledOutput("Threads_running: ", chan_tr, 3, 1)
-	go LabeledOutput("Threads_connected: ", chan_tc, 2, 1)
-	go LabeledOutput("Status: ", chan_status, 20, 1)
-	go LabeledOutput("Com_select: ", chan_com_select, 4, 1)
+	go LabeledOutput("Threads_running: ", chan_tr, 3, 1, 3)
+	go LabeledOutput("Threads_connected: ", chan_tc, 2, 1, 3)
+	go LabeledOutput("Status: ", chan_status, 20, 1, 10)
+	go LabeledOutput("Com_select: ", chan_com_select, 4, 1, 10)
 	//go ThreadsRunning(chan_tr)
 	go ShowStatus(dests)
 	for {
