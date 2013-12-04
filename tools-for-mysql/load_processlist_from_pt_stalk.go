@@ -41,6 +41,14 @@ const (
 	table_name      = "processlist_captures" // TODO: make this a default but allow to change via option
 )
 
+// maps are not valid constants hence I need the section below
+var (
+	// The reason I use a map below is because I could not find a Set like structure, and I don't want to iterate over an array all the time to see if the field name I got is a valid field
+	valid_fields = map[string]bool{"Id": true, "User": true, "Host": true, "db": true, "Command": true, "Time": true, "State": true, "Info": true, "Rows_sent": true, "Rows_examined": true, "Rows_read": true}
+	// The purpose of the map below is to store the last output column depending on mysql version. This one is hardcoded for 5.1 but eventually the version should be an argument
+	last_field = map[string]string{"5.1": "Rows_read"}
+)
+
 /*
 read from stdin until EOF
 when a line that matches ts_pattern is seen, go into 'read sample' mode
@@ -65,9 +73,12 @@ func main() {
 						// things I can measure + graph and not the query text, back into the database
 						line := strings.Split(in.Text(), ":")
 						if len(line) > 1 {
-							fmt.Print("", strings.Trim(line[0], " "), " = '", strings.Trim(line[1], " "), "'")
-							if strings.Trim(line[0], " ") != "Rows_read" {
-								gotData = true //this is the part that will have to be changed depending on the mysql verion. Not too difficult. Just a map string[string] with terminating_field per version
+							fname := strings.Trim(line[0], " ")
+							if valid_fields[fname] {
+								fmt.Print("", fname, " = '", strings.Replace(strings.Trim(line[1], " "), "'", `\'`, -1), "'")
+								if last_field["5.1"] != fname { // this is the part that is currently hardcoded
+									gotData = true //this part that will have to be changed depending on the mysql verion. Not too difficult. Just a map string[string] with terminating_field per version
+								}
 							}
 						}
 						if rowSepMatcher.MatchString(in.Text()) {
