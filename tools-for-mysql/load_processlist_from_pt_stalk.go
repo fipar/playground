@@ -8,11 +8,12 @@ This specific file is a one-off hack for captures taken on 5.1 but it should not
 create table for the specific example I wrote this for:
 
 create table processlist_captures (
-	id int unsigned not null auto_increment primary key,
+	pk int unsigned not null auto_increment primary key,
+	Id char(40),
 	ts char(44),
 	User char(40),
     Host char(80),
-	dn char(80),
+	db char(80),
 	Command char(40),
 	Time char(40),
 	State char(80),
@@ -56,7 +57,7 @@ func main() {
 			ts := in.Text()
 			for in.Scan() {
 				if rowSepMatcher.MatchString(in.Text()) { // enter 'read row' mode
-					fmt.Print("insert into ", table_name, " set ts = '", ts, "', ")
+					fmt.Print("insert into ", table_name, " set pk=null, ts = '", ts, "', ")
 					for in.Scan() {
 						gotData := false
 						// right now this next line means I will break the Info: line. It will be mostly useless.
@@ -70,7 +71,7 @@ func main() {
 							}
 						}
 						if rowSepMatcher.MatchString(in.Text()) {
-							fmt.Println(");")
+							fmt.Println(";")
 							break
 						} else if gotData {
 							fmt.Print(", ")
