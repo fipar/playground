@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 	//	"unicode/utf8"
-//	"fmt"
+	//	"fmt"
 )
 
 const (
@@ -100,7 +100,7 @@ func ShowStatus(dests map[string]chan Any) {
 		rows, err_ := db.Query("show global status")
 		if err_ != nil {
 			//println("got error ", err.Error(), ", writing to chan_status and sleeping 5 seconds")
-			chan_status <- err.Error()
+			chan_status <- err
 			time.Sleep(5 * time.Second)
 			continue
 		}
