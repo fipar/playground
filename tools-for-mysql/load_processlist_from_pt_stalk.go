@@ -25,6 +25,10 @@ create table processlist_captures (
 
 table structure is awful but it will always be small, and the only goal is to feed R with it. hence everythig is a text field
 
+
+Companion files: 
+- load_data.r : R commands to plot thread's Command value over time for all captures (groups by timestamp)
+- sample_plot.png : A sample plot generated with load_data.r TODO: fix the X label as with all the timestamps it makes no sense
 */
 
 import (
