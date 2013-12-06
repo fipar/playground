@@ -9,7 +9,6 @@ OUTPUTFILE=/tmp/output_diskstats.$$
 TS=$(date "+%Y%m%d_%H%M_%S")
 TABLE_NAME="pt_diskstats_$TS"
 
-# TODO: TRAP
 trap "rm -f $INPUTFILE $OUTPUTFILE RSCRIPT.$$ RSCRIPT.$$.Rout" SIGTERM EXIT
 
 echo $HEADER>$OUTPUTFILE
