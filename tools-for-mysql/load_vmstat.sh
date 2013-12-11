@@ -27,6 +27,7 @@ echo $HEADER>$OUTPUTFILE
 
 cat<<EOF>RSCRIPT.$$
 require(ggplot2)
+require(ggthemes)
 data <- read.csv("$OUTPUTFILE", header=TRUE, sep=",")
 EOF
 
@@ -34,7 +35,7 @@ for yvar in bi bo us si wa r b; do
 
 cat<<EOF>>RSCRIPT.$$
 png("vmstat_${yvar}_genplot.png",height=800,width=800)
-ggplot(data=data, aes(x=seqno)) + geom_point(aes(y=$yvar)) + xlab("time")
+ggplot(data=data, aes(x=seqno)) + geom_point(aes(y=$yvar)) + xlab("time") + geom_rangeframe() + theme_tufte()
 dev.off()
 EOF
 

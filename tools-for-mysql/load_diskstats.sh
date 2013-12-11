@@ -22,11 +22,13 @@ echo $HEADER>$OUTPUTFILE
 
 pt-diskstats $INPUTFILE|grep -v '^  #ts device'|grep -v ^$|sed 's/^  *//g'|sed 's/  */,/g'|tr -d '%'>>$OUTPUTFILE
 
+
 cat<<EOF>RSCRIPT.$$
 data <- read.table("$OUTPUTFILE",  header=TRUE, sep=",")
 require(ggplot2)
-png("genplot.png",height=800,width=800)
-qplot(data=data, x=ts, y=busy, color=qtime)
+require(ggthemes)
+png("diskstats_genplot.png",height=800,width=800)
+qplot(data=data, x=ts, y=busy, color=qtime) + geom_rangeframe() + theme_tufte()
 dev.off()
 
 EOF
