@@ -20,18 +20,25 @@ echo $HEADER>$OUTPUTFILE
 	cat|egrep -v 'swpd|system'|grep -v ^$|sed 's/^  *//g'|sed 's/  */,/g'|awk '{print NR, ",", $0}'>>$OUTPUTFILE
 }
 
+# this is *really* just a bad concept, so I don't forget the syntax involved. 
+# Some of the things I want to resolve: 
+# - TODO: set a proper range for the y axis depending on the variable being graphed
+# - TODO: some may be ok on an individual graph, some may work better on a combined graph (i.e. combine bi/bo, us/si/wa, r/b)
+
 cat<<EOF>RSCRIPT.$$
 require(ggplot2)
 data <- read.csv("$OUTPUTFILE", header=TRUE, sep=",")
-png("vmstat_genplot.png",height=800,width=800)
-ggplot(data=data, aes(x=seqno)) +
-	geom_point(colour="red", aes(y=bi)) +
-	geom_point(colour="blue", aes(y=bo)) +
-	geom_point(colour="orange", aes(y=us+si+wa)) +
-	geom_point(colour="yellow", aes(y=r+b))
-dev.off()
-
 EOF
+
+for yvar in bi bo us si wa r b; do
+
+cat<<EOF>>RSCRIPT.$$
+png("vmstat_${yvar}_genplot.png",height=800,width=800)
+ggplot(data=data, aes(x=seqno)) + geom_point(aes(y=$yvar)) + xlab("time")
+dev.off()
+EOF
+
+done
 
 R CMD BATCH ./RSCRIPT.$$
 
