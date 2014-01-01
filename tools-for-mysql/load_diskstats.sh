@@ -28,11 +28,10 @@ data <- read.table("$OUTPUTFILE",  header=TRUE, sep=",")
 require(ggplot2)
 require(ggthemes)
 png("diskstats_genplot.png",height=800,width=800)
-qplot(data=data, x=ts, y=busy, color=qtime) + geom_rangeframe() + theme_tufte()
+qplot(data=data, x=ts, y=busy, color=qtime) + theme(panel.grid=element_blank(), panel.background=element_blank(), axis.text.x=element_blank() )
 dev.off()
 
 EOF
 
 R CMD BATCH ./RSCRIPT.$$
-
 
