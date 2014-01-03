@@ -1,0 +1,8 @@
+I think it is artificial to try and make this work from pt-stalk captures, since most of that won't be graphed. 
+I should instead focus on gathering, in csv or csv-friendly output:
+- processlist
+- vmstat
+- diskstats
+- top
+- etc?
+
