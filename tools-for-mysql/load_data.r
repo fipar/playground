@@ -1,9 +1,14 @@
 # to run: 
 # R CMD BATCH ./load_data.r
-require(RMySQL)
 require(ggplot2)
-con <- dbConnect(MySQL(), user="msandbox", password="msandbox", dbname="r_input", host="127.0.0.1", port=5527)
-data_from_processlist <- dbGetQuery(con, "select ts,Command,count(pk) as cnt from processlist_captures group by ts,Command order by ts asc;")
+require(RSQLite)
+
+data <- read.csv("~/src/playground/tools-for-mysql/processlist_data.csv", header=TRUE, sep=",")
+drv <- dbDriver("SQLite")
+dbfile <- tempfile()
+con <- dbConnect(drv, dbname=dbfile)
+dbWriteTable(con, "processlist", data)
+data_from_processlist <- dbGetQuery(con, "select sample,Command,count(sample) as cnt from processlist group by sample,Command order by sample asc")
 png("genplot.png",height=800,width=800)
-qplot(data=data_from_processlist, x=ts, y=cnt, color=Command) + theme(panel.grid=element_blank(), panel.background=element_blank(), axis.text.x=element_blank() )
+qplot(data=data_from_processlist, x=sample, y=cnt, color=Command) + theme(panel.grid=element_blank(), panel.background=element_blank(), axis.text.x=element_blank() )
 dev.off()
