@@ -31,15 +31,11 @@ require(ggthemes)
 data <- read.csv("$OUTPUTFILE", header=TRUE, sep=",")
 EOF
 
-for yvar in bi bo us si wa r b; do
-
 cat<<EOF>>RSCRIPT.$$
-png("vmstat_${yvar}_genplot.png",height=800,width=800)
-ggplot(data=data, aes(x=seqno)) + geom_point(aes(y=$yvar)) + xlab("time") + geom_rangeframe() + theme_tufte()
+png("vmstat_genplot.png",height=800,width=800)
+ggplot(data=data, aes(x=seqno)) + geom_point(aes(y=us),colour="blue") + geom_point(aes(y=id),colour="green") + geom_point(aes(y=sy),colour="magenta") + geom_point(aes(y=bi),colour="cyan") + geom_point(aes(y=bo),colour="pink") + theme(panel.grid=element_blank(), panel.background=element_blank(), axis.text.x=element_blank(), axis.title.x=element_blank(), axis.title.y=element_blank() )
 dev.off()
 EOF
-
-done
 
 R CMD BATCH ./RSCRIPT.$$
 
