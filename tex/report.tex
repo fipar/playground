@@ -1,0 +1,35 @@
+% document classes: article, report, letter, book, proc, slides
+\documentclass[11pt]{report}
+\usepackage{geometry}                % See geometry.pdf to learn the layout options. There are lots.
+\geometry{a4paper}                   % ... or a4paper or a5paper or ... 
+%\geometry{landscape}                % Activate for for rotated page geometry
+%\usepackage[parfill]{parskip}    % Activate to begin paragraphs with an empty line rather than an indent
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{epstopdf}
+\DeclareGraphicsRule{.tif}{png}{.png}{`convert #1 `dirname #1`/`basename #1 .tif`.png}
+
+\title{This is a sample document}
+\author{Mr Author}
+%\date{}                                           % Activate to display a given date or no date
+
+\begin{document}
+\maketitle
+
+\paragraph{This is a test paragraph
+with new lines that should not be
+displayed. }
+
+
+\paragraph{I want to see how paragraphs are {\em divided}}
+\section{Section A}
+Text for Section A
+\section{Section B}
+Text for Section B. 
+
+%\section{}
+%\subsection{}
+
+
+
+\end{document}  
