@@ -1,12 +1,27 @@
 % document classes: article, report, letter, book, proc, slides
-\documentclass[11pt]{report}
-\usepackage{geometry}                % See geometry.pdf to learn the layout options. There are lots.
+
+% \documentclass[bidi]{tufte-handout}
+ \documentclass[11pt]{report}
+
+\usepackage[left=1.5cm, right=7cm]{geometry}
 \geometry{a4paper}                   % ... or a4paper or a5paper or ... 
+
 %\geometry{landscape}                % Activate for for rotated page geometry
 %\usepackage[parfill]{parskip}    % Activate to begin paragraphs with an empty line rather than an indent
 \usepackage{graphicx}
+\usepackage{wrapfig}
 \usepackage{amssymb}
 \usepackage{epstopdf}
+\usepackage{marginnote}
+\newcounter{notes}
+
+% taken from: http://www.latex-community.org/forum/viewtopic.php?f=44&t=11761
+\newcommand{\nummarginnote}[1]{
+	\refstepcounter{notes}
+	\mbox{\textsuperscript{\thenotes}}
+	\marginnote{\mbox{\textsuperscript{\thenotes}}#1}
+}
+
 \DeclareGraphicsRule{.tif}{png}{.png}{`convert #1 `dirname #1`/`basename #1 .tif`.png}
 
 \title{This is a sample document}
@@ -23,7 +38,14 @@ displayed. }
 
 \paragraph{I want to see how paragraphs are {\em divided}}
 \section{Section A}
-Text for Section A
+\begin{wrapfigure}{o}{0.5\textwidth}
+	\includegraphics[width=0.5\textwidth]{images/mtcars.pdf}
+   \caption{sample graphic from the mtcars dataset}
+\end{wrapfigure}
+
+Text for Section A. 
+I want to test embedding graphics in the document in a way that text flows naturally around it\nummarginnote{This is inspired in the Da Vinci and Galilei examples included in E.Tufte's works\label{one}}. I want to test embedding graphics in the document in a way that text flows naturally around it. I want to test embedding graphics in the document in a way that text flows naturally around it. I want to test embedding graphics in the document in a way that text flows naturally around it. I want to test embedding graphics in the document in a way that text flows naturally around it. I want to test embedding graphics in the document in a way that text flows naturally around it. I want to test embedding graphics in the document in a way that text flows naturally around it. I want to test embedding graphics in the document in a way that text flows naturally around it. I want to test embedding graphics in the document in a way that text flows naturally around it. I want to test embedding graphics in the document in a way that text flows naturally around it. I want to test embedding graphics in the document in a way that text flows naturally around it. 
+
 \section{Section B}
 Text for Section B. 
 
