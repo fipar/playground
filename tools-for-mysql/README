@@ -1,4 +1,8 @@
 This playground dir will eventually become a repo on its own right. 
 The tools' names are now explicitly large and sometimes repetitive for the sake of clarity, as while I experiment, I will have multiple tools doing almost the same thing, while if and when this becomes a standalone repo, each tool will do a specific job alone
 
+I want to create tools that can be used to gather data from a system and present it in a way that makes it easy for a human being to identify points of interest on it (i.e. learn the data, transform it into information). I envision two different usages: 
+- analyze pt-stalk captures taken during production impact problems, and produce artifacts (graphs and tables initially) that can be used on a post mortem report (see ../tex/report.tex for an idea of the format I have in mind).
+- analyze captures taken during a normally busy system (i.e. not pt-stalk but some manual data gathering script saving global status, innodb, vmstat, iostat and a few other things. or perhaps a customization of pt-stalk to make it work better in this context. 
+
 
