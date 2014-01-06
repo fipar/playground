@@ -3,7 +3,7 @@
 % \documentclass[bidi]{tufte-handout}
  \documentclass[11pt]{report}
 
-\usepackage[left=1.5cm, right=7cm]{geometry}
+\usepackage[left=1cm, right=4cm]{geometry}
 \geometry{a4paper}                   % ... or a4paper or a5paper or ... 
 
 %\geometry{landscape}                % Activate for for rotated page geometry
@@ -13,23 +13,32 @@
 \usepackage{amssymb}
 \usepackage{epstopdf}
 \usepackage{marginnote}
+\usepackage{datetime}
 \newcounter{notes}
 
 % taken from: http://www.latex-community.org/forum/viewtopic.php?f=44&t=11761
 \newcommand{\nummarginnote}[1]{
 	\refstepcounter{notes}
-	\mbox{\textsuperscript{\thenotes}}
-	\marginnote{\mbox{\textsuperscript{\thenotes}}#1}
+%	\mbox{\textsuperscript{\thenotes}}
+%	\marginnote{\mbox{\textsuperscript{\thenotes}}#1}[1.5cm]
+	\marginnote{\textsuperscript{\thenotes}#1}[1.5cm]
 }
 
 \DeclareGraphicsRule{.tif}{png}{.png}{`convert #1 `dirname #1`/`basename #1 .tif`.png}
 
+
 \title{This is a sample document}
 \author{Mr Author}
-%\date{}                                           % Activate to display a given date or no date
+\date{\today}
 
 \begin{document}
+
+
+\newgeometry{margin=0.5cm}
+\begin{center}
 \maketitle
+\end{center}
+\restoregeometry
 
 \paragraph{This is a test paragraph
 with new lines that should not be
