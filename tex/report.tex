@@ -27,17 +27,23 @@
 \DeclareGraphicsRule{.tif}{png}{.png}{`convert #1 `dirname #1`/`basename #1 .tif`.png}
 
 
-\title{This is a sample document}
-\author{Mr Author}
-\date{\today}
-
 \begin{document}
 
 
 \newgeometry{margin=0.5cm}
+\begin{titlepage}
 \begin{center}
-\maketitle
+\vspace*{3\baselineskip}
+\huge{A sample report}
+\hrule\vspace{0.5cm}
+\vspace*{18\baselineskip}
 \end{center}
+\begin{flushright}
+\large{Mr Author}
+\vspace*{4\baselineskip}
+\normalsize{\today}
+\end{flushright}
+\end{titlepage}
 \restoregeometry
 
 \paragraph{This is a test paragraph
