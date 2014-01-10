@@ -51,6 +51,9 @@ func main() {
 		if tsMatcher.MatchString(in.Text()) { // enter 'read sample' mode
 			sample += 1
 			for in.Scan() {
+				if tsMatcher.MatchString(in.Text()) {
+					sample += 1
+				}
 				if rowSepMatcher.MatchString(in.Text()) { // enter 'read row' mode
 					csvheader := "sample," // constructing this for every row will have a cost but I do not care about it now
 					row := strconv.Itoa(sample) + ","
@@ -58,9 +61,6 @@ func main() {
 						sample += 1
 					}
 					for in.Scan() {
-						if tsMatcher.MatchString(in.Text()) {
-							sample += 1
-						}
 						gotData := false
 						line := strings.Split(in.Text(), ":")
 						if len(line) > 1 {
