@@ -3,7 +3,7 @@
 % \documentclass[bidi]{tufte-handout}
  \documentclass[11pt]{report}
 
-\usepackage[left=1cm, right=4cm]{geometry}
+\usepackage[left=1cm, right=4cm, marginparwidth=3cm, marginparsep=3mm]{geometry}
 \geometry{a4paper}                   % ... or a4paper or a5paper or ... 
 
 %\geometry{landscape}                % Activate for for rotated page geometry
@@ -19,9 +19,7 @@
 % taken from: http://www.latex-community.org/forum/viewtopic.php?f=44&t=11761
 \newcommand{\nummarginnote}[1]{
 	\refstepcounter{notes}
-%	\mbox{\textsuperscript{\thenotes}}
-%	\marginnote{\mbox{\textsuperscript{\thenotes}}#1}[1.5cm]
-	\marginnote{\textsuperscript{\thenotes}#1}[1.5cm]
+	\marginpar{\textsuperscript{\thenotes}\footnotesize{#1}}
 }
 
 \DeclareGraphicsRule{.tif}{png}{.png}{`convert #1 `dirname #1`/`basename #1 .tif`.png}
@@ -36,11 +34,12 @@
 \vspace*{3\baselineskip}
 \huge{A sample report}
 \hrule\vspace{0.5cm}
-\vspace*{18\baselineskip}
+\vspace*{21\baselineskip}
 \end{center}
 \begin{flushright}
 \large{Mr Author}
-\vspace*{4\baselineskip}
+\end{flushright}
+\begin{flushright}
 \normalsize{\today}
 \end{flushright}
 \end{titlepage}
