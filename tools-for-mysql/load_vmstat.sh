@@ -5,7 +5,6 @@
 
 # TODO: labels
 
-
 HEADER="seqno,r,b,swpd,free,buff,cache,si,so,bi,bo,in,cs,us,sy,id,wa,st"
 OUTPUTFILE=/tmp/output_vmstat.$$
 
@@ -32,8 +31,11 @@ data <- read.csv("$OUTPUTFILE", header=TRUE, sep=",")
 EOF
 
 cat<<EOF>>RSCRIPT.$$
-png("vmstat_genplot.png",height=800,width=800)
-ggplot(data=data, aes(x=seqno)) + geom_point(aes(y=us),colour="blue") + geom_point(aes(y=id),colour="green") + geom_point(aes(y=sy),colour="magenta") + geom_point(aes(y=bi),colour="cyan") + geom_point(aes(y=bo),colour="pink") + theme(panel.grid=element_blank(), panel.background=element_blank(), axis.text.x=element_blank(), axis.title.x=element_blank(), axis.title.y=element_blank() )
+png("vmstat_cpu_genplot.png",height=800,width=800)
+ggplot(data=data, aes(x=seqno)) + geom_point(aes(y=us),colour="blue") + geom_point(aes(y=id),colour="green") + geom_point(aes(y=sy),colour="magenta") + theme(panel.grid=element_blank(), panel.background=element_blank(), axis.text.x=element_blank(), axis.title.x=element_blank(), axis.title.y=element_blank() )
+dev.off()
+png("vmstat_io_genplot.png",height=800,width=800)
+ggplot(data=data, aes(x=seqno)) + geom_point(aes(y=bi),colour="cyan") + geom_point(aes(y=bo),colour="pink") + theme(panel.grid=element_blank(), panel.background=element_blank(), axis.text.x=element_blank(), axis.title.x=element_blank(), axis.title.y=element_blank() )
 dev.off()
 EOF
 
