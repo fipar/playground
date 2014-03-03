@@ -59,3 +59,9 @@ d = [(10 == 10), lambda {res = "this is true!"; true}]
 puts res if d.all_true?
 puts "error 1 (won't print)" if d.any_false?
 puts "error 2 (will print)" if [lambda{false}, (10==10)].any_false?
+
+# TODO: 
+# finally, not time now, but I think the array could actually be a Hash (since the order of preconditions should not matter), with condition as key, and message as value. 
+# that way, we inject on a tuple-like variable, where we store the res and <expr> boolean result, and a concatenation of string messages, so that if the boolean part
+# of the tuple is false, we can do something with the concatenated messages, and the caller knows every item that failed. 
+
