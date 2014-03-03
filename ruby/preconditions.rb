@@ -5,13 +5,13 @@
 # desired action proc. i.e.
 # conditions [(a>=10), lambda { out, res = some_fun; res } ] lambda {return false}
 # conditions [(a>=10), lambda { out, res = some_fun; res } ] lambda {raise "post conditions fail"}
-# perhaps the cleanest interface is to just extend Array?
 
 class Object
   def is_bool?
     (self.is_a? TrueClass) || (self.is_a? FalseClass)
   end
 end
+
 
 # first draf: preconditions expects an array of booleans or Procs and returns true only if all the array elements evaluate to true
 # Procs can set the value of global variables to share the result of a computation after the preconditions are verified
@@ -34,3 +34,20 @@ puts preconditions a
 puts preconditions b
 puts preconditions c
 
+# another approach extending Array, seems nicer? 
+class Array
+  def all_true?
+    self.inject(true) { |res,i| res and ((i==true) || (i.is_a?(Proc) && (i.call==true))) }
+  end
+end
+
+puts "a.all_true? #{a.all_true?}"
+puts "b.all_true? #{b.all_true?}"
+puts "c.all_true? #{c.all_true?}"
+
+# now lets try to pass a variable
+
+res = ""
+d = [(10 == 10), lambda {res = "this is true!"; true}]
+
+puts res if d.all_true?
