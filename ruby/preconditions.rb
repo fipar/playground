@@ -39,7 +39,13 @@ class Array
   def all_true?
     self.inject(true) { |res,i| res and ((i==true) || (i.is_a?(Proc) && (i.call==true))) }
   end
+
+  def any_false?
+    not self.all_true?
+  end
+
 end
+
 
 puts "a.all_true? #{a.all_true?}"
 puts "b.all_true? #{b.all_true?}"
@@ -51,3 +57,5 @@ res = ""
 d = [(10 == 10), lambda {res = "this is true!"; true}]
 
 puts res if d.all_true?
+puts "error 1 (won't print)" if d.any_false?
+puts "error 2 (will print)" if [lambda{false}, (10==10)].any_false?
