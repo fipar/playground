@@ -24,15 +24,15 @@ def preconditions arr
   return true
 end
 
-a = [(10 == 10), lambda { true} ]
+# a = [(10 == 10), lambda { true} ]
 
-b = [(10 == 10), lambda {false} ]
+# b = [(10 == 10), lambda {false} ]
 
-c = [(10 == 11), lambda {true} ]
+# c = [(10 == 11), lambda {true} ]
 
-puts preconditions a
-puts preconditions b
-puts preconditions c
+# puts preconditions a
+# puts preconditions b
+# puts preconditions c
 
 # another approach extending Array, seems nicer? 
 class Array
@@ -47,21 +47,42 @@ class Array
 end
 
 
-puts "a.all_true? #{a.all_true?}"
-puts "b.all_true? #{b.all_true?}"
-puts "c.all_true? #{c.all_true?}"
+# puts "a.all_true? #{a.all_true?}"
+# puts "b.all_true? #{b.all_true?}"
+# puts "c.all_true? #{c.all_true?}"
 
-# now lets try to pass a variable
+# # now lets try to pass a variable
 
-res = ""
-d = [(10 == 10), lambda {res = "this is true!"; true}]
+# res = ""
+# d = [(10 == 10), lambda {res = "this is true!"; true}]
 
-puts res if d.all_true?
-puts "error 1 (won't print)" if d.any_false?
-puts "error 2 (will print)" if [lambda{false}, (10==10)].any_false?
+# puts res if d.all_true?
+# puts "error 1 (won't print)" if d.any_false?
+# puts "error 2 (will print)" if [lambda{false}, (10==10)].any_false?
 
 # TODO: 
 # finally, not time now, but I think the array could actually be a Hash (since the order of preconditions should not matter), with condition as key, and message as value. 
 # that way, we inject on a tuple-like variable, where we store the res and <expr> boolean result, and a concatenation of string messages, so that if the boolean part
 # of the tuple is false, we can do something with the concatenated messages, and the caller knows every item that failed. 
 
+class Hash
+
+  def all_true?
+    self.each { |cond,msg|
+        if (cond==false) or (cond.is_a?(Proc) && (cond.call==false))
+          return false,msg
+        end
+    }
+    return true,nil
+  end
+
+  def any_false?
+    res,cause = self.all_true?
+    return (not res),cause
+  end
+end
+
+
+res, cause = { true => "this is true", 
+  false => "this is false"}.all_true?
+puts cause if not res
