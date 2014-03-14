@@ -1,11 +1,7 @@
 require "java"
-# require "clojure.jar"
-# java_import "clojure.lang.LockingTransaction"
-# java_import "clojure.lang.Atom"
-
 
 class Class
-  def ref_attr_accessor(*args)
+  def atom_attr_accessor(*args)
     self.class_eval("
 require 'clojure.jar'
 java_import 'clojure.lang.LockingTransaction'
@@ -32,7 +28,7 @@ end
 end
 
 class ThreadSafeVar
-  ref_attr_accessor :id, :name
+  atom_attr_accessor :id, :name
 end
 
 v = ThreadSafeVar.new
