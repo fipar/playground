@@ -19,11 +19,6 @@ echo $HEADER>$OUTPUTFILE
 	cat|egrep -v 'swpd|system'|grep -v ^$|sed 's/^  *//g'|sed 's/  */,/g'|awk '{print NR, ",", $0}'>>$OUTPUTFILE
 }
 
-# this is *really* just a bad concept, so I don't forget the syntax involved. 
-# Some of the things I want to resolve: 
-# - TODO: set a proper range for the y axis depending on the variable being graphed
-# - TODO: some may be ok on an individual graph, some may work better on a combined graph (i.e. combine bi/bo, us/si/wa, r/b)
-
 cat<<EOF>RSCRIPT.$$
 require(ggplot2)
 require(ggthemes)
