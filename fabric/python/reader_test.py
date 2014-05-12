@@ -16,15 +16,17 @@ config = {
     },
     'user': 'fabric',
     'password': 'f4bric',
-    'database': 'test'
+    'database': 'test',
+    'autocommit': 'true'
 }
 
 
-fcnx = mysql.connector.connect(**config)
-fcnx.set_property(group='mycluster', mode=fabric.MODE_READWRITE)
-
+fcnx = None
 
 while 1:
+    if fcnx == None:
+        fcnx = mysql.connector.connect(**config)
+        fcnx.set_property(group='mycluster', mode=fabric.MODE_READWRITE)
     try:
         cur = fcnx.cursor()
         cur.execute("select id from test.test limit 1")
@@ -32,18 +34,19 @@ while 1:
             print id
         time.sleep(1)
     except errors.DatabaseError:
-        cnt = 10
-        while cnt > 0:
-            try:
-                print "sleeping 1 second and reconnecting"
-                time.sleep(1)
-                fcnx.close()
-                del fcnx
-                fcnx = mysql.connector.connect(**config)
-                fcnx.set_property(group='mycluster', mode=fabric.MODE_READWRITE)
-                cnt = cnt - 1
-            except:
-                cnt = cnt - 1
+        print "sleeping 1 second and reconnecting"
+        time.sleep(1)
+        del fcnx
+        fcnx = mysql.connector.connect(**config)
+        fcnx.set_property(group='mycluster', mode=fabric.MODE_READWRITE)
+        fcnx.reset_cache()
+        try:
+            cur = fcnx.cursor()
+            cur.execute("select 1")
+        except errors.InterfaceError:
+            fcnx = mysql.connector.connect(**config)
+            fcnx.set_property(group='mycluster', mode=fabric.MODE_READWRITE)
+            fcnx.reset_cache()
 # gives up with mysql.connector.errors.InterfaceError: Reported faulty server to Fabric (2003: Can't connect to MySQL server on 'node2:3306' (111 Connection refused))
 
 
