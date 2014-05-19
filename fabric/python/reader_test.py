@@ -23,15 +23,19 @@ config = {
 
 fcnx = None
 
+print "starting loop"
 while 1:
     if fcnx == None:
+	print "connecting"
         fcnx = mysql.connector.connect(**config)
         fcnx.set_property(group='mycluster', mode=fabric.MODE_READWRITE)
     try:
+	print "will run query"
         cur = fcnx.cursor()
-        cur.execute("select id from test.test limit 1")
+        cur.execute("select id, sleep(0.2) from test.test limit 1")
         for (id) in cur:
             print id
+	print "will sleep 1 second"
         time.sleep(1)
     except errors.DatabaseError:
         print "sleeping 1 second and reconnecting"
