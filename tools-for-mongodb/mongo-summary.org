@@ -10,8 +10,8 @@ I used emacs and org-mode to write this, so if you want to change the org file a
 
 * The code 
 This section contains the source code for mongo-summary. I tend to work in a bottom-up approach and so that's the order in which I explain my ideas. 
-** Utility functions 
-This section contains utility functions that will be used by the rest of the code. At the time of writing this is the only mongo tool I am working on, and therefore all the code gets tangled into a single file to be loaded by the mongodb client. If I write more tools in the future, this section is a good candidate to be tangled into a separate file for reusing purposes. 
+** Utility functions and global variables 
+This section contains utility functions that will be used by the rest of the code, and global variables used by all functions. At the time of writing this is the only mongo tool I am working on, and therefore all the code gets tangled into a single file to be loaded by the mongodb client. If I write more tools in the future, this section is a good candidate to be tangled into a separate file for reusing purposes. 
 
 pt-mysql-summary produces header lines such as this one: 
 #+BEGIN_EXAMPLE
@@ -22,13 +22,13 @@ so I need a function to generate similar lines.
 #+HEADERS: :tangle mongo-summary.js
 #+BEGIN_SRC js
   function getHeader(header, filler, length) {
-      var result = "# " + header;
+      var result = "\n# " + header + " ";
       if (result.length < length) {
           for (i=result.length; i<length; i++) {
               result += filler
           }
       }
-      return result;
+      return result + "\n";
   }
 #+END_SRC
 
@@ -37,11 +37,31 @@ This function can be used like so:
   print(getHeader("Percona Toolkit MongoDB Summary Report","#",62))
 #+END_SRC
 
+Length will always be the same and is specified by the following variable: 
+#+HEADERS: :tangle mongo-summary.js
+#+BEGIN_SRC js
+var LENGTH = 62;
+#+END_SRC
+
+Filler will also be the same all the time: 
+#+HEADERS: :tangle mongo-summary.js
+#+BEGIN_SRC js
+var FILLER = "#";
+#+END_SRC
+
 I don't know if this is already available on javascript, but I need a function to print a number and, if needed, prefix it with a 0. 
 #+HEADERS: :tangle mongo-summary.js
 #+BEGIN_SRC js
   function getFilledDatePart(datepart) {
       return datepart < 10 ? "0" + datepart : datepart;
+  }
+#+END_SRC
+
+I also need a function to determine if I'm connected to mongos or mongod. For now, I think running isMaster and looking for "msg" seems reliable, though I have not find it documented yet. 
+#+HEADERS: :tangle mongo-summary.js
+#+BEGIN_SRC js
+  function isMongos() {
+      return db.runCommand({isMaster: 1})["msg"] == "isdbgrid";
   }
 #+END_SRC
 
@@ -58,6 +78,7 @@ Let's start with a function to get the current date from [[http://docs.mongodb.o
       result["serverTime"] = aux.getFullYear() + "-" + getFilledDatePart(aux.getMonth()) + "-" + getFilledDatePart(aux.getDay()) + " " + aux.toTimeString();
       aux = db.currentOp()["inprog"];
       result["inprog"] = aux.length + " operations in progress";
+      result["hostname"] = db.hostInfo()["system"]["hostname"];
       return result;
   }
 #+END_SRC
@@ -136,8 +157,6 @@ Now we need to use getShardingSummary() to get a list of shards, and connect to 
 
 #+HEADERS: :tangle mongo-summary.js
 #+BEGIN_SRC js
-  // getInstanceBasicInfo()
-  // getReplicationSummary()
   function getShardsInfo() {
       var shardingSummary = getShardingSummary();
       var result = {};
@@ -145,7 +164,6 @@ Now we need to use getShardingSummary() to get a list of shards, and connect to 
       shardingSummary["shards"].forEach(
           function (element, index, array) {
               //var db = connect(element["host"] + "/local");
-              print("Connecting to " + element["host"]);
               var db = new Mongo(element["host"]).getDB("local")
               result["shards"].push({
                   _id: element["_id"],
@@ -153,9 +171,71 @@ Now we need to use getShardingSummary() to get a list of shards, and connect to 
                   hostInfo: getInstanceBasicInfo(db),
                   replicationSummary: getReplicationSummary(db)
               })
-              print(element["host"]);
           }
       );
       return result;
   }
+#+END_SRC
+
+** Presentation 
+   
+Now it's time to put it all together and print the report. 
+This is not a function, because it is what will be run by the mongo shell when it is invoked with this js file as argument. 
+
+#+HEADERS: :tangle mongo-summary.js
+#+BEGIN_SRC js
+  // getHeader(header, filler, length)
+  // length should always be 62
+  // getInstanceBasicInfo()
+  //  serverTime and inprog
+  // getReplicationSummary()
+  //  ok, summary, members, summaryExtra
+  // getShardingSummary()
+  //  shards, shardedDatabases, unshardedDatabases
+  // getShardsInfo()
+  //  shards: _id, host, hostInfo, replicationSummary
+  print(getHeader("Percona Toolkit MongoDB Summary Report",FILLER,LENGTH));
+  var aux = getInstanceBasicInfo(db);
+  print("Report generated on " + aux["hostname"] + " at " + aux["serverTime"]);
+  print(aux["inprog"]);
+  if (isMongos()) {
+      print(getHeader("Sharding Summary (mongos detected)",FILLER,LENGTH));
+      aux = getShardingSummary();
+      print("Detected " + aux["shards"].length + " shards");
+      print("Sharded databases: ");
+      aux["shardedDatabases"].forEach(function (element, array, index) {print("  " + element["_id"]);});
+      print("");
+      print("Unsharded databases: ");
+      aux["unshardedDatabases"].forEach(function (element, array, index) {print("  " + element["_id"]);});
+      print("");
+      print(getHeader("Shards detail",FILLER,LENGTH));
+      getShardsInfo()["shards"].forEach(
+          function (element, array, index) {
+              print("Shard " + element["_id"] + " @ " + element["host"]);
+              print("(" + element["hostInfo"]["inprog"] + ")");
+              print(element["replicationSummary"]["summary"]);
+              print(element["replicationSummary"]["summaryExtra"]);
+              print("");
+          }
+      );
+  } else { 
+      print(getHeader("Replication summary",FILLER,LENGTH));
+      aux = getReplicationSummary(db);
+      print(aux["summary"]);
+      print(aux["summaryExtra"]);
+      if (aux["members"].length > 0) {
+          print(getHeader("Replica set members",FILLER,LENGTH));
+          aux["members"].forEach(
+              function(member, array, index) {
+                  print(member);
+              }
+          );
+      }
+  } 
+#+END_SRC
+
+And finally, create a shell script that can invoke the js with the right arguments
+#+HEADERS: :tangle mongo-summary.sh
+#+BEGIN_SRC sh
+  mongo mongo-summary.js $*
 #+END_SRC
