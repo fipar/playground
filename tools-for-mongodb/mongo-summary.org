@@ -1,0 +1,161 @@
+* Introduction
+mongo-summary attempts to provide a similar behavior to pt-mysql-summary but for mongodb/tokumx servers. 
+
+I decided to write this in Javascript, since that lets me make use of the mongodb shell and not have any external dependencies at all. For example, I did some basic tests with python and PyMongo early on, but this means the target system must have PyMongo installed, and it can't have a bson package installed, as PyMongo provides its own (and AFAIK incompatible) one. 
+
+I am not a Javascript programmer so a lot of the code probably will feel odd or even ugly to seasoned Javascript programmers.  
+
+* Generating the utility
+I used emacs and org-mode to write this, so if you want to change the org file and generate the resulting js again, you'll need to extract source code from the org file. This is done via the org-babel-tangle function, which by default is bound to C-c C-v t. You can find more information about this process [[http://orgmode.org/manual/Extracting-source-code.html][here]].
+
+* The code 
+This section contains the source code for mongo-summary. I tend to work in a bottom-up approach and so that's the order in which I explain my ideas. 
+** Utility functions 
+This section contains utility functions that will be used by the rest of the code. At the time of writing this is the only mongo tool I am working on, and therefore all the code gets tangled into a single file to be loaded by the mongodb client. If I write more tools in the future, this section is a good candidate to be tangled into a separate file for reusing purposes. 
+
+pt-mysql-summary produces header lines such as this one: 
+#+BEGIN_EXAMPLE
+# Percona Toolkit MySQL Summary Report #######################
+#+END_EXAMPLE
+so I need a function to generate similar lines. 
+
+#+HEADERS: :tangle mongo-summary.js
+#+BEGIN_SRC js
+  function getHeader(header, filler, length) {
+      var result = "# " + header;
+      if (result.length < length) {
+          for (i=result.length; i<length; i++) {
+              result += filler
+          }
+      }
+      return result;
+  }
+#+END_SRC
+
+This function can be used like so: 
+#+BEGIN_SRC js
+  print(getHeader("Percona Toolkit MongoDB Summary Report","#",62))
+#+END_SRC
+
+I don't know if this is already available on javascript, but I need a function to print a number and, if needed, prefix it with a 0. 
+#+HEADERS: :tangle mongo-summary.js
+#+BEGIN_SRC js
+  function getFilledDatePart(datepart) {
+      return datepart < 10 ? "0" + datepart : datepart;
+  }
+#+END_SRC
+
+** mongod info functions
+This section contains functions used to obtain information about a mongodb/tokumx instance, while connected to it via mongo. Functions to obtain information while connected to mongos are included in the next section. 
+
+Let's start with a function to get the current date from [[http://docs.mongodb.org/manual/reference/method/db.hostInfo/#db.hostInfo][hostInfo]], and some basic info about operations in progress. 
+#+HEADERS: :tangle mongo-summary.js
+#+BEGIN_SRC js
+  function getInstanceBasicInfo(db) {
+      var result = {};
+      var aux;
+      aux = db.hostInfo()["system"]["currentTime"];
+      result["serverTime"] = aux.getFullYear() + "-" + getFilledDatePart(aux.getMonth()) + "-" + getFilledDatePart(aux.getDay()) + " " + aux.toTimeString();
+      aux = db.currentOp()["inprog"];
+      result["inprog"] = aux.length + " operations in progress";
+      return result;
+  }
+#+END_SRC
+
+Now get some info about replication. We want to know if we're a standalone instance (which should only happen in dev/testing) or part of a replica set.  
+#+HEADERS: :tangle mongo-summary.js
+#+BEGIN_SRC js
+  function getReplicationSummary(db) {
+      var result = {};
+      var rstatus = db._adminCommand("replSetGetStatus");
+      result["ok"] = rstatus["ok"];
+      if (rstatus["ok"]==0) {
+          // This is either not a replica set, or there is an error
+          if (rstatus["errmsg"] == "not running with --replSet") {
+             result["summary"] = "Standalone mongod" 
+          } else {
+              result["summary"] = "Replication error: " + rstatus["errmsg"]
+          }
+      } else {
+          // This is a replica set
+          var secondaries = 0;
+          var arbiters = 0;
+          result["members"] = [];
+          rstatus["members"].forEach(
+              function (element, index, array) {
+                  if (element["self"]) {
+                      result["summary"] = "Node is " + element["stateStr"] + " in a " + rstatus["members"].length + " members replica set"
+                  } else {
+                      if (element["state"] == 2) {
+                          secondaries++;
+                      } else if (element["state"] == 7) {
+                          arbiters++;
+                      }
+                  }
+                  result["members"].push(element["name"]);
+              }
+          )
+          result["summaryExtra"] = "The set has " + secondaries + " secondaries and " + arbiters + " arbiters";
+      }
+      return result;
+  } 
+#+END_SRC 
+
+** mongos info functions
+This section contains functions used to obtain sharding information and can only be used while connected to mongodb/tokumx via mongos.  
+Let's start with getting a list of shard nodes and sharded collections.
+We can get this info from sh.status(): 
+
+#+HEADERS: :tangle mongo-summary.js
+#+BEGIN_SRC js
+  function getShardingSummary() {
+      var result = {};
+      result["shards"] = [];
+      result["shardedDatabases"] = [];
+      result["unshardedDatabases"] = [];
+      var con = db.getMongo().getDB("config");
+      con.databases.find().forEach(
+          function (element, index, array) {
+              if (element["partitioned"]) {
+                  result["shardedDatabases"].push(element);
+              } else {
+                  result["unshardedDatabases"].push(element);
+              }
+          }
+      );
+      con.shards.find().forEach (
+          function (element, index, array) {
+              result["shards"].push({_id: element["_id"], host: element["host"].slice(element["host"].indexOf("/")+1,element["host"].length)});
+          }
+      );
+      return result;
+  }
+#+END_SRC
+
+Now we need to use getShardingSummary() to get a list of shards, and connect to each shard to run the mongod info functions. 
+
+#+HEADERS: :tangle mongo-summary.js
+#+BEGIN_SRC js
+  // getInstanceBasicInfo()
+  // getReplicationSummary()
+  function getShardsInfo() {
+      var shardingSummary = getShardingSummary();
+      var result = {};
+      result["shards"] = [];
+      shardingSummary["shards"].forEach(
+          function (element, index, array) {
+              //var db = connect(element["host"] + "/local");
+              print("Connecting to " + element["host"]);
+              var db = new Mongo(element["host"]).getDB("local")
+              result["shards"].push({
+                  _id: element["_id"],
+                  host: element["host"],
+                  hostInfo: getInstanceBasicInfo(db),
+                  replicationSummary: getReplicationSummary(db)
+              })
+              print(element["host"]);
+          }
+      );
+      return result;
+  }
+#+END_SRC
