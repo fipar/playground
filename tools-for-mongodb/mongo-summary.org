@@ -6,7 +6,21 @@ I decided to write this in Javascript, since that lets me make use of the mongod
 I am not a Javascript programmer so a lot of the code probably will feel odd or even ugly to seasoned Javascript programmers.  
 
 * Generating the utility
-I used emacs and org-mode to write this, so if you want to change the org file and generate the resulting js again, you'll need to extract source code from the org file. This is done via the org-babel-tangle function, which by default is bound to C-c C-v t. You can find more information about this process [[http://orgmode.org/manual/Extracting-source-code.html][here]].
+I used emacs and org-mode to write this, so if you want to change the org file and generate the resulting files again, you'll need to extract source code from the org file. This is done via the org-babel-tangle function, which by default is bound to C-c C-v t. You can find more information about this process [[http://orgmode.org/manual/Extracting-source-code.html][here]].
+* Usage
+Tangling will generate two files: 
+- mongo-summary.js
+- mongo-summary.sh
+
+The second one is a basic wrapper to invoke mongo with the script as an argument.
+As it is currently just a test, it must be invoked from the same dir as where the js file lives. 
+You should invoke the script with any arguments you'd pass to mongo, i.e.: 
+
+#+BEGIN_EXAMPLE
+./mongo-summary.sh --port 29000
+#+END_EXAMPLE
+
+Remember to chmod +x mongo-summary.sh as org-mode won't do that when tangling. 
 
 * The code 
 This section contains the source code for mongo-summary. I tend to work in a bottom-up approach and so that's the order in which I explain my ideas. 
