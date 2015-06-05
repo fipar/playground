@@ -191,6 +191,37 @@ Now we need to use getShardingSummary() to get a list of shards, and connect to 
   }
 #+END_SRC
 
+** gathering additional information 
+Besides the summarized information, we want to gather raw data (json output from mongod and plain text from log and config files) and optionally include it in the report for review. 
+
+Because we want this to be optionally included, it will get sent to a separate js file. 
+
+#+HEADERS: :tangle mongo-summary-extra.js
+#+BEGIN_SRC js
+  function printExtraDiagnosticsInfo() {
+#+END_SRC
+
+Let's start with getting a list of databases and their collections: 
+#+HEADERS: :tangle mongo-summary-extra.js
+#+BEGIN_SRC js
+      db.adminCommand('listDatabases')["databases"].forEach(
+          function (element, array, index) {
+              var auxdb = db.getSiblingDB(element["name"]);
+              var cols = auxdb.getCollectionNames();
+              print(element["name"] + " has " + cols.length + " collections and " + element["sizeOnDisk"] + " bytes on disk");
+              if (cols.length > 0) {
+                  print("Collections: ");
+                  cols.forEach(
+                      function (element, array, index) {
+                          print("   " + element);
+                      }
+                  );
+              }
+          }
+      );
+  }
+#+END_SRC
+
 ** Presentation 
    
 Now it's time to put it all together and print the report. 
@@ -248,8 +279,21 @@ This is not a function, because it is what will be run by the mongo shell when i
   } 
 #+END_SRC
 
+We also need presentation code for the extra script. 
+
+#+HEADERS: :tangle mongo-summary-extra.js
+#+BEGIN_SRC js
+printExtraDiagnosticsInfo();
+#+END_SRC
+
 And finally, create a shell script that can invoke the js with the right arguments
 #+HEADERS: :tangle mongo-summary.sh
 #+BEGIN_SRC sh
-  mongo mongo-summary.js $*
+    extra=0
+    [ "$1" == "--extra" ] && {
+        extra=1
+        shift
+    }
+    mongo mongo-summary.js $*
+    [ $extra -eq 1 ] && mongo mongo-summary-extra.js $*
 #+END_SRC
