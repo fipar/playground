@@ -25,7 +25,7 @@ Remember to chmod +x mongo-summary.sh as org-mode won't do that when tangling.
 * The code 
 This section contains the source code for mongo-summary. I tend to work in a bottom-up approach and so that's the order in which I explain my ideas. 
 ** Utility functions and global variables 
-This section contains utility functions that will be used by the rest of the code, and global variables used by all functions. At the time of writing this is the only mongo tool I am working on, and therefore all the code gets tangled into a single file to be loaded by the mongodb client. If I write more tools in the future, this section is a good candidate to be tangled into a separate file for reusing purposes. 
+This section contains utility functions that will be used by the rest of the code, and global variables used by all functions. 
 
 pt-mysql-summary produces header lines such as this one: 
 #+BEGIN_EXAMPLE
@@ -33,7 +33,7 @@ pt-mysql-summary produces header lines such as this one:
 #+END_EXAMPLE
 so I need a function to generate similar lines. 
 
-#+HEADERS: :tangle mongo-summary.js
+#+NAME: getHeader
 #+BEGIN_SRC js
   function getHeader(header, filler, length) {
       var result = "\n# " + header + " ";
@@ -52,13 +52,13 @@ This function can be used like so:
 #+END_SRC
 
 Length will always be the same and is specified by the following variable: 
-#+HEADERS: :tangle mongo-summary.js
+#+NAME: length
 #+BEGIN_SRC js
 var LENGTH = 62;
 #+END_SRC
 
 Filler will also be the same all the time: 
-#+HEADERS: :tangle mongo-summary.js
+#+NAME: filler 
 #+BEGIN_SRC js
 var FILLER = "#";
 #+END_SRC
@@ -72,11 +72,28 @@ I don't know if this is already available on javascript, but I need a function t
 #+END_SRC
 
 I also need a function to determine if I'm connected to mongos or mongod. For now, I think running isMaster and looking for "msg" seems reliable, though I have not find it documented yet. 
-#+HEADERS: :tangle mongo-summary.js
+#+NAME: isMongos 
 #+BEGIN_SRC js
   function isMongos() {
       return db.runCommand({isMaster: 1})["msg"] == "isdbgrid";
   }
+#+END_SRC
+
+Now, let's write these functions to both scripts
+#+HEADERS: :tangle mongo-summary.js :noweb yes
+#+BEGIN_SRC js
+<<getHeader>>
+<<length>>
+<<filler>>
+<<isMongos>>
+#+END_SRC
+
+#+HEADERS: :tangle mongo-summary-extra.js :noweb yes
+#+BEGIN_SRC js
+<<getHeader>>
+<<length>>
+<<filler>>
+<<isMongos>>
 #+END_SRC
 
 ** mongod info functions
@@ -199,6 +216,7 @@ Because we want this to be optionally included, it will get sent to a separate j
 #+HEADERS: :tangle mongo-summary-extra.js
 #+BEGIN_SRC js
   function printExtraDiagnosticsInfo() {
+      print(getHeader("Extra info",FILLER,LENGTH));
 #+END_SRC
 
 Let's start with getting a list of databases and their collections: 
@@ -219,6 +237,27 @@ Let's start with getting a list of databases and their collections:
               }
           }
       );
+#+END_SRC
+
+Now print some raw json (some of which we've summarized already) depending on the node type we're on
+#+HEADERS: :tangle mongo-summary-extra.js
+#+BEGIN_SRC js
+      if (isMongos()) {
+          sh.status();
+      } else {
+          printjson(db.adminCommand('replSetGetStatus')); 
+      }
+      db.isMaster();
+      print(getHeader("Logs",FILLER,LENGTH));
+      db.adminCommand({'getLog': '*'})["names"].forEach(
+          function (element, array, index) {
+              db.adminCommand({'getLog': element})["log"].forEach(
+                  function (element, array, index) {
+                      print(element);
+                  }
+              );
+          }
+      );
   }
 #+END_SRC
 
@@ -229,16 +268,6 @@ This is not a function, because it is what will be run by the mongo shell when i
 
 #+HEADERS: :tangle mongo-summary.js
 #+BEGIN_SRC js
-  // getHeader(header, filler, length)
-  // length should always be 62
-  // getInstanceBasicInfo()
-  //  serverTime and inprog
-  // getReplicationSummary()
-  //  ok, summary, members, summaryExtra
-  // getShardingSummary()
-  //  shards, shardedDatabases, unshardedDatabases
-  // getShardsInfo()
-  //  shards: _id, host, hostInfo, replicationSummary
   print(getHeader("Percona Toolkit MongoDB Summary Report",FILLER,LENGTH));
   var aux = getInstanceBasicInfo(db);
   print("Report generated on " + aux["hostname"] + " at " + aux["serverTime"]);
