@@ -353,6 +353,12 @@ mst_BASE_PORT is the base tcp port we'll use to deploy our test instances:
 export mst_BASE_PORT=28000
 #+END_SRC
 
+We need the same variable in our js for tests, but it has one less zero, because I'll treat is a string in js, so I'll be concatenating to it, instead of adding.  
+#+NAME: js-tests-header
+#+BEGIN_SRC js
+var BASE_PORT=2800
+#+END_SRC
+
 None of this functions does any validation on arguments, as they're only meant for internal use. We use the mst_ (mongo summary tests) prefix for all functions and variables to avoid polluting the namespace. 
 Creating a dbpath is just mkdir, with the precaution that if it exists, we'll purge it, so we don't have any lingering data between tests. This function expects a single argument that is a relative name for the dbpath. This will normally consist of a descriptive prefix + a number, when needed, like shard1, or replSetTest2. 
 
@@ -370,12 +376,17 @@ This function takes the following arguments:
 - $1: program name (mongod or mongos)
 - $2: dbpath
 - $3: port
+- other arguments: passed directly to mongod/mongos
 #+HEADERS: :tangle mongo-summary-test.sh
 #+BEGIN_SRC sh
   function mst_startInstance()
   {
-      mst_createDatadir $2
-      $1 --dbpath=$mst_DBPATH_ROOT/$2 --port=$3 --logpath $mst_DBPATH_ROOT/$2/log --fork --pidfilepath $mst_DBPATH_ROOT/$2/pid
+      program=$1
+      dbpath=$2
+      port=$3
+      mst_createDatadir $dbpath
+      shift; shift; shift
+      $program --dbpath=$mst_DBPATH_ROOT/$dbpath --port=$port --logpath $mst_DBPATH_ROOT/$dbpath/log --fork --pidfilepath $mst_DBPATH_ROOT/$dbpath/pid $*
       sleep 5
   }
 #+END_SRC
@@ -406,5 +417,50 @@ We just need to:
   }
 #+END_SRC
 *** replica set
+For this test we need to start four instances: 
+- a primary 
+- two secondaries
+- an arbiter 
+#+HEADERS: :tangle mongo-summary-test.sh
+#+BEGIN_SRC sh
+  function mst_test_replica_test()
+  {
+      nodes="primary secondary1 secondary2 arbiter"
+      port_offset=0
+      for node in $nodes; do
+          mst_startInstance mongod $node $((mst_BASE_PORT + port_offset)) --replSet "test"
+          port_offset=$((port_offset + 1))
+      done
+#+END_SRC
+Now, we need to configure the replica set. 
+
+#+HEADERS: :tangle mongo-summary-test-replset.js :noweb yes
+#+BEGIN_SRC js
+    <<js-tests-header>>
+    rs.initiate();
+    var prefix = "telecaster:"+BASE_PORT;
+    [ prefix+0 ,prefix+1, prefix+2, prefix+3].forEach(
+        function (element, array, index) {
+            if (element=="telecaster:"+BASE_PORT+3) {
+                rs.add(element,true);
+            } else {
+                rs.add(element);
+            }
+            rs.config();
+        }
+    ); 
+#+END_SRC
+
+And now we're ready to generate the report and stop the instances. 
+#+HEADERS: :tangle mongo-summary-test.sh
+#+BEGIN_SRC sh
+      mongo --port $mst_BASE_PORT mongo-summary-test-replset.js
+      echo "Sleeping 2 seconds wainting for the replica set configuration to get applied" && sleep 2
+      sh mongo-summary.sh --extra --port $mst_BASE_PORT > test_replica_set.result.txt
+      for node in $nodes; do
+          mst_stopInstance $node
+      done
+  }
+#+END_SRC
 *** sharded cluster
 *** sharded cluster of replica sets
