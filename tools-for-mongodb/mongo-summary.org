@@ -518,7 +518,7 @@ We can now enable sharding for a database:
 #+HEADERS: :tangle mongo-summary-test.sh
 #+BEGIN_SRC sh
 mongo --port $mongos_port --eval "sh.enableSharding(\"test\")" 
-mongo --port $mongos_port $mst_HOSTNAME/test --eval 'db.test.insert({test:true})'
+mongo $mst_HOSTNAME:$mongos_port/test --eval 'db.test.insert({test:true})'
 #+END_SRC
 
 And we're now ready to run the test and stop the instances: 
@@ -537,3 +537,84 @@ And we're now ready to run the test and stop the instances:
 
 
 *** sharded cluster of replica sets
+This is the same as the previous case, except that we need 4 data nodes, as each shard will be placed on a two node replica set. 
+
+#+HEADERS: :tangle mongo-summary-test.sh
+#+BEGIN_SRC sh
+  function mst_test_shard_replset()
+  {
+      nodes="shard1_1 shard1_2 shard2_1 shard2_2 config1 config2 config3 mongos"
+      port_offset=0
+      config1_port=$((mst_BASE_PORT + 4))
+      config2_port=$((mst_BASE_PORT + 5))
+      config3_port=$((mst_BASE_PORT + 6))
+      mongos_port=$((mst_BASE_PORT + 7))
+      for node in $nodes; do 
+          if [ $(echo $node|grep -c config) -gt 0 ]; then
+              mst_startInstance mongod $node $((mst_BASE_PORT + port_offset)) --configsvr
+          elif [ "$node" == "mongos" ]; then
+              mst_startInstance mongos $node $((mst_BASE_PORT + port_offset)) --configdb "$mst_HOSTNAME:$config1_port,$mst_HOSTNAME:$config2_port,$mst_HOSTNAME:$config3_port"
+          elif [ $(echo $node|grep -c shard1) -gt 0 ]; then
+              mst_startInstance mongod $node $((mst_BASE_PORT + port_offset)) --replSet rs1
+          else
+              mst_startInstance mongod $node $((mst_BASE_PORT + port_offset)) --replSet rs2
+          fi
+          port_offset=$((port_offset + 1))
+      done
+
+#+END_SRC
+
+Now we need to configure the replica sets. 
+
+#+HEADERS: :tangle mongo-summary-test-sharded-rs1.js :noweb yes
+#+BEGIN_SRC js
+    <<js-tests-header>>
+    rs.initiate();
+    var prefix = HOSTNAME+":"+BASE_PORT;
+    [ prefix+0 ,prefix+1 ].forEach(
+        function (element, array, index) {
+            rs.add(element);
+            rs.config();
+        }
+    ); 
+#+END_SRC
+
+#+HEADERS: :tangle mongo-summary-test-sharded-rs2.js :noweb yes
+#+BEGIN_SRC js
+    <<js-tests-header>>
+    rs.initiate();
+    var prefix = HOSTNAME+":"+BASE_PORT;
+    [ prefix+2, prefix+3 ].forEach(
+        function (element, array, index) {
+            rs.add(element);
+            rs.config();
+        }
+    ); 
+#+END_SRC
+I need to run the sharded-rsN scripts twice because otherwise the secondary won't get added to the replica set. 
+#+HEADERS: :tangle mongo-summary-test.sh
+#+BEGIN_SRC sh
+      mongo --port $mst_BASE_PORT mongo-summary-test-sharded-rs1.js
+      sleep 1
+      mongo --port $((mst_BASE_PORT+2)) mongo-summary-test-sharded-rs2.js
+      sleep 1
+      mongo --port $mst_BASE_PORT mongo-summary-test-sharded-rs1.js
+      sleep 1
+      mongo --port $((mst_BASE_PORT+2)) mongo-summary-test-sharded-rs2.js
+      sleep 1
+      for port in $mst_BASE_PORT $((mst_BASE_PORT + 1)); do
+          mongo --port $mongos_port --eval "sh.addShard(\"rs1/$mst_HOSTNAME:$port\")"
+      done
+      for port in $((mst_BASE_PORT + 2)) $((mst_BASE_PORT + 3)); do
+          mongo --port $mongos_port --eval "sh.addShard(\"rs2/$mst_HOSTNAME:$port\")"
+      done
+      
+      mongo --port $mongos_port --eval "sh.enableSharding(\"test\")"
+      mongo $mst_HOSTNAME:$mongos_port/test --eval 'db.test.insert({test:true})'
+      
+      sh mongo-summary.sh --extra --port $mongos_port > test_sharded_cluster_replset.result.txt
+      for node in $nodes; do
+          mst_stopInstance $node
+      done
+  }
+#+END_SRC
