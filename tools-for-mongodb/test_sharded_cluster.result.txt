@@ -1,0 +1,131 @@
+MongoDB shell version: 2.6.5
+connecting to: 127.0.0.1:28005/test
+
+# Percona Toolkit MongoDB Summary Report ####################
+
+Report generated on telecaster.local:28005 at 2015-05-06 19:22:00 GMT-0300 (UYT)
+0 operations in progress
+
+# Sharding Summary (mongos detected) ########################
+
+Detected 2 shards
+Sharded databases: 
+  test
+
+Unsharded databases: 
+  admin
+
+
+# Shards detail #############################################
+
+Shard shard0000 @ telecaster:28000
+(0 operations in progress)
+Standalone mongod
+undefined
+
+Shard shard0001 @ telecaster:28001
+(0 operations in progress)
+Standalone mongod
+undefined
+
+MongoDB shell version: 2.6.5
+connecting to: 127.0.0.1:28005/test
+
+# Extra info ################################################
+
+config has 10 collections and 16777216 bytes on disk
+Collections: 
+   changelog
+   chunks
+   databases
+   lockpings
+   locks
+   mongos
+   settings
+   shards
+   system.indexes
+   version
+admin has 0 collections and 0 bytes on disk
+--- Sharding Status --- 
+  sharding version: {
+	"_id" : 1,
+	"version" : 4,
+	"minCompatibleVersion" : 4,
+	"currentVersion" : 5,
+	"clusterId" : ObjectId("55737282b5e5f1557cae8722")
+}
+  shards:
+	{  "_id" : "shard0000",  "host" : "telecaster:28000" }
+	{  "_id" : "shard0001",  "host" : "telecaster:28001" }
+  databases:
+	{  "_id" : "admin",  "partitioned" : false,  "primary" : "config" }
+	{  "_id" : "test",  "partitioned" : true,  "primary" : "shard0000" }
+
+
+# Logs ######################################################
+
+2015-06-06T19:21:54.193-0300 [mongosMain] MongoS version 2.6.5 starting: pid=53097 port=28005 64-bit host=telecaster.local (--help for usage)
+2015-06-06T19:21:54.194-0300 [mongosMain] db version v2.6.5
+2015-06-06T19:21:54.194-0300 [mongosMain] git version: nogitversion
+2015-06-06T19:21:54.194-0300 [mongosMain] build info: Darwin miniyosemite.local 14.0.0 Darwin Kernel Version 14.0.0: Fri Sep 19 00:26:44 PDT 2014; root:xnu-2782.1.97~2/RELEASE_X86_64 x86_64 BOOST_LIB_VERSION=1_49
+2015-06-06T19:21:54.194-0300 [mongosMain] allocator: tcmalloc
+2015-06-06T19:21:54.194-0300 [mongosMain] options: { net: { port: 28005 }, processManagement: { fork: true, pidFilePath: "/Users/fernandoipar/mongo-summary-tests//mongos/pid" }, sharding: { configDB: "telecaster:28002,telecaster:28003,telecaster:28004" }, systemLog: { destination: "file", path: "/Users/fernandoipar/mongo-summary-tests//mongos/log" } }
+2015-06-06T19:21:54.198-0300 [mongosMain] SyncClusterConnection connecting to [telecaster:28002]
+2015-06-06T19:21:54.198-0300 [mongosMain] SyncClusterConnection connecting to [telecaster:28003]
+2015-06-06T19:21:54.199-0300 [mongosMain] SyncClusterConnection connecting to [telecaster:28004]
+2015-06-06T19:21:54.241-0300 [mongosMain] scoped connection to telecaster:28002,telecaster:28003,telecaster:28004 not being returned to the pool
+2015-06-06T19:21:54.245-0300 [mongosMain] SyncClusterConnection connecting to [telecaster:28002]
+2015-06-06T19:21:54.245-0300 [LockPinger] creating distributed lock ping thread for telecaster:28002,telecaster:28003,telecaster:28004 and process telecaster.local:28005:1433629314:16807 (sleeping for 30000ms)
+2015-06-06T19:21:54.245-0300 [LockPinger] SyncClusterConnection connecting to [telecaster:28002]
+2015-06-06T19:21:54.245-0300 [mongosMain] SyncClusterConnection connecting to [telecaster:28003]
+2015-06-06T19:21:54.246-0300 [LockPinger] SyncClusterConnection connecting to [telecaster:28003]
+2015-06-06T19:21:54.246-0300 [mongosMain] SyncClusterConnection connecting to [telecaster:28004]
+2015-06-06T19:21:54.247-0300 [LockPinger] SyncClusterConnection connecting to [telecaster:28004]
+2015-06-06T19:21:54.746-0300 [LockPinger] cluster telecaster:28002,telecaster:28003,telecaster:28004 pinged successfully at Sat Jun  6 19:21:54 2015 by distributed lock pinger 'telecaster:28002,telecaster:28003,telecaster:28004/telecaster.local:28005:1433629314:16807', sleeping for 30000ms
+2015-06-06T19:21:54.818-0300 [mongosMain] distributed lock 'configUpgrade/telecaster.local:28005:1433629314:16807' acquired, ts : 55737282b5e5f1557cae8720
+2015-06-06T19:21:54.820-0300 [mongosMain] starting upgrade of config server from v0 to v5
+2015-06-06T19:21:54.820-0300 [mongosMain] starting next upgrade step from v0 to v5
+2015-06-06T19:21:54.820-0300 [mongosMain] about to log new metadata event: { _id: "telecaster.local-2015-06-06T22:21:54-55737282b5e5f1557cae8721", server: "telecaster.local", clientAddr: "N/A", time: new Date(1433629314820), what: "starting upgrade of config database", ns: "config.version", details: { from: 0, to: 5 } }
+2015-06-06T19:21:54.960-0300 [mongosMain] creating WriteBackListener for: telecaster:28002 serverID: 000000000000000000000000
+2015-06-06T19:21:54.963-0300 [mongosMain] creating WriteBackListener for: telecaster:28003 serverID: 000000000000000000000000
+2015-06-06T19:21:54.965-0300 [mongosMain] creating WriteBackListener for: telecaster:28004 serverID: 000000000000000000000000
+2015-06-06T19:21:54.975-0300 [mongosMain] writing initial config version at v5
+2015-06-06T19:21:54.987-0300 [mongosMain] about to log new metadata event: { _id: "telecaster.local-2015-06-06T22:21:54-55737282b5e5f1557cae8723", server: "telecaster.local", clientAddr: "N/A", time: new Date(1433629314987), what: "finished upgrade of config database", ns: "config.version", details: { from: 0, to: 5 } }
+2015-06-06T19:21:54.994-0300 [mongosMain] upgrade of config server to v5 successful
+2015-06-06T19:21:55.144-0300 [mongosMain] distributed lock 'configUpgrade/telecaster.local:28005:1433629314:16807' unlocked. 
+2015-06-06T19:21:55.225-0300 [mongosMain] scoped connection to telecaster:28002,telecaster:28003,telecaster:28004 not being returned to the pool
+2015-06-06T19:21:55.225-0300 [Balancer] about to contact config servers and shards
+2015-06-06T19:21:55.225-0300 [Balancer] SyncClusterConnection connecting to [telecaster:28002]
+2015-06-06T19:21:55.226-0300 [mongosMain] waiting for connections on port 28005
+2015-06-06T19:21:55.226-0300 [Balancer] SyncClusterConnection connecting to [telecaster:28003]
+2015-06-06T19:21:55.227-0300 [Balancer] SyncClusterConnection connecting to [telecaster:28004]
+2015-06-06T19:21:55.228-0300 [Balancer] config servers and shards contacted successfully
+2015-06-06T19:21:55.228-0300 [Balancer] balancer id: telecaster.local:28005 started at Jun  6 19:21:55
+2015-06-06T19:21:55.231-0300 [Balancer] SyncClusterConnection connecting to [telecaster:28002]
+2015-06-06T19:21:55.231-0300 [Balancer] SyncClusterConnection connecting to [telecaster:28003]
+2015-06-06T19:21:55.232-0300 [Balancer] SyncClusterConnection connecting to [telecaster:28004]
+2015-06-06T19:21:55.694-0300 [Balancer] distributed lock 'balancer/telecaster.local:28005:1433629314:16807' acquired, ts : 55737283b5e5f1557cae8725
+2015-06-06T19:21:55.847-0300 [Balancer] distributed lock 'balancer/telecaster.local:28005:1433629314:16807' unlocked. 
+2015-06-06T19:22:00.283-0300 [mongosMain] connection accepted from 127.0.0.1:62695 #1 (1 connection now open)
+2015-06-06T19:22:00.284-0300 [conn1] couldn't find database [admin] in config db
+2015-06-06T19:22:00.295-0300 [conn1] 	 put [admin] on: config:telecaster:28002,telecaster:28003,telecaster:28004
+2015-06-06T19:22:00.300-0300 [conn1] going to add shard: { _id: "shard0000", host: "telecaster:28000" }
+2015-06-06T19:22:00.307-0300 [conn1] about to log metadata event: { _id: "telecaster.local-2015-06-06T22:22:00-55737288b5e5f1557cae8726", server: "telecaster.local", clientAddr: "N/A", time: new Date(1433629320307), what: "addShard", ns: "", details: { name: "shard0000", host: "telecaster:28000" } }
+2015-06-06T19:22:00.540-0300 [conn1] end connection 127.0.0.1:62695 (0 connections now open)
+2015-06-06T19:22:00.595-0300 [mongosMain] connection accepted from 127.0.0.1:62697 #2 (1 connection now open)
+2015-06-06T19:22:00.598-0300 [conn2] going to add shard: { _id: "shard0001", host: "telecaster:28001" }
+2015-06-06T19:22:00.610-0300 [conn2] about to log metadata event: { _id: "telecaster.local-2015-06-06T22:22:00-55737288b5e5f1557cae8727", server: "telecaster.local", clientAddr: "N/A", time: new Date(1433629320610), what: "addShard", ns: "", details: { name: "shard0001", host: "telecaster:28001" } }
+2015-06-06T19:22:00.621-0300 [conn2] end connection 127.0.0.1:62697 (0 connections now open)
+2015-06-06T19:22:00.666-0300 [mongosMain] connection accepted from 127.0.0.1:62699 #3 (1 connection now open)
+2015-06-06T19:22:00.667-0300 [conn3] couldn't find database [test] in config db
+2015-06-06T19:22:00.675-0300 [conn3] 	 put [test] on: shard0000:telecaster:28000
+2015-06-06T19:22:00.677-0300 [conn3] enabling sharding on: test
+2015-06-06T19:22:00.686-0300 [conn3] end connection 127.0.0.1:62699 (0 connections now open)
+2015-06-06T19:22:00.755-0300 [mongosMain] connection accepted from 127.0.0.1:62700 #4 (1 connection now open)
+2015-06-06T19:22:00.761-0300 [conn4] creating WriteBackListener for: telecaster:28000 serverID: 55737283b5e5f1557cae8724
+2015-06-06T19:22:00.763-0300 [conn4] creating WriteBackListener for: telecaster:28001 serverID: 55737283b5e5f1557cae8724
+2015-06-06T19:22:00.764-0300 [conn4] SyncClusterConnection connecting to [telecaster:28002]
+2015-06-06T19:22:00.764-0300 [conn4] SyncClusterConnection connecting to [telecaster:28003]
+2015-06-06T19:22:00.765-0300 [conn4] SyncClusterConnection connecting to [telecaster:28004]
+2015-06-06T19:22:00.773-0300 [conn4] end connection 127.0.0.1:62700 (0 connections now open)
+2015-06-06T19:22:00.821-0300 [mongosMain] connection accepted from 127.0.0.1:62708 #5 (1 connection now open)

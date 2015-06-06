@@ -1,0 +1,435 @@
+MongoDB shell version: 2.6.5
+connecting to: 127.0.0.1:28000/test
+
+# Percona Toolkit MongoDB Summary Report ####################
+
+Report generated on telecaster.local:28000 at 2015-05-06 12:06:37 GMT-0300 (UYT)
+2 operations in progress
+
+# Replication summary #######################################
+
+Node is PRIMARY in a 4 members replica set
+The set has 2 secondaries and 1 arbiters
+
+# Replica set members #######################################
+
+telecaster.local:28000
+telecaster:28001
+telecaster:28002
+telecaster:28003
+MongoDB shell version: 2.6.5
+connecting to: 127.0.0.1:28000/test
+
+# Extra info ################################################
+
+local has 6 collections and 352321536 bytes on disk
+Collections: 
+   me
+   oplog.rs
+   slaves
+   startup_log
+   system.indexes
+   system.replset
+admin has 0 collections and 1 bytes on disk
+{
+	"set" : "test",
+	"date" : ISODate("2015-06-06T15:06:37Z"),
+	"myState" : 1,
+	"members" : [
+		{
+			"_id" : 0,
+			"name" : "telecaster.local:28000",
+			"health" : 1,
+			"state" : 1,
+			"stateStr" : "PRIMARY",
+			"uptime" : 23,
+			"optime" : Timestamp(1433601457, 3),
+			"optimeDate" : ISODate("2015-06-06T14:37:37Z"),
+			"electionTime" : Timestamp(1433603190, 1),
+			"electionDate" : ISODate("2015-06-06T15:06:30Z"),
+			"self" : true
+		},
+		{
+			"_id" : 1,
+			"name" : "telecaster:28001",
+			"health" : 1,
+			"state" : 2,
+			"stateStr" : "SECONDARY",
+			"uptime" : 17,
+			"optime" : Timestamp(1433601457, 3),
+			"optimeDate" : ISODate("2015-06-06T14:37:37Z"),
+			"lastHeartbeat" : ISODate("2015-06-06T15:06:36Z"),
+			"lastHeartbeatRecv" : ISODate("2015-06-06T15:06:35Z"),
+			"pingMs" : 2,
+			"lastHeartbeatMessage" : "syncing to: telecaster.local:28000",
+			"syncingTo" : "telecaster.local:28000"
+		},
+		{
+			"_id" : 2,
+			"name" : "telecaster:28002",
+			"health" : 1,
+			"state" : 2,
+			"stateStr" : "SECONDARY",
+			"uptime" : 12,
+			"optime" : Timestamp(1433601457, 3),
+			"optimeDate" : ISODate("2015-06-06T14:37:37Z"),
+			"lastHeartbeat" : ISODate("2015-06-06T15:06:35Z"),
+			"lastHeartbeatRecv" : ISODate("2015-06-06T15:06:36Z"),
+			"pingMs" : 84,
+			"lastHeartbeatMessage" : "syncing to: telecaster.local:28000",
+			"syncingTo" : "telecaster.local:28000"
+		},
+		{
+			"_id" : 3,
+			"name" : "telecaster:28003",
+			"health" : 1,
+			"state" : 7,
+			"stateStr" : "ARBITER",
+			"uptime" : 6,
+			"lastHeartbeat" : ISODate("2015-06-06T15:06:35Z"),
+			"lastHeartbeatRecv" : ISODate("2015-06-06T15:06:35Z"),
+			"pingMs" : 0
+		}
+	],
+	"ok" : 1
+}
+
+# Logs ######################################################
+
+2015-06-06T12:06:14.682-0300 [initandlisten] MongoDB starting : pid=52017 port=28000 dbpath=/Users/fernandoipar/mongo-summary-tests//primary 64-bit host=telecaster.local
+2015-06-06T12:06:14.682-0300 [initandlisten] 
+2015-06-06T12:06:14.682-0300 [initandlisten] ** WARNING: soft rlimits too low. Number of files is 256, should be at least 1000
+2015-06-06T12:06:14.683-0300 [initandlisten] db version v2.6.5
+2015-06-06T12:06:14.683-0300 [initandlisten] git version: nogitversion
+2015-06-06T12:06:14.683-0300 [initandlisten] build info: Darwin miniyosemite.local 14.0.0 Darwin Kernel Version 14.0.0: Fri Sep 19 00:26:44 PDT 2014; root:xnu-2782.1.97~2/RELEASE_X86_64 x86_64 BOOST_LIB_VERSION=1_49
+2015-06-06T12:06:14.683-0300 [initandlisten] allocator: tcmalloc
+2015-06-06T12:06:14.683-0300 [initandlisten] options: { net: { port: 28000 }, processManagement: { fork: true, pidFilePath: "/Users/fernandoipar/mongo-summary-tests//primary/pid" }, replication: { replSet: "test" }, storage: { dbPath: "/Users/fernandoipar/mongo-summary-tests//primary" }, systemLog: { destination: "file", path: "/Users/fernandoipar/mongo-summary-tests//primary/log" } }
+2015-06-06T12:06:14.683-0300 [initandlisten] journal dir=/Users/fernandoipar/mongo-summary-tests//primary/journal
+2015-06-06T12:06:14.684-0300 [initandlisten] recover : no journal files present, no recovery needed
+2015-06-06T12:06:14.712-0300 [initandlisten] waiting for connections on port 28000
+2015-06-06T12:06:14.719-0300 [rsStart] warning: Failed to connect to 127.0.0.1:28001, reason: errno:61 Connection refused
+2015-06-06T12:06:14.720-0300 [rsStart] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:14.720-0300 [rsStart] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:14.720-0300 [rsStart] replSet I am telecaster.local:28000
+2015-06-06T12:06:14.721-0300 [rsStart] warning: Failed to connect to 127.0.0.1:28001, reason: errno:61 Connection refused
+2015-06-06T12:06:14.722-0300 [rsStart] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:14.722-0300 [rsStart] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:14.722-0300 [rsStart] replSet STARTUP2
+2015-06-06T12:06:14.723-0300 [rsMgr] replSet total number of votes is even - add arbiter or give one member an extra vote
+2015-06-06T12:06:14.723-0300 [rsSync] replSet SECONDARY
+2015-06-06T12:06:16.728-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:16.728-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28001, reason: errno:61 Connection refused
+2015-06-06T12:06:16.728-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:16.728-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1), connection attempt failed
+2015-06-06T12:06:16.728-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1), connection attempt failed
+2015-06-06T12:06:16.729-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1), connection attempt failed
+2015-06-06T12:06:16.730-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:16.730-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.731-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28001, reason: errno:61 Connection refused
+2015-06-06T12:06:16.731-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:16.731-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1), connection attempt failed
+2015-06-06T12:06:16.731-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.732-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28001, reason: errno:61 Connection refused
+2015-06-06T12:06:16.732-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.732-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:16.733-0300 [rsHealthPoll] replset info telecaster:28002 heartbeat failed, retrying
+2015-06-06T12:06:16.733-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:16.733-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:16.734-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28001, reason: errno:61 Connection refused
+2015-06-06T12:06:16.734-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.734-0300 [rsHealthPoll] replset info telecaster:28003 heartbeat failed, retrying
+2015-06-06T12:06:16.734-0300 [rsHealthPoll] replset info telecaster:28001 heartbeat failed, retrying
+2015-06-06T12:06:16.735-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:16.735-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:16.735-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.735-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28001, reason: errno:61 Connection refused
+2015-06-06T12:06:16.735-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.736-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.736-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:16.736-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28001, reason: errno:61 Connection refused
+2015-06-06T12:06:16.737-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.737-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.738-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:16.739-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:16.739-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.739-0300 [rsHealthPoll] replSet info telecaster:28002 is down (or slow to respond): 
+2015-06-06T12:06:16.739-0300 [rsHealthPoll] replSet member telecaster:28002 is now in state DOWN
+2015-06-06T12:06:16.739-0300 [rsMgr] replSet can't see a majority, will not try to elect self
+2015-06-06T12:06:16.740-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:16.740-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28001, reason: errno:61 Connection refused
+2015-06-06T12:06:16.741-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28001, reason: errno:61 Connection refused
+2015-06-06T12:06:16.741-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:16.741-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.741-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.741-0300 [rsHealthPoll] replSet info telecaster:28001 is down (or slow to respond): 
+2015-06-06T12:06:16.741-0300 [rsHealthPoll] replSet info telecaster:28003 is down (or slow to respond): 
+2015-06-06T12:06:16.742-0300 [rsHealthPoll] replSet member telecaster:28001 is now in state DOWN
+2015-06-06T12:06:16.742-0300 [rsHealthPoll] replSet member telecaster:28003 is now in state DOWN
+2015-06-06T12:06:18.744-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:18.744-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:18.744-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28001, reason: errno:61 Connection refused
+2015-06-06T12:06:18.745-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.745-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.745-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.746-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:18.747-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.747-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:18.747-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28001, reason: errno:61 Connection refused
+2015-06-06T12:06:18.748-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.748-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.754-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:18.754-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:18.754-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28001, reason: errno:61 Connection refused
+2015-06-06T12:06:18.754-0300 [rsHealthPoll] replset info telecaster:28002 heartbeat failed, retrying
+2015-06-06T12:06:18.754-0300 [rsHealthPoll] replset info telecaster:28003 heartbeat failed, retrying
+2015-06-06T12:06:18.755-0300 [rsHealthPoll] replset info telecaster:28001 heartbeat failed, retrying
+2015-06-06T12:06:18.756-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:18.756-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.756-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:18.756-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28001, reason: errno:61 Connection refused
+2015-06-06T12:06:18.757-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.757-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.757-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:18.758-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:18.758-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.758-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28001, reason: errno:61 Connection refused
+2015-06-06T12:06:18.758-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.759-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.770-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:18.770-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:18.770-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28001, reason: errno:61 Connection refused
+2015-06-06T12:06:18.771-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:18.772-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.772-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:18.772-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28001, reason: errno:61 Connection refused
+2015-06-06T12:06:18.772-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.773-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:19.785-0300 [initandlisten] connection accepted from 192.168.0.2:60297 #1 (1 connection now open)
+2015-06-06T12:06:19.786-0300 [conn1] end connection 192.168.0.2:60297 (0 connections now open)
+2015-06-06T12:06:20.774-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:20.774-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.774-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:20.775-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.775-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:20.776-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.776-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:20.776-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.794-0300 [rsHealthPoll] replset info telecaster:28001 thinks that we are down
+2015-06-06T12:06:20.794-0300 [rsHealthPoll] replSet member telecaster:28001 is up
+2015-06-06T12:06:20.794-0300 [rsHealthPoll] replSet member telecaster:28001 is now in state SECONDARY
+2015-06-06T12:06:20.795-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:20.795-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:20.795-0300 [rsHealthPoll] replset info telecaster:28003 heartbeat failed, retrying
+2015-06-06T12:06:20.796-0300 [rsHealthPoll] replset info telecaster:28002 heartbeat failed, retrying
+2015-06-06T12:06:20.797-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:20.797-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:20.797-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.797-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.798-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:20.798-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:20.798-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.798-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.834-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:20.834-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:20.835-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:20.835-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:20.836-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.836-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:21.795-0300 [initandlisten] connection accepted from 192.168.0.2:60318 #2 (1 connection now open)
+2015-06-06T12:06:21.796-0300 [conn2] end connection 192.168.0.2:60318 (0 connections now open)
+2015-06-06T12:06:21.796-0300 [initandlisten] connection accepted from 192.168.0.2:60321 #3 (2 connections now open)
+2015-06-06T12:06:22.840-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:22.840-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:22.841-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:22.841-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:22.842-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:22.842-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:22.842-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:22.843-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:22.912-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:22.912-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:22.913-0300 [rsHealthPoll] replset info telecaster:28003 heartbeat failed, retrying
+2015-06-06T12:06:22.913-0300 [rsHealthPoll] replset info telecaster:28002 heartbeat failed, retrying
+2015-06-06T12:06:22.914-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:22.914-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:22.915-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:22.915-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:22.916-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:22.916-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:22.916-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:22.916-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:23.050-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:23.050-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:23.051-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28002, reason: errno:61 Connection refused
+2015-06-06T12:06:23.051-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:23.052-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:23.052-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:24.856-0300 [initandlisten] connection accepted from 192.168.0.2:60362 #4 (2 connections now open)
+2015-06-06T12:06:24.856-0300 [conn4] end connection 192.168.0.2:60362 (1 connection now open)
+2015-06-06T12:06:25.056-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:25.056-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:25.057-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:25.057-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:25.318-0300 [rsHealthPoll] replset info telecaster:28002 thinks that we are down
+2015-06-06T12:06:25.318-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:25.318-0300 [rsHealthPoll] replSet member telecaster:28002 is up
+2015-06-06T12:06:25.319-0300 [rsHealthPoll] replset info telecaster:28003 heartbeat failed, retrying
+2015-06-06T12:06:25.319-0300 [rsHealthPoll] replSet member telecaster:28002 is now in state SECONDARY
+2015-06-06T12:06:25.320-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:25.320-0300 [rsMgr] not electing self, telecaster:28002 would veto with 'I don't think telecaster.local:28000 is electable'
+2015-06-06T12:06:25.320-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:25.321-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:25.321-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:25.839-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:25.839-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:25.840-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:26.862-0300 [initandlisten] connection accepted from 192.168.0.2:60384 #5 (2 connections now open)
+2015-06-06T12:06:26.863-0300 [conn5] end connection 192.168.0.2:60384 (1 connection now open)
+2015-06-06T12:06:26.863-0300 [initandlisten] connection accepted from 192.168.0.2:60387 #6 (3 connections now open)
+2015-06-06T12:06:27.846-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:27.846-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:27.847-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:27.847-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:28.848-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:28.848-0300 [rsHealthPoll] replset info telecaster:28003 heartbeat failed, retrying
+2015-06-06T12:06:28.849-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:28.849-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:28.850-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:28.850-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:29.852-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:29.853-0300 [rsHealthPoll] warning: Failed to connect to 127.0.0.1:28003, reason: errno:61 Connection refused
+2015-06-06T12:06:29.853-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:29.922-0300 [initandlisten] connection accepted from 192.168.0.2:60420 #7 (3 connections now open)
+2015-06-06T12:06:29.922-0300 [conn7] end connection 192.168.0.2:60420 (2 connections now open)
+2015-06-06T12:06:30.818-0300 [rsMgr] replSet info electSelf 0
+2015-06-06T12:06:31.772-0300 [rsMgr] replSet PRIMARY
+2015-06-06T12:06:31.830-0300 [initandlisten] connection accepted from 192.168.0.2:60428 #8 (3 connections now open)
+2015-06-06T12:06:31.832-0300 [initandlisten] connection accepted from 192.168.0.2:60429 #9 (4 connections now open)
+2015-06-06T12:06:31.858-0300 [rsHealthPoll] replset info telecaster:28003 thinks that we are down
+2015-06-06T12:06:31.858-0300 [rsHealthPoll] replSet member telecaster:28003 is up
+2015-06-06T12:06:31.858-0300 [rsHealthPoll] replSet member telecaster:28003 is now in state STARTUP2
+2015-06-06T12:06:31.931-0300 [initandlisten] connection accepted from 192.168.0.2:60434 #10 (5 connections now open)
+2015-06-06T12:06:31.931-0300 [conn10] end connection 192.168.0.2:60434 (4 connections now open)
+2015-06-06T12:06:31.932-0300 [initandlisten] connection accepted from 192.168.0.2:60435 #11 (6 connections now open)
+2015-06-06T12:06:32.890-0300 [initandlisten] connection accepted from 192.168.0.2:60437 #12 (6 connections now open)
+2015-06-06T12:06:32.891-0300 [initandlisten] connection accepted from 192.168.0.2:60438 #13 (7 connections now open)
+2015-06-06T12:06:33.862-0300 [rsHealthPoll] replSet member telecaster:28003 is now in state ARBITER
+2015-06-06T12:06:34.965-0300 [initandlisten] connection accepted from 127.0.0.1:60441 #14 (8 connections now open)
+2015-06-06T12:06:34.966-0300 [conn14] replSet replSetInitiate admin command received from client
+2015-06-06T12:06:34.967-0300 [conn14] replSet replSetReconfig config object parses ok, 5 members specified
+2015-06-06T12:06:34.970-0300 [conn14] replSet replSetReconfig exception: can't find self in new replset config
+2015-06-06T12:06:34.972-0300 [conn14] replSet { _id: "test", version: 5, members: [ { _id: 0, host: "telecaster.local:28000" }, { _id: 1, host: "telecaster:28001" }, { _id: 2, host: "telecaster:28002" }, { _id: 3, host: "telecaster:28003", arbiterOnly: true }, { _id: 4.0, host: "telecaster:28001" } ] }
+2015-06-06T12:06:34.972-0300 [conn14] replSet replSetReconfig exception: bad replset config -- duplicate hosts in the config object?
+2015-06-06T12:06:34.973-0300 [conn14] replSet { _id: "test", version: 5, members: [ { _id: 0, host: "telecaster.local:28000" }, { _id: 1, host: "telecaster:28001" }, { _id: 2, host: "telecaster:28002" }, { _id: 3, host: "telecaster:28003", arbiterOnly: true }, { _id: 4.0, host: "telecaster:28002" } ] }
+2015-06-06T12:06:34.974-0300 [conn14] replSet replSetReconfig exception: bad replset config -- duplicate hosts in the config object?
+2015-06-06T12:06:34.975-0300 [conn14] replSet { _id: "test", version: 5, members: [ { _id: 0, host: "telecaster.local:28000" }, { _id: 1, host: "telecaster:28001" }, { _id: 2, host: "telecaster:28002" }, { _id: 3, host: "telecaster:28003", arbiterOnly: true }, { _id: 4.0, host: "telecaster:28003", arbiterOnly: true } ] }
+2015-06-06T12:06:34.975-0300 [conn14] replSet replSetReconfig exception: bad replset config -- duplicate hosts in the config object?
+2015-06-06T12:06:34.977-0300 [conn14] end connection 127.0.0.1:60441 (7 connections now open)
+2015-06-06T12:06:37.033-0300 [initandlisten] connection accepted from 127.0.0.1:60446 #15 (8 connections now open)
+2015-06-06T12:06:37.039-0300 [conn15] end connection 127.0.0.1:60446 (7 connections now open)
+2015-06-06T12:06:37.084-0300 [initandlisten] connection accepted from 127.0.0.1:60447 #16 (8 connections now open)
+2015-06-06T12:06:14.720-0300 [rsStart] replSet I am telecaster.local:28000
+2015-06-06T12:06:14.722-0300 [rsStart] replSet STARTUP2
+2015-06-06T12:06:14.723-0300 [rsMgr] replSet total number of votes is even - add arbiter or give one member an extra vote
+2015-06-06T12:06:14.723-0300 [rsSync] replSet SECONDARY
+2015-06-06T12:06:16.728-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1), connection attempt failed
+2015-06-06T12:06:16.728-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1), connection attempt failed
+2015-06-06T12:06:16.729-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1), connection attempt failed
+2015-06-06T12:06:16.730-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.731-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1), connection attempt failed
+2015-06-06T12:06:16.731-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.732-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.733-0300 [rsHealthPoll] replset info telecaster:28002 heartbeat failed, retrying
+2015-06-06T12:06:16.734-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.734-0300 [rsHealthPoll] replset info telecaster:28003 heartbeat failed, retrying
+2015-06-06T12:06:16.734-0300 [rsHealthPoll] replset info telecaster:28001 heartbeat failed, retrying
+2015-06-06T12:06:16.735-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.735-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.736-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.737-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.737-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.739-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.739-0300 [rsHealthPoll] replSet info telecaster:28002 is down (or slow to respond): 
+2015-06-06T12:06:16.739-0300 [rsHealthPoll] replSet member telecaster:28002 is now in state DOWN
+2015-06-06T12:06:16.739-0300 [rsMgr] replSet can't see a majority, will not try to elect self
+2015-06-06T12:06:16.741-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.741-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:16.741-0300 [rsHealthPoll] replSet info telecaster:28001 is down (or slow to respond): 
+2015-06-06T12:06:16.741-0300 [rsHealthPoll] replSet info telecaster:28003 is down (or slow to respond): 
+2015-06-06T12:06:16.742-0300 [rsHealthPoll] replSet member telecaster:28001 is now in state DOWN
+2015-06-06T12:06:16.742-0300 [rsHealthPoll] replSet member telecaster:28003 is now in state DOWN
+2015-06-06T12:06:18.745-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.745-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.745-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.747-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.748-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.748-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.754-0300 [rsHealthPoll] replset info telecaster:28002 heartbeat failed, retrying
+2015-06-06T12:06:18.754-0300 [rsHealthPoll] replset info telecaster:28003 heartbeat failed, retrying
+2015-06-06T12:06:18.755-0300 [rsHealthPoll] replset info telecaster:28001 heartbeat failed, retrying
+2015-06-06T12:06:18.756-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.757-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.757-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.758-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.758-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.759-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.772-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.772-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:18.773-0300 [rsHealthPoll] couldn't connect to telecaster:28001: couldn't connect to server telecaster:28001 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.774-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.775-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.776-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.776-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.794-0300 [rsHealthPoll] replSet member telecaster:28001 is up
+2015-06-06T12:06:20.794-0300 [rsHealthPoll] replSet member telecaster:28001 is now in state SECONDARY
+2015-06-06T12:06:20.795-0300 [rsHealthPoll] replset info telecaster:28003 heartbeat failed, retrying
+2015-06-06T12:06:20.796-0300 [rsHealthPoll] replset info telecaster:28002 heartbeat failed, retrying
+2015-06-06T12:06:20.797-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.797-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.798-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.798-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.836-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:20.836-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:22.841-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:22.841-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:22.842-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:22.843-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:22.913-0300 [rsHealthPoll] replset info telecaster:28003 heartbeat failed, retrying
+2015-06-06T12:06:22.913-0300 [rsHealthPoll] replset info telecaster:28002 heartbeat failed, retrying
+2015-06-06T12:06:22.915-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:22.915-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:22.916-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:22.916-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:23.052-0300 [rsHealthPoll] couldn't connect to telecaster:28002: couldn't connect to server telecaster:28002 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:23.052-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:25.056-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:25.057-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:25.318-0300 [rsHealthPoll] replSet member telecaster:28002 is up
+2015-06-06T12:06:25.319-0300 [rsHealthPoll] replset info telecaster:28003 heartbeat failed, retrying
+2015-06-06T12:06:25.319-0300 [rsHealthPoll] replSet member telecaster:28002 is now in state SECONDARY
+2015-06-06T12:06:25.320-0300 [rsMgr] not electing self, telecaster:28002 would veto with 'I don't think telecaster.local:28000 is electable'
+2015-06-06T12:06:25.320-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:25.321-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:25.840-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:27.846-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:27.847-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:28.848-0300 [rsHealthPoll] replset info telecaster:28003 heartbeat failed, retrying
+2015-06-06T12:06:28.849-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:28.850-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:29.853-0300 [rsHealthPoll] couldn't connect to telecaster:28003: couldn't connect to server telecaster:28003 (127.0.0.1) failed, connection attempt failed
+2015-06-06T12:06:30.818-0300 [rsMgr] replSet info electSelf 0
+2015-06-06T12:06:31.772-0300 [rsMgr] replSet PRIMARY
+2015-06-06T12:06:31.858-0300 [rsHealthPoll] replSet member telecaster:28003 is up
+2015-06-06T12:06:31.858-0300 [rsHealthPoll] replSet member telecaster:28003 is now in state STARTUP2
+2015-06-06T12:06:33.862-0300 [rsHealthPoll] replSet member telecaster:28003 is now in state ARBITER
+2015-06-06T12:06:34.966-0300 [conn14] replSet replSetInitiate admin command received from client
+2015-06-06T12:06:34.967-0300 [conn14] replSet replSetReconfig config object parses ok, 5 members specified
+2015-06-06T12:06:34.970-0300 [conn14] replSet replSetReconfig exception: can't find self in new replset config
+2015-06-06T12:06:34.972-0300 [conn14] replSet { _id: "test", version: 5, members: [ { _id: 0, host: "telecaster.local:28000" }, { _id: 1, host: "telecaster:28001" }, { _id: 2, host: "telecaster:28002" }, { _id: 3, host: "telecaster:28003", arbiterOnly: true }, { _id: 4.0, host: "telecaster:28001" } ] }
+2015-06-06T12:06:34.972-0300 [conn14] replSet replSetReconfig exception: bad replset config -- duplicate hosts in the config object?
+2015-06-06T12:06:34.973-0300 [conn14] replSet { _id: "test", version: 5, members: [ { _id: 0, host: "telecaster.local:28000" }, { _id: 1, host: "telecaster:28001" }, { _id: 2, host: "telecaster:28002" }, { _id: 3, host: "telecaster:28003", arbiterOnly: true }, { _id: 4.0, host: "telecaster:28002" } ] }
+2015-06-06T12:06:34.974-0300 [conn14] replSet replSetReconfig exception: bad replset config -- duplicate hosts in the config object?
+2015-06-06T12:06:34.975-0300 [conn14] replSet { _id: "test", version: 5, members: [ { _id: 0, host: "telecaster.local:28000" }, { _id: 1, host: "telecaster:28001" }, { _id: 2, host: "telecaster:28002" }, { _id: 3, host: "telecaster:28003", arbiterOnly: true }, { _id: 4.0, host: "telecaster:28003", arbiterOnly: true } ] }
+2015-06-06T12:06:34.975-0300 [conn14] replSet replSetReconfig exception: bad replset config -- duplicate hosts in the config object?
+2015-06-06T12:06:14.682-0300 [initandlisten] 
+2015-06-06T12:06:14.682-0300 [initandlisten] ** WARNING: soft rlimits too low. Number of files is 256, should be at least 1000
