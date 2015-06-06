@@ -354,9 +354,17 @@ export mst_BASE_PORT=28000
 #+END_SRC
 
 We need the same variable in our js for tests, but it has one less zero, because I'll treat is a string in js, so I'll be concatenating to it, instead of adding.  
+Also, I don't know of a reliable way to get the same hostname from javascript (hostname() in mongo) vs shell (`hostname`), so while I know putting this in a variable is an ugly hack, it's the simplest reliable way I can think off right now: 
 #+NAME: js-tests-header
 #+BEGIN_SRC js
-var BASE_PORT=2800
+var BASE_PORT=2800;
+var HOSTNAME="telecaster";
+#+END_SRC
+
+Duplicating the hostname variable for bash: 
+#+HEADERS: :tangle mongo-summary-test.sh
+#+BEGIN_SRC sh
+export mst_HOSTNAME="telecaster"
 #+END_SRC
 
 None of this functions does any validation on arguments, as they're only meant for internal use. We use the mst_ (mongo summary tests) prefix for all functions and variables to avoid polluting the namespace. 
@@ -377,6 +385,8 @@ This function takes the following arguments:
 - $2: dbpath
 - $3: port
 - other arguments: passed directly to mongod/mongos
+  
+If program is mongos, then we create the datadir (as it will be used for logging), but we don't include the --dbpath option, as mongos does not recognize it. 
 #+HEADERS: :tangle mongo-summary-test.sh
 #+BEGIN_SRC sh
   function mst_startInstance()
@@ -384,9 +394,11 @@ This function takes the following arguments:
       program=$1
       dbpath=$2
       port=$3
+      dbpath_arg=""
       mst_createDatadir $dbpath
+      [ "$program" != "mongos" ] && dbpath_arg="--dbpath $mst_DBPATH_ROOT/$dbpath"
       shift; shift; shift
-      $program --dbpath=$mst_DBPATH_ROOT/$dbpath --port=$port --logpath $mst_DBPATH_ROOT/$dbpath/log --fork --pidfilepath $mst_DBPATH_ROOT/$dbpath/pid $*
+      $program $dbpath_arg --port=$port --logpath $mst_DBPATH_ROOT/$dbpath/log --fork --pidfilepath $mst_DBPATH_ROOT/$dbpath/pid $*
       sleep 5
   }
 #+END_SRC
@@ -417,7 +429,7 @@ We just need to:
   }
 #+END_SRC
 *** replica set
-For this test we need to start four instances: 
+For this test we'll start four instances: 
 - a primary 
 - two secondaries
 - an arbiter 
@@ -438,10 +450,10 @@ Now, we need to configure the replica set.
 #+BEGIN_SRC js
     <<js-tests-header>>
     rs.initiate();
-    var prefix = "telecaster:"+BASE_PORT;
+    var prefix = HOSTNAME+":"+BASE_PORT;
     [ prefix+0 ,prefix+1, prefix+2, prefix+3].forEach(
         function (element, array, index) {
-            if (element=="telecaster:"+BASE_PORT+3) {
+            if (element==HOSTNAME+":"+BASE_PORT+3) {
                 rs.add(element,true);
             } else {
                 rs.add(element);
@@ -463,4 +475,65 @@ And now we're ready to generate the report and stop the instances.
   }
 #+END_SRC
 *** sharded cluster
+For this test we'll start six instances: 
+- shard1
+- shard2
+- config1
+- config2
+- config3
+- mongos
+
+#+HEADERS: :tangle mongo-summary-test.sh
+#+BEGIN_SRC sh
+  function mst_test_shard_pair()
+  {
+      nodes="shard1 shard2 config1 config2 config3 mongos"
+      port_offset=0
+      config1_port=$((mst_BASE_PORT + 2))
+      config2_port=$((mst_BASE_PORT + 3))
+      config3_port=$((mst_BASE_PORT + 4))
+      mongos_port=$((mst_BASE_PORT + 5))
+      for node in $nodes; do 
+          if [ $(echo $node|grep -c config) -gt 0 ]; then
+              mst_startInstance mongod $node $((mst_BASE_PORT + port_offset)) --configsvr
+          elif [ "$node" == "mongos" ]; then
+              mst_startInstance mongos $node $((mst_BASE_PORT + port_offset)) --configdb "$mst_HOSTNAME:$config1_port,$mst_HOSTNAME:$config2_port,$mst_HOSTNAME:$config3_port"
+          else
+              mst_startInstance mongod $node $((mst_BASE_PORT + port_offset))
+          fi
+          port_offset=$((port_offset + 1))
+      done
+#+END_SRC
+
+Next, we add the shards: 
+
+#+HEADERS: :tangle mongo-summary-test.sh
+#+BEGIN_SRC sh
+    for port in $mst_BASE_PORT $((mst_BASE_PORT + 1)); do
+	mongo --port $mongos_port --eval "sh.addShard(\"$mst_HOSTNAME:$port\")"
+    done
+#+END_SRC
+
+We can now enable sharding for a database: 
+#+HEADERS: :tangle mongo-summary-test.sh
+#+BEGIN_SRC sh
+mongo --port $mongos_port --eval "sh.enableSharding(\"test\")" 
+mongo --port $mongos_port $mst_HOSTNAME/test --eval 'db.test.insert({test:true})'
+#+END_SRC
+
+And we're now ready to run the test and stop the instances: 
+#+HEADERS: :tangle mongo-summary-test.sh
+#+BEGIN_SRC sh
+  sh mongo-summary.sh --extra --port $mongos_port > test_sharded_cluster.result.txt
+  for node in $nodes; do
+      mst_stopInstance $node
+  done
+#+END_SRC
+
+#+HEADERS: :tangle mongo-summary-test.sh
+#+BEGIN_SRC sh
+  }
+#+END_SRC
+
+
 *** sharded cluster of replica sets
