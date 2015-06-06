@@ -8,16 +8,23 @@ I am not a Javascript programmer so a lot of the code probably will feel odd or 
 * Generating the utility
 I used emacs and org-mode to write this, so if you want to change the org file and generate the resulting files again, you'll need to extract source code from the org file. This is done via the org-babel-tangle function, which by default is bound to C-c C-v t. You can find more information about this process [[http://orgmode.org/manual/Extracting-source-code.html][here]].
 * Usage
-Tangling will generate two files: 
+Tangling will generate three files: 
 - mongo-summary.js
+- mongo-summary-extra.js
 - mongo-summary.sh
 
-The second one is a basic wrapper to invoke mongo with the script as an argument.
+The third one is a basic wrapper to invoke mongo with the other scripts as argument.
 As it is currently just a test, it must be invoked from the same dir as where the js file lives. 
 You should invoke the script with any arguments you'd pass to mongo, i.e.: 
 
 #+BEGIN_EXAMPLE
 ./mongo-summary.sh --port 29000
+#+END_EXAMPLE
+
+If you want to see the extra diagnostics info in the report too, then invoke it like so: 
+
+#+BEGIN_EXAMPLE
+./mongo-summary.sh --extra --port 29000
 #+END_EXAMPLE
 
 Remember to chmod +x mongo-summary.sh as org-mode won't do that when tangling. 
@@ -79,8 +86,8 @@ I also need a function to determine if I'm connected to mongos or mongod. For no
   }
 #+END_SRC
 
-Now, let's write these functions to both scripts
-#+HEADERS: :tangle mongo-summary.js :noweb yes
+Now, let's write these functions to both scripts.
+#+HEADERS: :tangle mongo-summary.js :noweb yes 
 #+BEGIN_SRC js
 <<getHeader>>
 <<length>>
@@ -88,7 +95,7 @@ Now, let's write these functions to both scripts
 <<isMongos>>
 #+END_SRC
 
-#+HEADERS: :tangle mongo-summary-extra.js :noweb yes
+#+HEADERS: :tangle mongo-summary-extra.js :noweb yes 
 #+BEGIN_SRC js
 <<getHeader>>
 <<length>>
@@ -326,3 +333,78 @@ And finally, create a shell script that can invoke the js with the right argumen
     mongo mongo-summary.js $*
     [ $extra -eq 1 ] && mongo mongo-summary-extra.js $*
 #+END_SRC
+** Tests
+This section includes the test suite for the utilities. 
+We test the following scenarios: 
+- standalone mongod
+- replica set
+- sharded cluster
+- sharded cluster of replica sets
+
+We'll need a global variable pointing to the root directory where we'll be creating the datadirs for each mongod we'll start: 
+#+HEADERS: :tangle mongo-summary-test.sh
+#+BEGIN_SRC sh
+export mst_DBPATH_ROOT=~/mongo-summary-tests/
+#+END_SRC
+
+mst_BASE_PORT is the base tcp port we'll use to deploy our test instances: 
+#+HEADERS: :tangle mongo-summary-test.sh
+#+BEGIN_SRC sh
+export mst_BASE_PORT=28000
+#+END_SRC
+
+None of this functions does any validation on arguments, as they're only meant for internal use. We use the mst_ (mongo summary tests) prefix for all functions and variables to avoid polluting the namespace. 
+Creating a dbpath is just mkdir, with the precaution that if it exists, we'll purge it, so we don't have any lingering data between tests. This function expects a single argument that is a relative name for the dbpath. This will normally consist of a descriptive prefix + a number, when needed, like shard1, or replSetTest2. 
+
+#+HEADERS: :tangle mongo-summary-test.sh
+#+BEGIN_SRC sh
+  function mst_createDatadir()
+  {
+     test -d $1 && rm -rf $mst_DBPATH_ROOT/$1
+     mkdir -p $mst_DBPATH_ROOT/$1
+  }
+#+END_SRC
+
+Starting an instance involves creating its datadir, invoking the right command (mongod or mongos) and setting the dbpath and port arguments. 
+This function takes the following arguments: 
+- $1: program name (mongod or mongos)
+- $2: dbpath
+- $3: port
+#+HEADERS: :tangle mongo-summary-test.sh
+#+BEGIN_SRC sh
+  function mst_startInstance()
+  {
+      mst_createDatadir $2
+      $1 --dbpath=$mst_DBPATH_ROOT/$2 --port=$3 --logpath $mst_DBPATH_ROOT/$2/log --fork --pidfilepath $mst_DBPATH_ROOT/$2/pid
+      sleep 5
+  }
+#+END_SRC
+
+To stop (and destroy) an instance we just need the dbpath, which is $1 for this function:  
+#+HEADERS: :tangle mongo-summary-test.sh
+#+BEGIN_SRC sh
+  function mst_stopInstance()
+  {
+      kill $(cat $mst_DBPATH_ROOT/$1/pid)
+      rm -rf $mst_DBPATH_ROOT/$1
+  }
+#+END_SRC
+
+Now we're ready to go through the test cases in sequence: 
+*** standalone mongod 
+We just need to: 
+- start a single instance
+- run the script against it
+- terminate the instance and remove the datadir
+#+HEADERS: :tangle mongo-summary-test.sh
+#+BEGIN_SRC sh
+  function mst_test_standalone_mongod()
+  {
+      mst_startInstance mongod standalone $mst_BASE_PORT
+      sh mongo-summary.sh --extra --port $mst_BASE_PORT > test_standalone_mongod.result.txt
+      mst_stopInstance standalone
+  }
+#+END_SRC
+*** replica set
+*** sharded cluster
+*** sharded cluster of replica sets
