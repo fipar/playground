@@ -335,11 +335,16 @@ And finally, create a shell script that can invoke the js with the right argumen
 #+END_SRC
 ** Tests
 This section includes the test suite for the utilities. 
+Tests are very primitive now, among other things because they depend on mongod being already installed on the system. 
+My goal is to eventually depend on docker instead, and use containers to launch test instances and clusters, which, among other things, would make it easier to test against mongodb and tokumx. 
+
 We test the following scenarios: 
 - standalone mongod
 - replica set
 - sharded cluster
 - sharded cluster of replica sets
+
+At this moment the tests only run the script, but there is no post validation. The ultimate goal is to validate the output files against pre supplied ones. 
 
 We'll need a global variable pointing to the root directory where we'll be creating the datadirs for each mongod we'll start: 
 #+HEADERS: :tangle mongo-summary-test.sh
