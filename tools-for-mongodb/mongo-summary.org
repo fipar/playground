@@ -112,6 +112,7 @@ Let's start with a function to get the current date from [[http://docs.mongodb.o
   function getInstanceBasicInfo(db) {
       var result = {};
       var aux;
+      print(db.hostInfo()["system"]["hostname"]); // debug only while troubleshooting problem testing against docker containers. 
       aux = db.hostInfo()["system"]["currentTime"];
       result["serverTime"] = aux.getFullYear() + "-" + getFilledDatePart(aux.getMonth()) + "-" + getFilledDatePart(aux.getDay()) + " " + aux.toTimeString();
       aux = db.currentOp()["inprog"];
