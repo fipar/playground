@@ -112,7 +112,6 @@ Let's start with a function to get the current date from [[http://docs.mongodb.o
   function getInstanceBasicInfo(db) {
       var result = {};
       var aux;
-      print(db.hostInfo()["system"]["hostname"]); // debug only while troubleshooting problem testing against docker containers. 
       aux = db.hostInfo()["system"]["currentTime"];
       result["serverTime"] = aux.getFullYear() + "-" + getFilledDatePart(aux.getMonth()) + "-" + getFilledDatePart(aux.getDay()) + " " + aux.toTimeString();
       aux = db.currentOp()["inprog"];
@@ -162,6 +161,7 @@ Now get some info about replication. We want to know if we're a standalone insta
 #+END_SRC 
 
 ** mongos info functions
+   CLOCK: [2015-06-09 Tue 21:51]--[2015-06-10 Wed 10:49] => 12:58
 This section contains functions used to obtain sharding information and can only be used while connected to mongodb/tokumx via mongos.  
 Let's start with getting a list of shard nodes and sharded collections.
 We can get this info from sh.status(): 
@@ -194,6 +194,9 @@ We can get this info from sh.status():
 
 Now we need to use getShardingSummary() to get a list of shards, and connect to each shard to run the mongod info functions. 
 
+In some cases, the host element for a shard may be a list of hosts (if the shard is a replica set), and that's why I'm splitting on ",".  
+
+
 #+HEADERS: :tangle mongo-summary.js
 #+BEGIN_SRC js
   function getShardsInfo() {
@@ -202,14 +205,16 @@ Now we need to use getShardingSummary() to get a list of shards, and connect to 
       result["shards"] = [];
       shardingSummary["shards"].forEach(
           function (element, index, array) {
-              //var db = connect(element["host"] + "/local");
-              var db = new Mongo(element["host"]).getDB("local")
-              result["shards"].push({
-                  _id: element["_id"],
-                  host: element["host"],
-                  hostInfo: getInstanceBasicInfo(db),
-                  replicationSummary: getReplicationSummary(db)
-              })
+              element["host"].split(",").forEach(
+                  function (element, index, array) {
+                      var db = new Mongo(element).getDB("local")
+                      result["shards"].push({
+                      host: element,
+                      hostInfo: getInstanceBasicInfo(db),
+                      replicationSummary: getReplicationSummary(db)
+                      })
+                  }
+              ) 
           }
       );
       return result;
