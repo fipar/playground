@@ -22,7 +22,7 @@ var collection = "test";
 
 #+END_SRC
 
-Now we must select the "config" db and get the host name for every shard. This may not work if shards are replica sets <- TODO 
+Now we must select the "config" db and get the host name for every shard. 
 
 #+HEADERS: :tangle mongo-find-orphaned.js
 #+BEGIN_SRC js 
