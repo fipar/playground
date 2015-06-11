@@ -1,0 +1,12 @@
+telecaster:tools-for-mongodb fernandoipar$ mongo --host $(boot2docker ip) --port 9999 mongo-find-orphaned.js
+
+The VM's Host only interface IP address is:
+
+MongoDB shell version: 2.6.5
+connecting to: 192.168.59.103:9999/test
+2015-06-11T19:30:19.819-0300 starting new replica set monitor for replica set rs0 with seeds 192.168.59.103:10000,192.168.59.103:10001
+2015-06-11T19:30:19.819-0300 [ReplicaSetMonitorWatcher] starting
+2015-06-11T19:30:19.832-0300 starting new replica set monitor for replica set rs1 with seeds 192.168.59.103:10002,192.168.59.103:10003
+duplicate doc: 557a0b74a4c8964abe617f95 found on:
+connection to rs0/192.168.59.103:10000,192.168.59.103:10001
+connection to rs1/192.168.59.103:10002,192.168.59.103:10003
