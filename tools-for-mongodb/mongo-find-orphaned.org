@@ -1,0 +1,71 @@
+Orphaned documents are defined [[http://docs.mongodb.org/manual/reference/glossary/][here]] as: 
+
+    In a sharded cluster, orphaned documents are those documents on a shard that also exist in chunks on other shards as a result of failed migrations or incomplete migration cleanup due to abnormal shutdown. Delete orphaned documents using cleanupOrphaned to reclaim disk space and reduce confusion.
+
+Starting on 2.6 [[http://docs.mongodb.org/manual/reference/command/cleanupOrphaned/][cleanupOrphaned]] is available to remove them, but if you're running a previous version, a manual process is needed. 
+
+This script iterates over each document of a given collection, and connects to each shard, printing any document that lives on more than one shard. 
+
+Customization is done via the following variables, which specify the collection (and the database where it resides) that must be scanned for orphans: 
+
+#+NAME: customizable_variables
+#+BEGIN_SRC js
+var database = "test";
+var collection = "test";
+#+END_SRC
+
+#+HEADERS: :tangle mongo-find-orphaned.js :noweb yes
+#+BEGIN_SRC js
+  <<customizable_variables>> 
+
+  var connections = [];
+
+#+END_SRC
+
+Now we must select the "config" db and get the host name for every shard. This may not work if shards are replica sets <- TODO 
+
+#+HEADERS: :tangle mongo-find-orphaned.js
+#+BEGIN_SRC js 
+  config = db.getMongo().getDB("config");
+  config.shards.find().forEach(
+      function (shard,_a,_i) {
+          connections.push(new Mongo(shard["host"]));
+      }
+  );
+#+END_SRC
+
+The rest is simply a matter of: 
+- iterating over each document of the collection
+- for each document, connect to each shard
+- if a document is found on more than one shard, print it, along with the host names of the shards where it resides
+
+#+HEADERS: :tangle mongo-find-orphaned.js
+#+BEGIN_SRC js
+ 
+  db.getMongo().getDB(database).getCollection(collection).find().forEach(
+      function (doc, _a, _i) {
+          count = 0;
+          onshards = [];
+          connections.forEach(
+              function(con, _a, _i) {
+                  if (con.getDB(database).getCollection(collection).find(doc).count()==1) {
+                      count += 1;
+                      onshards.push(con);
+                  }
+              }
+  )
+          if (count > 1) {
+              print("duplicate doc: "+doc['_id']+" found on: ");
+              onshards.forEach(function(shard,_a,_i) {print(shard.toString())});
+          }
+      }
+)
+#+END_SRC
+
+Duplicates can then be manually removing as one can see if a document falls within the bounds of a shard or not. For hashed sharding, if the server does not have _hashBSONElement available, or if otherwise you're not sure on which shard it belongs, you can just run the following from mongos: 
+
+#+BEGIN_SRC js
+  db.collection.find({_id: <_id as obtained by the script>}).explain()
+#+END_SRC
+
+The explain output will include information on the shard where the document resides. 
