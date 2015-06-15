@@ -3,15 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	//	"github.com/google/gopacket/dumpcommand"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/examples/util"
-	_ "github.com/google/gopacket/layers" // pulls in all layers decoders
+	_ "github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"gopkg.in/mgo.v2/bson"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 	"unsafe"
@@ -26,7 +24,7 @@ var verbose = 2
 
 // next code all copied from facebookgo/dvara
 
-// OpCode allow identifying the type of operation:
+// OpCode allows identifying the type of operation:
 //
 // http://docs.mongodb.org/meta-driver/latest/legacy/mongodb-wire-protocol/#request-opcodes
 type OpCode int32
@@ -82,6 +80,8 @@ func (m *messageHeader) FromWire(b []byte) {
 
 /*
 
+From http://docs.mongodb.org/meta-driver/latest/legacy/mongodb-wire-protocol/
+
 OP_UPDATE
 
 struct OP_UPDATE {
@@ -120,7 +120,15 @@ so document is at offset 16 + 4 + N + 4 + 4
 
 */
 
-func processQueryPayload(data []byte, header messageHeader) {
+// this map will store the start time for all requests. K:RequestId, v:StartTime
+var startTimes = make(map[int32]time.Time)
+
+// this map will store the query text (as I reconstructed/inferred it) for all requests. K:RequestId, v:Query
+var queries = make(map[int32]string)
+
+// my functions now
+
+func processQueryPayload(data []byte, header messageHeader) (output string) {
 	sub := data[20:]
 	current := sub[0]
 	docStartsAt := 0
@@ -135,7 +143,7 @@ func processQueryPayload(data []byte, header messageHeader) {
 		fmt.Println(data)
 		fmt.Printf("Querying collection %v\n", string(collectionName[:]))
 	}
-	output := fmt.Sprintf("%v.find({", string(collectionName[:]))
+	output = fmt.Sprintf("%v.find({", string(collectionName[:]))
 	mybson := sub[docStartsAt+8:]
 	docEndsAt := mybson[0]
 	bdoc := mybson[:docEndsAt]
@@ -146,27 +154,10 @@ func processQueryPayload(data []byte, header messageHeader) {
 		fmt.Println(json)
 	}
 	if len(json) == 0 {
-		output = fmt.Sprintf("%v.find()", string(collectionName[:]))
+		output = fmt.Sprintf("%v.find();\n", string(collectionName[:]))
 	} else {
-		i := 0
-		for k, v := range json {
-			i++
-			comma := ", "
-			if i == len(json) {
-				comma = ""
-			}
-			switch extracted_v := v.(type) {
-			case string:
-				output += fmt.Sprintf("%v:%v%v", k, extracted_v, comma)
-			case int, int32, int64:
-				output += fmt.Sprintf("%v:%v%v", k, extracted_v.(int), comma)
-			case float64:
-				output += fmt.Sprintf("%v:%v%v", k, float64(extracted_v), comma)
-			default:
-				output += fmt.Sprintf("%v:%v(%T) %v", k, "(Something I don't know how to process yet)", extracted_v, comma)
-			}
-		}
-		output += "})"
+		output += recurseJsonMap(json)
+		output += "});\n"
 	}
 	if verbose > 2 {
 		fmt.Print("mybson bytes: ")
@@ -176,11 +167,68 @@ func processQueryPayload(data []byte, header messageHeader) {
 		fmt.Print("Document size in bytes: ")
 		fmt.Println(unsafe.Sizeof(bdoc))
 	}
-	fmt.Println(output)
+	return output
 }
 
-func processReplyPayload(data []byte, header messageHeader) {
-	fmt.Println("Reply from Mongo to " + strconv.Itoa(int(header.ResponseTo)))
+func recurseJsonMap(json map[string]interface{}) (output string) {
+	i := 0
+	output = ""
+	for k, v := range json {
+		i++
+		comma := ", "
+		if i == len(json) {
+			comma = ""
+		}
+		switch extracted_v := v.(type) {
+		case string:
+			output += fmt.Sprintf("%v:%v%v", k, extracted_v, comma)
+		case int, int32, int64:
+			output += fmt.Sprintf("%v:%v%v", k, extracted_v.(int), comma)
+		case float64:
+			output += fmt.Sprintf("%v:%v%v", k, float64(extracted_v), comma)
+		case map[string]interface{}:
+			output += fmt.Sprintf("%v:{%v}%v", k, recurseJsonMap(extracted_v), comma)
+		default:
+			output += fmt.Sprintf("%v:%T%v", k, extracted_v, comma) 
+		}
+
+	}
+	return output
+}
+
+func processReplyPayload(data []byte, header messageHeader) (output float64) {
+	var elapsed float64 = 0
+	start, ok := startTimes[header.RequestID]
+	if ok {
+		elapsed = time.Since(start).Seconds()
+		delete(startTimes, header.RequestID)
+	}
+	return elapsed
+}
+
+/*
+# Time: 150402 14:02:44
+# User@Host: [fernandoipar] @ localhost []
+# Thread_id: 13  Schema:   Last_errno: 0  Killed: 0
+# Query_time: 0.000052  Lock_time: 0.000000  Rows_sent: 1  Rows_examined: 0  Rows_affected: 0  Rows_read: 0
+# Bytes_sent: 90
+SET timestamp=1427994164;
+db.sample.find({a:"test", b:"another test"});
+
+Mon Jan 2 15:04:05 -0700 MST 2006
+
+
+*/
+
+func getSlowQueryLogHeader(elapsed float64, sent int) (output string) {
+	now := time.Now().Format("060102 15:04:05")
+	output = fmt.Sprintf("# Time: %v\n", now)
+	output += "# User@Host: [undefined] @ undefined []\n"
+	output += "# Thread_id: 1 Schema: Last_errno: 0 Killed: 0\n"
+	output += fmt.Sprintf("# Query_time: %f Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1\n", elapsed)
+	output += fmt.Sprintf("# Bytes_sent: %v\n", sent)
+	output += fmt.Sprintf("SET timestamp=%v;\n", time.Now().Unix())
+	return output
 }
 
 func dump(src gopacket.PacketDataSource) {
@@ -211,22 +259,30 @@ func dump(src gopacket.PacketDataSource) {
 			header.RequestID = getInt32(payload, 4)
 			header.ResponseTo = getInt32(payload, 8)
 			header.OpCode = OpCode(getInt32(payload, 12))
+			startTimes[header.RequestID] = time.Now()
 			if verbose > 2 {
 				fmt.Println("Captured packet")
 				fmt.Printf("Captured packet (OpCode: %v)\n", header.OpCode)
 			}
 			switch header.OpCode {
 			case OpQuery:
-				processQueryPayload(payload, header)
+				queries[header.RequestID] = processQueryPayload(payload, header)
 			case OpReply:
-				processReplyPayload(payload, header)
+				elapsed := processReplyPayload(payload, header)
+				fmt.Print(getSlowQueryLogHeader(elapsed, len(payload)))
+				query, ok := queries[header.ResponseTo]
+				if ok {
+					fmt.Print(query)
+					delete(queries, header.ResponseTo)
+				} else {
+					fmt.Print("   Orphaned reply ...")
+				}
 			}
-			//fmt.Println("Complete payload: ")
-			//fmt.Println(payload)
-			fmt.Println()
 		}
 	}
 }
+
+// this main() is heavily inspired by / is a frankensteined version of https://github.com/google/gopacket/blob/master/examples/pcapdump/main.go
 
 func main() {
 	defer util.Run()()
@@ -275,5 +331,4 @@ func main() {
 	for {
 		dump(handle)
 	}
-	//dumpcommand.Run(handle)
 }
