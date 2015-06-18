@@ -143,7 +143,11 @@ func processQueryPayload(data []byte, header messageHeader) (output string) {
 		fmt.Println(data)
 		fmt.Printf("Querying collection %v\n", string(collectionName[:]))
 	}
-	output = fmt.Sprintf("%v.find({", string(collectionName[:]))
+	if string(collectionName[len(collectionName)-4:len(collectionName)]) == "$cmd" {
+		output = fmt.Sprintf("db.runCommand({")
+	} else {
+		output = fmt.Sprintf("%v.find({", string(collectionName[:]))
+	}
 	mybson := sub[docStartsAt+8:]
 	docEndsAt := mybson[0]
 	bdoc := mybson[:docEndsAt]
