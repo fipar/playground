@@ -1,0 +1,362 @@
+* Context
+
+Work on this started after some casual conversation with [[http://github.com/Lowercases][Nacho Nin]], specifically me asking a question about [[https://vividcortex.com/resources/network-analyzer-for-mongodb/][this]].
+
+I thought this paragraph: 
+
+    You can use standard log analysis tools such as Percona Toolkit's pt-query-digest to analyze the output and build insight into queries and server performance.
+
+I thought this must have been some copy and paste error, that they started publishing the tool for MySQL, and just copied that text to the web pages for other systems like mongodb and redis. Turns out I was wrong, and pt-query-digest works, not just for SQL, but for just about everything, including mongodb 'queries'. I did a quick test to verify this and it was right. This meant that, in order to use pt-query-digest with mongodb/tokumx, just a couple of things were needed: 
+
+- having a log format that pt-query-digest recognizes, with mongodb performance data, and
+- getting a new fingerprint() function to generate the query summary in the report ranking (this is the code that summarizes something like 'select a, b, c from t where a = x' into 'select t', to give you a quick overview of a query in the ranking. 
+
+The second option I left to [[https://github.com/frank-cizmich][Frank]], and for the first one, I decided it would be easier to generate a fake slow query log format (emulating the idea discussed with Nacho) and use that with pt-query-digest. 
+
+* The target format
+
+Here is an example entry of this hybrid slow query log I want to generate: 
+
+#+BEGIN_EXAMPLE
+# Time: 150622 16:08:58
+# User@Host:  @ 127.0.0.1 []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0 Lock_time: 0 Rows_sent: 6 Rows_examined: 6 Rows_affected: 0 Rows_read: 1
+# Bytes_sent: n/a
+SET timestamp=1435000138;
+examples.presentations.find{};
+#+END_EXAMPLE 
+
+Mongodb does not have queries in the same sense as MySQL or any other SQL based database has. All interactions with the database are made via commands or operations. A query is one specific kind of operation, and the projections and restrictions from SQL statements that we aggregate with pt-query-digest are found in json documents in mongodb's case. The document may be empty/absent, as in the case of a full collection scan. 
+
+What is seen as 
+
+   SELECT * FROM table
+
+in SQL, is seen as just 
+
+   {op: "query", ns:"table"}
+
+in mongodb. 
+
+Initially, there are two ways to obtain this information from mongodb. One is via network traffic captures, and the other one is via the [[http://docs.mongodb.org/manual/reference/database-profiler/][database profiler]]. The latter is enabled per-database, which means there is no mongodb analogue to MySQL's slow query log at a global level. 
+
+I tried both approachs and will be describing each on this document.  
+
+You'll notice the function used to recurse a json structure and the one to get the slow query log entry header are slightly different in each case, and that's because the mongodb profiler naturally provides a lot more performance related data than what can be obtained by capturing traffic. 
+
+The code is not very clean (or pretty) at this stage, but this is just intended as a proof of concept, and as a guide for someone who may want to implement this professionally (i.e. with test cases and such). 
+
+* The MongoDB profiler 
+
+Here's the basics you need to know to get started using this. As I said before, the profiler is enabled per database. So, to enable it for the examples database, you would do the following: 
+
+#+BEGIN_SRC js
+use examples
+db.setProfilingLevel(2)
+#+END_SRC
+
+There are three profiling levels: 
+  0 - Profiler is off
+  1 - Profiler is on for slow operations. 'Slow' is defined as taking more than [[http://docs.mongodb.org/manual/reference/configuration-options/#operationProfiling.slowOpThresholdMs][slowOpThresholdMs]] milliseconds. 
+  2 - Profiler is on for all operations. 
+
+Once enabled, you can look at profiler events by querying the system.profile collection for the selected database. Here's a sample document from a test system: 
+
+#+BEGIN_EXAMPLE
+> db.system.profile.find({op:"getmore"}).limit(1).pretty()
+{
+	"op" : "getmore",
+	"ns" : "examples.system.profile",
+	"cursorid" : 74041478549,
+	"ntoreturn" : 0,
+	"keyUpdates" : 0,
+	"numYield" : 0,
+	"lockStats" : {
+		"timeLockedMicros" : {
+			"r" : NumberLong(45),
+			"w" : NumberLong(0)
+		},
+		"timeAcquiringMicros" : {
+			"r" : NumberLong(2),
+			"w" : NumberLong(2)
+		}
+	},
+	"nreturned" : 11,
+	"responseLength" : 6924,
+	"millis" : 0,
+	"execStats" : {
+
+	},
+	"ts" : ISODate("2015-06-22T03:56:10.776Z"),
+	"client" : "127.0.0.1",
+	"allUsers" : [ ],
+	"user" : ""
+}
+#+END_EXAMPLE
+
+As you can imaging, turning this into a mysql-style slow query log is just a matter of: 
+  - Processing the json
+  - Identifying and saving relevant variables depending on the operation type (i.e. "ntoreturn" in this case of a "getmore" operation)
+  - Generating a slow query log entry for each profile collection entry, filling in the headers with the info obtained from the profile document. 
+
+* Preface to the code
+
+I chose Go for this as, in my experience, for something like this, it generates code that's almost as, if not as fast as what C would generate, and it provides some facilities for faster prototyping/iteration. As stated before, the code is not pretty. Some of it may be Go itself (lots of boilerplate code cannot be abstracted away in a way that could be done in, say, ruby or lisp), but most of it is probably due to my inexperience with the language. 
+
+Since this is a test, I'm going to put it all on a single file on the main package: 
+
+#+HEADERS: :tangle mongop2mysqlslow.go 
+#+BEGIN_SRC go
+package main
+#+END_SRC
+
+Imported packages: 
+  - fmt: to print to stdout
+  - mgo and mgo/bson: to connect to and send operations and commands to mongo
+  - time is used when generating the slow query log header entry 
+
+#+HEADERS: :tangle mongop2mysqlslow.go
+#+BEGIN_SRC go 
+import (
+	"fmt"
+	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
+	"time"
+)
+#+END_SRC
+
+The OpInfo type is used to save significant variables found in the json for each profile document. This includes, but is not limited to, user name, client IP address, Returned bytes, etc. 
+
+#+HEADERS: :tangle mongop2mysqlslow.go
+#+BEGIN_SRC go
+type OpInfo map[string]string
+#+END_SRC
+
+* The document processing bits
+
+Each system.profile entry will have most of the info we need to generate a good slow query log entry for use with pt-query-digest. For that, we need some aux functions to help us properly process json. 
+
+Sometimes we'll be processing an entry and find some subdocument to process. While processing it, we could end up with another OpInfo map, and in those cases, we'll have to merge them: 
+
+#+HEADERS: :tangle mongop2mysqlslow.go
+#+BEGIN_SRC go
+func mergeOpInfoMaps(s1 OpInfo, s2 OpInfo) (result OpInfo) {
+	result = make(OpInfo)
+	for k, v := range s1 {
+		if v2, ok := s2[v]; ok {
+			result[k] = fmt.Sprintf("%v | %v", v, v2)
+		} else {
+			result[k] = v
+		}
+	}
+	return result
+}
+#+END_SRC
+
+We process json maps recursively. We have a json map for every document in the profile collection, and we need to process recursively as some of it's elements may be maps themselves. 
+
+#+HEADERS: :tangle mongop2mysqlslow.go
+#+BEGIN_SRC go 
+func recurseJsonMap(json map[string]interface{}) (output string, query string, info OpInfo) {
+	i := 0
+	info = make(OpInfo)
+	for k, v := range json {
+		if k == "user" || k == "ns" || k == "millis" || k == "responseLength" || k == "client" || k == "nscanned" || k == "ntoreturn" || k == "ntoskip" || k == "nreturned" || k == "op" || k == "ninserted" || k == "ndeleted" || k == "nModified" || k == "cursorid" {
+			info[k] = fmt.Sprint(v)
+		}
+		if k == "query" {
+			query, _, _ = recurseJsonMap(v.(map[string]interface{}))
+		}
+		if k =="updateobj" {
+			updateobj, _, _ := recurseJsonMap(v.(map[string]interface{}))
+			info[k] = updateobj
+		}
+		if k == "command" {
+			command, _, _ := recurseJsonMap(v.(map[string]interface{}))
+			info[k] = command
+		}
+		i++
+		comma := ", "
+		if i == len(json) {
+			comma = ""
+		}
+		switch extracted_v := v.(type) {
+		case string, time.Time, int, int32, int64:
+			output += fmt.Sprintf("%v:%v%v", k, extracted_v, comma)
+		case float64:
+			output += fmt.Sprintf("%v:%v%v", k, float64(extracted_v), comma)
+		case map[string]interface{}:
+			auxstr, _query, auxOpInfo := recurseJsonMap(extracted_v)
+			if _query != "" {
+				query = _query
+			}
+			info = mergeOpInfoMaps(info, auxOpInfo)
+			output += fmt.Sprintf("%v:{%v}%v", k, auxstr, comma)
+		case []interface{}:
+			output += fmt.Sprintf("%v:%v%v", k, recurseArray(extracted_v), comma)
+		case bson.ObjectId: 
+			output += fmt.Sprintf("%v:%v%v", k, extracted_v.String(), comma)
+		default:
+			output += fmt.Sprintf("%v:%T%v", k, extracted_v, comma)
+		}
+
+	}
+	return output, query, info
+}
+#+END_SRC
+
+Among the possible elements of the map are arrays, which must also be processed recursively, as each element may be itself an array (or a json document). 
+
+#+HEADERS: :tangle mongop2mysqlslow.go
+#+BEGIN_SRC go 
+func recurseArray(input []interface{}) (output string) {
+	output = "["
+	i := 0
+	for k, v := range input {
+		i++
+		comma := ", "
+		if i == len(input) {
+			comma = ""
+		}
+		switch extracted_v := v.(type) {
+		case map[string]interface{}:
+			aux, _, _ := recurseJsonMap(extracted_v)
+			output += fmt.Sprintf("%v:{%v}%v", k, aux, comma)
+		case []interface{}:
+			output += fmt.Sprintf("%v:%v%v", k, recurseArray(extracted_v), comma)
+		default:
+			output += fmt.Sprintf("%v:%v%v", k, extracted_v, comma)
+		}
+	}
+	output += fmt.Sprintf("]")
+	return output
+}
+
+#+END_SRC
+
+Generating the header for each slow query log entry is just a matter of filling in the blanks with the data we have in the OpInfo array built for each document processed. 
+
+#+HEADERS: :tangle mongop2mysqlslow.go
+#+BEGIN_SRC go 
+func getSlowQueryLogHeader(input OpInfo) (output string) {
+
+	millis, sent, user, host, inserted, scanned, deleted, returned := initSlowQueryLogHeaderVars(input)
+	affected := inserted
+	if input["op"] == "remove" {
+		affected = deleted
+	}
+	now := time.Now().Format("060102 15:04:05")
+	output = fmt.Sprintf("# Time: %v\n", now)
+	output += fmt.Sprintf("# User@Host: %v @ %v []\n", user, host)
+	output += "# Thread_id: 1 Schema: Last_errno: 0 Killed: 0\n"
+	output += fmt.Sprintf("# Query_time: %v Lock_time: 0 Rows_sent: %v Rows_examined: %v Rows_affected: %v Rows_read: 1\n", millis, returned, scanned, affected)
+	output += fmt.Sprintf("# Bytes_sent: %v\n", sent)
+	output += fmt.Sprintf("SET timestamp=%v;\n", time.Now().Unix())
+	return output
+}
+#+END_SRC
+
+The reason I moved the initialization with default values of variables that may be missing from the OpInfo map, is that the go way to do this (that I know of) has a lot of repeated code, and I wanted to move that away from the function that generates the header. 
+
+#+HEADERS: :tangle mongop2mysqlslow.go
+#+BEGIN_SRC go
+func initSlowQueryLogHeaderVars(input OpInfo) (millis string, sent string, user string, host string, inserted string, scanned string, deleted string, returned string) {
+	millis = "n/a"
+	sent = "n/a"
+	user = ""
+	host = ""
+	inserted = "0"
+	scanned = "0"
+	deleted = "0"
+	returned = "0"
+	if v, ok := input["millis"]; ok {
+		millis = v
+	}
+	if v, ok := input["sent"]; ok {
+		sent = v
+	}
+	if v, ok := input["user"]; ok {
+		user = v
+	}
+	if v, ok := input["client"]; ok {
+		host = v
+	}
+	if v, ok := input["ninserted"]; ok {
+		inserted = v
+	}
+	if v, ok := input["nscanned"]; ok {
+		scanned = v
+	}
+	if v, ok := input["ndeleted"]; ok {
+		deleted = v
+	}
+	if v, ok := input["nreturned"]; ok {
+		returned = v
+	}
+	return millis, sent, user, host, inserted, scanned, deleted, returned
+}
+#+END_SRC
+
+We're now ready for main, which basically iterates over the profile collection, and processes each document found. 
+Note that this is currently hardcoded to: 
+- Connect to mongo on 127.0.0.1 on the default port (27017)
+- Look for the system.profile collection in the examples database
+
+#+HEADERS: :tangle mongop2mysqlslow.go
+#+BEGIN_SRC go
+func main() {
+	session, err := mgo.Dial("127.0.0.1")
+	if err != nil {
+		panic(err)
+	}
+	defer session.Close()
+	col := session.DB("examples").C("system.profile")
+
+	var results []map[string]interface{}
+	err = col.Find(bson.M{}).All(&results)
+
+	if err != nil {
+		panic(err)
+	}
+
+	for _, v := range results {
+		var info OpInfo = make(OpInfo)
+		_, _query, info := recurseJsonMap(v)
+		query := ""
+		if v, ok := info["op"]; ok {
+			ns := info["ns"] // ns is always there or we must just crash/behave erratically 
+			switch v {
+			case "query":
+				limit := info["ntoreturn"]
+				skip := info["ntoskip"]
+				if limit == "0" {
+					limit = ""
+				} else {
+					limit = fmt.Sprintf(".limit(%v)", limit)
+				}
+				if skip == "0" {
+					skip = ""
+				} else {
+					skip = fmt.Sprintf(".skip(%v)", skip)
+				}
+				query = fmt.Sprintf("%v.find{%v}%v%v;", ns, _query, skip, limit)
+			case "insert":
+				query = fmt.Sprintf("%v.insert{%v}",ns, _query)
+			case "update":
+				query = fmt.Sprintf("%v.update({%v},{%v})", ns, _query, info["updateobj"])
+			case "remove":
+				query = fmt.Sprintf("%v.remove({%v})", ns, _query)
+			case "getmore":
+				query = fmt.Sprintf("%v.getmore", ns)
+			case "command":
+				query = fmt.Sprintf("%v({%v})", ns, info["command"])
+			default:
+				query = fmt.Sprintf("__UNIMPLEMENTED__ {%v};", _query)
+			}
+		}
+		fmt.Print(getSlowQueryLogHeader(info), query, "\n")
+	}
+
+}
+#+END_SRC
