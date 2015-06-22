@@ -132,6 +132,8 @@ func recurseJsonMap(json map[string]interface{}) (output string, query string, i
 			output += fmt.Sprintf("%v:{%v}%v", k, auxstr, comma)
 		case []interface{}:
 			output += fmt.Sprintf("%v:%v%v", k, recurseArray(extracted_v), comma)
+		case bson.ObjectId: 
+			output += fmt.Sprintf("%v:%v%v", k, extracted_v.String(), comma)
 		default:
 			output += fmt.Sprintf("%v:%T%v", k, extracted_v, comma)
 		}
