@@ -58,11 +58,12 @@ Mon Jan 2 15:04:05 -0700 MST 2006
 
 */
 
-func initSlowQueryLogHeaderVars(input OpInfo) (millis string, sent string, user string, host string) {
+func initSlowQueryLogHeaderVars(input OpInfo) (millis string, sent string, user string, host string, inserted string) {
 	millis = "n/a"
 	sent = "n/a"
 	user = ""
 	host = ""
+	inserted = "0"
 	if v, ok := input["millis"]; ok {
 		millis = v
 	}
@@ -75,17 +76,20 @@ func initSlowQueryLogHeaderVars(input OpInfo) (millis string, sent string, user 
 	if v, ok := input["client"]; ok {
 		host = v
 	}
-	return millis, sent, user, host
+	if v, ok := input["ninserted"]; ok {
+		inserted = v
+	}
+	return millis, sent, user, host, inserted
 }
 
 func getSlowQueryLogHeader(input OpInfo) (output string) {
 
-	millis, sent, user, host := initSlowQueryLogHeaderVars(input)
+	millis, sent, user, host, inserted := initSlowQueryLogHeaderVars(input)
 	now := time.Now().Format("060102 15:04:05")
 	output = fmt.Sprintf("# Time: %v\n", now)
 	output += fmt.Sprintf("# User@Host: %v @ %v []\n", user, host)
 	output += "# Thread_id: 1 Schema: Last_errno: 0 Killed: 0\n"
-	output += fmt.Sprintf("# Query_time: %v Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1\n", millis)
+	output += fmt.Sprintf("# Query_time: %v Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: %v Rows_read: 1\n", millis, inserted)
 	output += fmt.Sprintf("# Bytes_sent: %v\n", sent)
 	output += fmt.Sprintf("SET timestamp=%v;\n", time.Now().Unix())
 	return output
@@ -95,7 +99,7 @@ func recurseJsonMap(json map[string]interface{}) (output string, query string, i
 	i := 0
 	info = make(OpInfo)
 	for k, v := range json {
-		if k == "user" || k == "ns" || k == "millis" || k == "responseLength" || k == "client" || k == "nscanned" || k == "ntoreturn" || k == "ntoskip" || k == "nreturned" || k == "op" {
+		if k == "user" || k == "ns" || k == "millis" || k == "responseLength" || k == "client" || k == "nscanned" || k == "ntoreturn" || k == "ntoskip" || k == "nreturned" || k == "op" || k == "ninserted" {
 			info[k] = fmt.Sprint(v)
 		}
 		if k == "query" {
@@ -167,6 +171,13 @@ func main() {
 				} else {
 					query = fmt.Sprintf("<unknown>.find{%v}%v%v;", _query, skip, limit)
 				}
+			case "insert":
+				ns := info["ns"]
+				query = fmt.Sprintf("%v.insert{%v}",ns, _query)
+			case "update":
+			case "remove":
+			case "getmore":
+			case "command":
 			default:
 				query = fmt.Sprintf("{%v};", _query)
 			}
