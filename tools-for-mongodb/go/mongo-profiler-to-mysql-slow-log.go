@@ -10,7 +10,7 @@ import (
 type OpInfo map[string]string
 
 func recurseArray(input []interface{}) (output string) {
-	output = "[" 
+	output = "["
 	i := 0
 	for k, v := range input {
 		i++
@@ -44,15 +44,62 @@ func mergeOpInfoMaps(s1 OpInfo, s2 OpInfo) (result OpInfo) {
 	return result
 }
 
+/*
+# Time: 150402 14:02:44
+# User@Host: [fernandoipar] @ localhost []
+# Thread_id: 13  Schema:   Last_errno: 0  Killed: 0
+# Query_time: 0.000052  Lock_time: 0.000000  Rows_sent: 1  Rows_examined: 0  Rows_affected: 0  Rows_read: 0
+# Bytes_sent: 90
+SET timestamp=1427994164;
+db.sample.find({a:"test", b:"another test"});
+
+Mon Jan 2 15:04:05 -0700 MST 2006
+
+
+*/
+
+func initSlowQueryLogHeaderVars(input OpInfo) (millis string, sent string, user string, host string) {
+	millis = "n/a"
+	sent = "n/a"
+	user = ""
+	host = ""
+	if v, ok := input["millis"]; ok {
+		millis = v
+	}
+	if v, ok := input["sent"]; ok {
+		sent = v
+	}
+	if v, ok := input["user"]; ok {
+		user = v
+	}
+	if v, ok := input["client"]; ok {
+		host = v
+	}
+	return millis, sent, user, host
+}
+
+func getSlowQueryLogHeader(input OpInfo) (output string) {
+
+	millis, sent, user, host := initSlowQueryLogHeaderVars(input)
+	now := time.Now().Format("060102 15:04:05")
+	output = fmt.Sprintf("# Time: %v\n", now)
+	output += fmt.Sprintf("# User@Host: %v @ %v []\n", user, host)
+	output += "# Thread_id: 1 Schema: Last_errno: 0 Killed: 0\n"
+	output += fmt.Sprintf("# Query_time: %v Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1\n", millis)
+	output += fmt.Sprintf("# Bytes_sent: %v\n", sent)
+	output += fmt.Sprintf("SET timestamp=%v;\n", time.Now().Unix())
+	return output
+}
+
 func recurseJsonMap(json map[string]interface{}) (output string, query string, info OpInfo) {
 	i := 0
 	info = make(OpInfo)
 	for k, v := range json {
-		if k == "user" || k == "ns" || k == "responseLength" || k == "client" || k == "nscanned" || k == "nreturned" || k == "millis" {
+		if k == "user" || k == "ns" || k == "millis" || k == "responseLength" || k == "client" || k == "nscanned" || k == "ntoreturn" || k == "ntoskip" || k == "nreturned" || k == "op" {
 			info[k] = fmt.Sprint(v)
 		}
 		if k == "query" {
-			query,_,_ = recurseJsonMap(v.(map[string]interface{})) 
+			query, _, _ = recurseJsonMap(v.(map[string]interface{}))
 		}
 		i++
 		comma := ", "
@@ -69,18 +116,17 @@ func recurseJsonMap(json map[string]interface{}) (output string, query string, i
 			if _query != "" {
 				query = _query
 			}
-			info = mergeOpInfoMaps(info,auxOpInfo)
+			info = mergeOpInfoMaps(info, auxOpInfo)
 			output += fmt.Sprintf("%v:{%v}%v", k, auxstr, comma)
 		case []interface{}:
-			output += fmt.Sprintf("%v:%v%v",k, recurseArray(extracted_v), comma)
+			output += fmt.Sprintf("%v:%v%v", k, recurseArray(extracted_v), comma)
 		default:
-			output += fmt.Sprintf("%v:%T%v", k, extracted_v, comma) 
+			output += fmt.Sprintf("%v:%T%v", k, extracted_v, comma)
 		}
 
 	}
 	return output, query, info
 }
-
 
 func main() {
 	session, err := mgo.Dial("127.0.0.1")
@@ -99,15 +145,36 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println("result has ",len(results)," elements")
-	for k, v := range results {
+	fmt.Println("result has ", len(results), " elements")
+	for _, v := range results {
 		var info OpInfo = make(OpInfo)
-//		fmt.Println(k, ":",reflect.TypeOf(v))
-//		fmt.Println(v)
-		fmt.Println("log entry # ", k)
-		output, query, info := recurseJsonMap(v)
-		fmt.Println(fmt.Sprintf("output: %v\nquery:{%v}\nextra info: %v",output,query,info))
-		fmt.Println()
+		_, _query, info := recurseJsonMap(v)
+		query := ""
+		if v, ok := info["op"]; ok {
+			switch v {
+			case "query":
+				limit := info["ntoreturn"]
+				skip := info["ntoskip"]
+				if ns, present := info["ns"]; present {
+					if limit == "0" {
+						limit = ""
+					} else {
+						limit = fmt.Sprintf(".limit(%v)", limit)
+					}
+					if skip == "0" {
+						skip = ""
+					} else {
+						skip = fmt.Sprintf(".skip(%v)", skip)
+					}
+					query = fmt.Sprintf("%v.find{%v}%v%v;", ns, _query, skip, limit)
+				} else {
+					query = fmt.Sprintf("<unknown>.find{%v}%v%v;", _query, skip, limit)
+				}
+			default:
+				query = fmt.Sprintf("{%v};", _query)
+			}
+		}
+		fmt.Print(getSlowQueryLogHeader(info), query, "\n")
 	}
 
 }
