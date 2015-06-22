@@ -134,18 +134,15 @@ func main() {
 		panic(err)
 	}
 	defer session.Close()
-	fmt.Println("Will open collection")
 	col := session.DB("examples").C("system.profile")
 
 	var results []map[string]interface{}
-	fmt.Println("Will run col.Find()")
 	err = col.Find(bson.M{}).All(&results)
 
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println("result has ", len(results), " elements")
 	for _, v := range results {
 		var info OpInfo = make(OpInfo)
 		_, _query, info := recurseJsonMap(v)
