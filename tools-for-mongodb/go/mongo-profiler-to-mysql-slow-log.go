@@ -58,13 +58,14 @@ Mon Jan 2 15:04:05 -0700 MST 2006
 
 */
 
-func initSlowQueryLogHeaderVars(input OpInfo) (millis string, sent string, user string, host string, inserted string, scanned string) {
+func initSlowQueryLogHeaderVars(input OpInfo) (millis string, sent string, user string, host string, inserted string, scanned string, deleted string) {
 	millis = "n/a"
 	sent = "n/a"
 	user = ""
 	host = ""
 	inserted = "0"
 	scanned = "0"
+	deleted = "0"
 	if v, ok := input["millis"]; ok {
 		millis = v
 	}
@@ -83,17 +84,24 @@ func initSlowQueryLogHeaderVars(input OpInfo) (millis string, sent string, user 
 	if v, ok := input["nscanned"]; ok {
 		scanned = v
 	}
-	return millis, sent, user, host, inserted, scanned
+	if v, ok := input["ndeleted"]; ok {
+		deleted = v
+	}
+	return millis, sent, user, host, inserted, scanned, deleted
 }
 
 func getSlowQueryLogHeader(input OpInfo) (output string) {
 
-	millis, sent, user, host, inserted, scanned := initSlowQueryLogHeaderVars(input)
+	millis, sent, user, host, inserted, scanned, deleted := initSlowQueryLogHeaderVars(input)
+	affected := inserted
+	if input["op"] == "remove" {
+		affected = deleted
+	}
 	now := time.Now().Format("060102 15:04:05")
 	output = fmt.Sprintf("# Time: %v\n", now)
 	output += fmt.Sprintf("# User@Host: %v @ %v []\n", user, host)
 	output += "# Thread_id: 1 Schema: Last_errno: 0 Killed: 0\n"
-	output += fmt.Sprintf("# Query_time: %v Lock_time: 0 Rows_sent: 1 Rows_examined: %v Rows_affected: %v Rows_read: 1\n", millis, scanned, inserted)
+	output += fmt.Sprintf("# Query_time: %v Lock_time: 0 Rows_sent: 1 Rows_examined: %v Rows_affected: %v Rows_read: 1\n", millis, scanned, affected)
 	output += fmt.Sprintf("# Bytes_sent: %v\n", sent)
 	output += fmt.Sprintf("SET timestamp=%v;\n", time.Now().Unix())
 	return output
@@ -103,7 +111,7 @@ func recurseJsonMap(json map[string]interface{}) (output string, query string, i
 	i := 0
 	info = make(OpInfo)
 	for k, v := range json {
-		if k == "user" || k == "ns" || k == "millis" || k == "responseLength" || k == "client" || k == "nscanned" || k == "ntoreturn" || k == "ntoskip" || k == "nreturned" || k == "op" || k == "ninserted" || k == "nModified" {
+		if k == "user" || k == "ns" || k == "millis" || k == "responseLength" || k == "client" || k == "nscanned" || k == "ntoreturn" || k == "ntoskip" || k == "nreturned" || k == "op" || k == "ninserted" || k == "ndeleted" || k == "nModified" {
 			info[k] = fmt.Sprint(v)
 		}
 		if k == "query" {
@@ -162,33 +170,29 @@ func main() {
 		_, _query, info := recurseJsonMap(v)
 		query := ""
 		if v, ok := info["op"]; ok {
+			ns := info["ns"] // ns is always there or we must just crash/behave erratically 
 			switch v {
 			case "query":
 				limit := info["ntoreturn"]
 				skip := info["ntoskip"]
-				if ns, present := info["ns"]; present {
-					if limit == "0" {
-						limit = ""
-					} else {
-						limit = fmt.Sprintf(".limit(%v)", limit)
-					}
-					if skip == "0" {
-						skip = ""
-					} else {
-						skip = fmt.Sprintf(".skip(%v)", skip)
-					}
-					query = fmt.Sprintf("%v.find{%v}%v%v;", ns, _query, skip, limit)
+				if limit == "0" {
+					limit = ""
 				} else {
-					query = fmt.Sprintf("<unknown>.find{%v}%v%v;", _query, skip, limit)
+					limit = fmt.Sprintf(".limit(%v)", limit)
 				}
+				if skip == "0" {
+					skip = ""
+				} else {
+					skip = fmt.Sprintf(".skip(%v)", skip)
+				}
+				query = fmt.Sprintf("%v.find{%v}%v%v;", ns, _query, skip, limit)
 			case "insert":
-				ns := info["ns"]
 				query = fmt.Sprintf("%v.insert{%v}",ns, _query)
 			case "update":
-				ns := info["ns"]
 				updateObject := info["updateobj"]
 				query = fmt.Sprintf("%v.update({%v},{%v})", ns, _query, updateObject)
 			case "remove":
+				query = fmt.Sprintf("%v.remove({%v})", ns, _query)
 			case "getmore":
 			case "command":
 			default:
