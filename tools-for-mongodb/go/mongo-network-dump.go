@@ -20,7 +20,7 @@ var fname = flag.String("r", "", "Filename to read from, overrides -i")
 var snaplen = flag.Int("s", 65536, "Snap length (number of bytes max to read per packet")
 var tstype = flag.String("timestamp_type", "", "Type of timestamps to use")
 var promisc = flag.Bool("promisc", true, "Set promiscuous mode")
-var verbose = 2
+var verbose = 4
 
 // next code all copied from facebookgo/dvara
 
@@ -127,6 +127,63 @@ var startTimes = make(map[int32]time.Time)
 var queries = make(map[int32]string)
 
 // my functions now
+
+/*
+struct OP_UPDATE {
+    MsgHeader header;             // standard message header
+    int32     ZERO;               // 0 - reserved for future use
+    cstring   fullCollectionName; // "dbname.collectionname"
+    int32     flags;              // bit vector. see below
+    document  selector;           // the query to select the document
+    document  update;             // specification of the update to perform
+}
+
+*/
+
+func processUpdatePayload(data []byte, header messageHeader) (output string) {
+	sub := data[20:]
+	current := sub[0]
+	docStartsAt := 0
+	for i := 0; current != 0; i++ {
+		current = sub[i]
+		docStartsAt = i
+	}
+	collectionName := sub[0:docStartsAt]
+	docStartsAt += 5 // ++ and then skip flags since I don't care about them right now
+	mybson := sub[docStartsAt+8:]
+	docEndsAt := mybson[0]
+	bdoc := mybson[:docEndsAt]
+	json := make(map[string]interface{})
+	bson.Unmarshal(bdoc, json)
+	if verbose > 2 {
+		fmt.Print("Unmarshalled selector json: ")
+		fmt.Println(json)
+	}
+	output = fmt.Sprintf("%v.update({", string(collectionName[:]))
+	output += recurseJsonMap(json)
+	output += "},{"
+	if verbose > 2 {
+		fmt.Print("Selector: ")
+		fmt.Print("mybson bytes: ")
+		fmt.Println(mybson)
+		fmt.Print("Document bytes:")
+		fmt.Println(bdoc)
+		fmt.Print("Document size in bytes: ")
+		fmt.Println(unsafe.Sizeof(bdoc))
+	}
+	docEndsAt = sub[docEndsAt:docEndsAt+1][0]
+	mybson = sub[docEndsAt+1:]
+	bdoc = mybson[:docEndsAt]
+	json = make(map[string]interface{})
+	bson.Unmarshal(bdoc, json)
+	if verbose > 2 {
+		fmt.Print("Unmarshalled updater json: ")
+		fmt.Println(json)
+	}
+	output += recurseJsonMap(json)
+	output += "});\n"
+	return output
+}
 
 func processQueryPayload(data []byte, header messageHeader) (output string) {
 	sub := data[20:]
@@ -281,6 +338,8 @@ func dump(src gopacket.PacketDataSource) {
 				} else {
 					fmt.Print("   Orphaned reply ...")
 				}
+			case OpUpdate:
+				queries[header.RequestID] = processUpdatePayload(payload, header)
 			}
 		}
 	}
