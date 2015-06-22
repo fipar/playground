@@ -95,7 +95,7 @@ Once enabled, you can look at profiler events by querying the system.profile col
 }
 #+END_EXAMPLE
 
-As you can imaging, turning this into a mysql-style slow query log is just a matter of: 
+As you can imagine, turning this into a mysql-style slow query log is just a matter of: 
   - Processing the json
   - Identifying and saving relevant variables depending on the operation type (i.e. "ntoreturn" in this case of a "getmore" operation)
   - Generating a slow query log entry for each profile collection entry, filling in the headers with the info obtained from the profile document. 
