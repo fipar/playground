@@ -4,9 +4,9 @@ Work on this started after some casual conversation with [[http://github.com/Low
 
 I thought this paragraph: 
 
-    You can use standard log analysis tools such as Percona Toolkit's pt-query-digest to analyze the output and build insight into queries and server performance.
+        You can use standard log analysis tools such as Percona Toolkit's pt-query-digest to analyze the output and build insight into queries and server performance.
 
-I thought this must have been some copy and paste error, that they started publishing the tool for MySQL, and just copied that text to the web pages for other systems like mongodb and redis. Turns out I was wrong, and pt-query-digest works, not just for SQL, but for just about everything, including mongodb 'queries'. I did a quick test to verify this and it was right. This meant that, in order to use pt-query-digest with mongodb/tokumx, just a couple of things were needed: 
+must have been some copy and paste error, that they started publishing the tool for MySQL, and just copied that text to the web pages for other systems like mongodb and redis. Turns out I was wrong, and pt-query-digest works, not just for SQL, but for just about everything, including mongodb 'queries'. I did a quick test to verify this and it was right. This meant that, in order to use pt-query-digest with mongodb/tokumx, just a couple of things were needed: 
 
 - having a log format that pt-query-digest recognizes, with mongodb performance data, and
 - getting a new fingerprint() function to generate the query summary in the report ranking (this is the code that summarizes something like 'select a, b, c from t where a = x' into 'select t', to give you a quick overview of a query in the ranking. 
