@@ -3,16 +3,17 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/examples/util"
-	_ "github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
-	"gopkg.in/mgo.v2/bson"
 	"log"
 	"os"
 	"strings"
 	"time"
 	"unsafe"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/examples/util"
+	_ "github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
+	"gopkg.in/mgo.v2/bson"
 )
 
 var iface = flag.String("i", "eth0", "Interface to read packets from")
@@ -20,7 +21,7 @@ var fname = flag.String("r", "", "Filename to read from, overrides -i")
 var snaplen = flag.Int("s", 65536, "Snap length (number of bytes max to read per packet")
 var tstype = flag.String("timestamp_type", "", "Type of timestamps to use")
 var promisc = flag.Bool("promisc", true, "Set promiscuous mode")
-var verbose = 4
+var verbose = 2
 
 // next code all copied from facebookgo/dvara
 
@@ -171,7 +172,7 @@ func processUpdatePayload(data []byte, header messageHeader) (output string) {
 		fmt.Print("Document size in bytes: ")
 		fmt.Println(unsafe.Sizeof(bdoc))
 	}
-	docEndsAt = sub[docEndsAt:docEndsAt+1][0]
+	docEndsAt = sub[docEndsAt : docEndsAt+1][0]
 	mybson = sub[docEndsAt+1:]
 	bdoc = mybson[:docEndsAt]
 	json = make(map[string]interface{})
@@ -180,6 +181,30 @@ func processUpdatePayload(data []byte, header messageHeader) (output string) {
 		fmt.Print("Unmarshalled updater json: ")
 		fmt.Println(json)
 	}
+	output += recurseJsonMap(json)
+	output += "});\n"
+	return output
+}
+
+func processInsertPayload(data []byte, header messageHeader) (output string) {
+	sub := data[20:]
+	current := sub[0]
+	docStartsAt := 0
+	for i := 0; current != 0; i++ {
+		current = sub[i]
+		docStartsAt = i
+	}
+	collectionName := sub[0:docStartsAt]
+	mybson := sub[docStartsAt+8:]
+	docEndsAt := mybson[0]
+	bdoc := mybson[:docEndsAt]
+	json := make(map[string]interface{})
+	bson.Unmarshal(bdoc, json)
+	if verbose > 2 {
+		fmt.Print("Unmarshalled selector json: ")
+		fmt.Println(json)
+	}
+	output = fmt.Sprintf("%v.insert({", string(collectionName[:]))
 	output += recurseJsonMap(json)
 	output += "});\n"
 	return output
@@ -250,7 +275,7 @@ func recurseJsonMap(json map[string]interface{}) (output string) {
 		case map[string]interface{}:
 			output += fmt.Sprintf("%v:{%v}%v", k, recurseJsonMap(extracted_v), comma)
 		default:
-			output += fmt.Sprintf("%v:%T%v", k, extracted_v, comma) 
+			output += fmt.Sprintf("%v:%T%v", k, extracted_v, comma)
 		}
 
 	}
@@ -315,12 +340,16 @@ func dump(src gopacket.PacketDataSource) {
 				}
 			*/
 			payload := al.Payload()
+			// IMPORTANT
+			// This code is unsafe. It performs no check and will fail miserably if the packet is
+			// not a mongo packet. Pass the proper 'port N' filter to pcap when invoking the program
 			var header messageHeader
 			header.MessageLength = getInt32(payload, 0)
 			header.RequestID = getInt32(payload, 4)
 			header.ResponseTo = getInt32(payload, 8)
 			header.OpCode = OpCode(getInt32(payload, 12))
 			startTimes[header.RequestID] = time.Now()
+			fmt.Println("OpCode: ", header.OpCode)
 			if verbose > 2 {
 				fmt.Println("Captured packet")
 				fmt.Printf("Captured packet (OpCode: %v)\n", header.OpCode)
@@ -340,6 +369,10 @@ func dump(src gopacket.PacketDataSource) {
 				}
 			case OpUpdate:
 				queries[header.RequestID] = processUpdatePayload(payload, header)
+			case OpInsert:
+				queries[header.RequestID] = processInsertPayload(payload, header)
+			default:
+				fmt.Println("Unimplemented Opcode ", header.OpCode)
 			}
 		}
 	}
