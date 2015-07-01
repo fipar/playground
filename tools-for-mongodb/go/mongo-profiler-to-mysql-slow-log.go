@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 	"time"
 
 	"labix.org/v2/mgo"
@@ -199,6 +200,9 @@ func getSlowQueryLogHeader(input OpInfo) (output string) {
 
 func main() {
 	flag.Parse()
+	if flag.NFlag() == 0 {
+		fmt.Fprintf(os.Stderr, "Running with default flags. mongo=%v, db=%v\n", *MONGO, *DB)
+	}
 	session, err := mgo.Dial(*MONGO)
 	if err != nil {
 		panic(err)
