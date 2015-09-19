@@ -1,0 +1,70 @@
+# Time: 150615 12:05:19
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000021 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 3369
+SET timestamp=1434395119;
+test.test.find();
+# Time: 150615 12:05:19
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000182 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 194
+SET timestamp=1434395119;
+test.$cmd.find({isMaster:1, forShell:1});
+# Time: 150615 12:05:21
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000065 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 3369
+SET timestamp=1434395121;
+test.test.find();
+# Time: 150615 12:05:21
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000004 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 194
+SET timestamp=1434395121;
+test.$cmd.find({isMaster:1, forShell:1});
+# Time: 150615 12:05:23
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000010 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 135
+SET timestamp=1434395123;
+test.test.find({a:19});
+# Time: 150615 12:05:23
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000005 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 194
+SET timestamp=1434395123;
+test.$cmd.find({isMaster:1, forShell:1});
+# Time: 150615 12:05:25
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000010 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 36
+SET timestamp=1434395125;
+test.test.find({a:109, b:4});
+# Time: 150615 12:05:25
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000018 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 194
+SET timestamp=1434395125;
+test.$cmd.find({isMaster:1, forShell:1});
+# Time: 150615 12:05:29
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000004 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 102
+SET timestamp=1434395129;
+test.test.find({a:109});
+# Time: 150615 12:05:29
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000027 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 194
+SET timestamp=1434395129;
+test.$cmd.find({isMaster:1, forShell:1});

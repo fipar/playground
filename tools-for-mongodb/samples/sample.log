@@ -1,0 +1,50 @@
+/usr/local/Cellar/percona-server55/5.5.32-31.0/bin/mysqld, Version: 5.5.32-log (Source distribution). started with:
+Tcp port: 3306  Unix socket: /tmp/mysql.sock
+Time                 Id Command    Argument
+# Time: 150402 14:02:44
+# User@Host: [fernandoipar] @ localhost []
+# Thread_id: 13  Schema:   Last_errno: 0  Killed: 0
+# Query_time: 0.000052  Lock_time: 0.000000  Rows_sent: 1  Rows_examined: 0  Rows_affected: 0  Rows_read: 0
+# Bytes_sent: 90
+SET timestamp=1427994164;
+db.sample.find({a:"test", b:"another test"});
+# Time: 150402 14:02:46
+# User@Host: [fernandoipar] @ localhost []
+# Thread_id: 13  Schema:   Last_errno: 0  Killed: 0
+# Query_time: 0.000079  Lock_time: 0.000000  Rows_sent: 1  Rows_examined: 0  Rows_affected: 0  Rows_read: 0
+# Bytes_sent: 56
+SET timestamp=1427994166;
+db.sample.find({a:"test2"});
+# User@Host: [fernandoipar] @ localhost []
+# Thread_id: 13  Schema:   Last_errno: 0  Killed: 0
+# Query_time: 0.000002  Lock_time: 0.000000  Rows_sent: 0  Rows_examined: 0  Rows_affected: 0  Rows_read: 0
+# Bytes_sent: 56
+db.sample.insert({a:"test"})l
+# Time: 150402 14:03:06
+# User@Host: [fernandoipar] @ localhost []
+# Thread_id: 14  Schema:   Last_errno: 0  Killed: 0
+# Query_time: 0.000068  Lock_time: 0.000000  Rows_sent: 1  Rows_examined: 0  Rows_affected: 0  Rows_read: 0
+# Bytes_sent: 90
+SET timestamp=1427994186;
+db.collection.find();
+# Time: 150402 14:03:09
+# User@Host: [fernandoipar] @ localhost []
+# Thread_id: 14  Schema:   Last_errno: 0  Killed: 0
+# Query_time: 0.000070  Lock_time: 0.000000  Rows_sent: 1  Rows_examined: 0  Rows_affected: 0  Rows_read: 0
+# Bytes_sent: 159
+SET timestamp=1427994189;
+db.sample.find();
+# Time: 150402 14:03:13
+# User@Host: [fernandoipar] @ localhost []
+# Thread_id: 14  Schema:   Last_errno: 0  Killed: 0
+# Query_time: 0.000003  Lock_time: 0.000000  Rows_sent: 0  Rows_examined: 0  Rows_affected: 0  Rows_read: 0
+# Bytes_sent: 0
+SET timestamp=1427994193;
+# administrator command: Quit;
+# Time: 150402 14:03:22
+# User@Host: [fernandoipar] @ localhost []
+# Thread_id: 15  Schema:   Last_errno: 0  Killed: 0
+# Query_time: 0.000196  Lock_time: 0.000000  Rows_sent: 1  Rows_examined: 0  Rows_affected: 0  Rows_read: 0
+# Bytes_sent: 90
+SET timestamp=1427994202;
+db.sample.find({a:"test"});

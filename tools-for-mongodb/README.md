@@ -1,5 +1,6 @@
 tools-for-mongodb
 =================
 
-Drafts of tools for mongodb dbas. 
-All content licensed under the GPL. See the file COPYING for more details.  
+This playground directory has been deprecated, and all useful code
+moved forward to https://github.com/Percona-Lab/tokumx-toolkit.
+All new work on MongoDB tools will happen there. 

@@ -1,0 +1,123 @@
+Captured packet
+Captured packet (OpCode: 2004)
+Raw data: [58 0 0 0 1 0 0 0 0 0 0 0 212 7 0 0 0 0 0 0 97 100 109 105 110 46 36 99 109 100 0 0 0 0 0 255 255 255 255 19 0 0 0 16 103 101 116 110 111 110 99 101 0 1 0 0 0 0]
+Querying collection admin.$cmd
+Unmarshalled json: map[getnonce:1]
+mybson bytes: [19 0 0 0 16 103 101 116 110 111 110 99 101 0 1 0 0 0 0]
+Document bytes:[19 0 0 0 16 103 101 116 110 111 110 99 101 0 1 0 0 0 0]
+Document size in bytes: 24
+Captured packet
+Captured packet (OpCode: 1)
+# Time: 150617 17:25:05
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000007 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 81
+SET timestamp=1434587105;
+admin.$cmd.find({getnonce:1});
+Captured packet
+Captured packet (OpCode: 2004)
+Raw data: [54 0 0 0 3 0 0 0 0 0 0 0 212 7 0 0 4 0 0 0 97 100 109 105 110 46 36 99 109 100 0 0 0 0 0 255 255 255 255 15 0 0 0 16 112 105 110 103 0 1 0 0 0 0]
+Querying collection admin.$cmd
+Unmarshalled json: map[ping:1]
+mybson bytes: [15 0 0 0 16 112 105 110 103 0 1 0 0 0 0]
+Document bytes:[15 0 0 0 16 112 105 110 103 0 1 0 0 0 0]
+Document size in bytes: 24
+Captured packet
+Captured packet (OpCode: 1)
+# Time: 150617 17:25:05
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000008 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 53
+SET timestamp=1434587105;
+admin.$cmd.find({ping:1});
+Captured packet
+Captured packet (OpCode: 2004)
+Raw data: [58 0 0 0 5 0 0 0 0 0 0 0 212 7 0 0 4 0 0 0 97 100 109 105 110 46 36 99 109 100 0 0 0 0 0 255 255 255 255 19 0 0 0 16 105 115 109 97 115 116 101 114 0 1 0 0 0 0]
+Querying collection admin.$cmd
+Unmarshalled json: map[ismaster:1]
+mybson bytes: [19 0 0 0 16 105 115 109 97 115 116 101 114 0 1 0 0 0 0]
+Document bytes:[19 0 0 0 16 105 115 109 97 115 116 101 114 0 1 0 0 0 0]
+Document size in bytes: 24
+Captured packet
+Captured packet (OpCode: 1)
+# Time: 150617 17:25:05
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000193 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 194
+SET timestamp=1434587105;
+admin.$cmd.find({ismaster:1});
+Captured packet
+Captured packet (OpCode: 2004)
+Raw data: [54 0 0 0 7 0 0 0 0 0 0 0 212 7 0 0 4 0 0 0 97 100 109 105 110 46 36 99 109 100 0 0 0 0 0 255 255 255 255 15 0 0 0 16 112 105 110 103 0 1 0 0 0 0]
+Querying collection admin.$cmd
+Unmarshalled json: map[ping:1]
+mybson bytes: [15 0 0 0 16 112 105 110 103 0 1 0 0 0 0]
+Document bytes:[15 0 0 0 16 112 105 110 103 0 1 0 0 0 0]
+Document size in bytes: 24
+Captured packet
+Captured packet (OpCode: 1)
+# Time: 150617 17:25:05
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000069 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 53
+SET timestamp=1434587105;
+admin.$cmd.find({ping:1});
+Captured packet
+Captured packet (OpCode: 2002)
+Captured packet
+Captured packet (OpCode: 1)
+# Time: 150617 17:25:05
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000006 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 110
+SET timestamp=1434587105;
+   Orphaned reply ...Captured packet
+Captured packet (OpCode: 2004)
+Raw data: [74 0 0 0 11 0 0 0 0 0 0 0 212 7 0 0 0 0 0 0 101 120 97 109 112 108 101 115 46 112 114 101 115 101 110 116 97 116 105 111 110 115 0 0 0 0 0 255 255 255 255 23 0 0 0 2 97 117 116 104 111 114 0 6 0 0 0 102 105 112 97 114 0 0]
+Querying collection examples.presentations
+Unmarshalled json: map[author:fipar]
+mybson bytes: [23 0 0 0 2 97 117 116 104 111 114 0 6 0 0 0 102 105 112 97 114 0 0]
+Document bytes:[23 0 0 0 2 97 117 116 104 111 114 0 6 0 0 0 102 105 112 97 114 0 0]
+Document size in bytes: 24
+Captured packet
+Captured packet (OpCode: 1)
+# Time: 150617 17:25:05
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000008 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 153
+SET timestamp=1434587105;
+examples.presentations.find({author:fipar});
+Captured packet
+Captured packet (OpCode: 2004)
+Raw data: [74 0 0 0 13 0 0 0 0 0 0 0 212 7 0 0 0 0 0 0 101 120 97 109 112 108 101 115 46 112 114 101 115 101 110 116 97 116 105 111 110 115 0 0 0 0 0 0 0 0 0 23 0 0 0 2 97 117 116 104 111 114 0 6 0 0 0 102 105 112 97 114 0 0]
+Querying collection examples.presentations
+Unmarshalled json: map[author:fipar]
+mybson bytes: [23 0 0 0 2 97 117 116 104 111 114 0 6 0 0 0 102 105 112 97 114 0 0]
+Document bytes:[23 0 0 0 2 97 117 116 104 111 114 0 6 0 0 0 102 105 112 97 114 0 0]
+Document size in bytes: 24
+Captured packet
+Captured packet (OpCode: 1)
+# Time: 150617 17:25:05
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000427 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 496
+SET timestamp=1434587105;
+examples.presentations.find({author:fipar});
+Captured packet
+Captured packet (OpCode: 2001)
+Captured packet
+Captured packet (OpCode: 1)
+# Time: 150617 17:25:05
+# User@Host: [undefined] @ undefined []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0.000009 Lock_time: 0 Rows_sent: 1 Rows_examined: 1 Rows_affected: 1 Rows_read: 1
+# Bytes_sent: 128
+SET timestamp=1434587105;
+   Orphaned reply ...

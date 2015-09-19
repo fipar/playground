@@ -1,0 +1,630 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<title>mongodb-profile-for-pt-query-digest</title>
+<!-- 2015-06-23 Tue 16:03 -->
+<meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta  name="generator" content="Org-mode" />
+<meta  name="author" content="Fernando Ipar" />
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  pre.src-sh:before    { content: 'sh'; }
+  pre.src-bash:before  { content: 'sh'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-R:before     { content: 'R'; }
+  pre.src-perl:before  { content: 'Perl'; }
+  pre.src-java:before  { content: 'Java'; }
+  pre.src-sql:before   { content: 'SQL'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.right  { text-align: center;  }
+  th.left   { text-align: center;   }
+  th.center { text-align: center; }
+  td.right  { text-align: right;  }
+  td.left   { text-align: left;   }
+  td.center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara:nth-child(2) { display: inline; }
+  .footpara { display: block; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  /*]]>*/-->
+</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2013 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">mongodb-profile-for-pt-query-digest</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#sec-1">1. Context</a></li>
+<li><a href="#sec-2">2. The target format</a></li>
+<li><a href="#sec-3">3. The MongoDB profiler</a></li>
+<li><a href="#sec-4">4. Preface to the code</a></li>
+<li><a href="#sec-5">5. The document processing bits</a></li>
+</ul>
+</div>
+</div>
+<div id="outline-container-sec-1" class="outline-2">
+<h2 id="sec-1"><span class="section-number-2">1</span> Context</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+Work on this started after some casual conversation with <a href="http://github.com/Lowercases">Nacho Nin</a>, specifically me asking a question about <a href="https://vividcortex.com/resources/network-analyzer-for-mongodb/">this</a>.
+</p>
+
+<p>
+I thought this paragraph: 
+</p>
+
+<blockquote>
+<p>
+You can use standard log analysis tools such as Percona Toolkit's pt-query-digest to analyze the output and build insight into queries and server performance.
+</p>
+</blockquote>
+
+<p>
+must have been some copy and paste error, that they started publishing the tool for MySQL, and just copied that text to the web pages for other systems like mongodb and redis. Turns out I was wrong, and pt-query-digest works, not just for SQL, but for just about everything, including mongodb 'queries'. I did a quick test to verify this and it was right. This meant that, in order to use pt-query-digest with mongodb/tokumx, just a couple of things were needed: 
+</p>
+
+<ul class="org-ul">
+<li>having a log format that pt-query-digest recognizes, with mongodb performance data, and
+</li>
+<li>getting a new fingerprint() function to generate the query summary in the report ranking (this is the code that summarizes something like 'select a, b, c from t where a = x' into 'select t', to give you a quick overview of a query in the ranking. 
+</li>
+</ul>
+
+<p>
+The second option I left to <a href="https://github.com/frank-cizmich">Frank</a>, and for the first one, I decided it would be easier to generate a fake slow query log format (emulating the idea discussed with Nacho) and use that with pt-query-digest. 
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-2" class="outline-2">
+<h2 id="sec-2"><span class="section-number-2">2</span> The target format</h2>
+<div class="outline-text-2" id="text-2">
+<p>
+Here is an example entry of this hybrid slow query log I want to generate: 
+</p>
+
+<pre class="example">
+# Time: 150622 16:08:58
+# User@Host:  @ 127.0.0.1 []
+# Thread_id: 1 Schema: Last_errno: 0 Killed: 0
+# Query_time: 0 Lock_time: 0 Rows_sent: 6 Rows_examined: 6 Rows_affected: 0 Rows_read: 1
+# Bytes_sent: n/a
+SET timestamp=1435000138;
+examples.presentations.find{};
+</pre>
+
+<p>
+Mongodb does not have queries in the same sense as MySQL or any other SQL based database has. All interactions with the database are made via commands or operations. A query is one specific kind of operation, and the projections and restrictions from SQL statements that we aggregate with pt-query-digest are found in json documents in mongodb's case. The document may be empty/absent, as in the case of a full collection scan. 
+</p>
+
+<p>
+What is seen as 
+</p>
+
+<p>
+SELECT * FROM table
+</p>
+
+<p>
+in SQL, is seen as just 
+</p>
+
+<p>
+{op: "query", ns:"table"}
+</p>
+
+<p>
+in mongodb. 
+</p>
+
+<p>
+Initially, there are two ways to obtain this information from mongodb. One is via network traffic captures, and the other one is via the <a href="http://docs.mongodb.org/manual/reference/database-profiler/">database profiler</a>. The latter is enabled per-database, which means there is no mongodb analogue to MySQL's slow query log at a global level. 
+</p>
+
+<p>
+I tried both approachs and will be describing each on this document.  
+</p>
+
+<p>
+You'll notice the function used to recurse a json structure and the one to get the slow query log entry header are slightly different in each case, and that's because the mongodb profiler naturally provides a lot more performance related data than what can be obtained by capturing traffic. 
+</p>
+
+<p>
+The code is not very clean (or pretty) at this stage, but this is just intended as a proof of concept, and as a guide for someone who may want to implement this professionally (i.e. with test cases and such). 
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3" class="outline-2">
+<h2 id="sec-3"><span class="section-number-2">3</span> The MongoDB profiler</h2>
+<div class="outline-text-2" id="text-3">
+<p>
+Here's the basics you need to know to get started using this. As I said before, the profiler is enabled per database. So, to enable it for the examples database, you would do the following: 
+</p>
+
+<div class="org-src-container">
+
+<pre class="src src-js">use examples
+db.setProfilingLevel(2)
+</pre>
+</div>
+
+<p>
+There are three profiling levels: 
+  0 - Profiler is off
+  1 - Profiler is on for slow operations. 'Slow' is defined as taking more than <a href="http://docs.mongodb.org/manual/reference/configuration-options/#operationProfiling.slowOpThresholdMs">slowOpThresholdMs</a> milliseconds. 
+  2 - Profiler is on for all operations. 
+</p>
+
+<p>
+Once enabled, you can look at profiler events by querying the system.profile collection for the selected database. Here's a sample document from a test system: 
+</p>
+
+<pre class="example">
+&gt; db.system.profile.find({op:"getmore"}).limit(1).pretty()
+{
+	"op" : "getmore",
+	"ns" : "examples.system.profile",
+	"cursorid" : 74041478549,
+	"ntoreturn" : 0,
+	"keyUpdates" : 0,
+	"numYield" : 0,
+	"lockStats" : {
+		"timeLockedMicros" : {
+			"r" : NumberLong(45),
+			"w" : NumberLong(0)
+		},
+		"timeAcquiringMicros" : {
+			"r" : NumberLong(2),
+			"w" : NumberLong(2)
+		}
+	},
+	"nreturned" : 11,
+	"responseLength" : 6924,
+	"millis" : 0,
+	"execStats" : {
+
+	},
+	"ts" : ISODate("2015-06-22T03:56:10.776Z"),
+	"client" : "127.0.0.1",
+	"allUsers" : [ ],
+	"user" : ""
+}
+</pre>
+
+<p>
+As you can imagine, turning this into a mysql-style slow query log is just a matter of: 
+</p>
+<ul class="org-ul">
+<li>Processing the json
+</li>
+<li>Identifying and saving relevant variables depending on the operation type (i.e. "ntoreturn" in this case of a "getmore" operation)
+</li>
+<li>Generating a slow query log entry for each profile collection entry, filling in the headers with the info obtained from the profile document. 
+</li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-sec-4" class="outline-2">
+<h2 id="sec-4"><span class="section-number-2">4</span> Preface to the code</h2>
+<div class="outline-text-2" id="text-4">
+<p>
+I chose Go for this as, in my experience, for something like this, it generates code that's almost as, if not as fast as what C would generate, and it provides some facilities for faster prototyping/iteration. As stated before, the code is not pretty. Some of it may be Go itself (lots of boilerplate code cannot be abstracted away in a way that could be done in, say, ruby or lisp), but most of it is probably due to my inexperience with the language. 
+</p>
+
+<p>
+Since this is a test, I'm going to put it all on a single file on the main package: 
+</p>
+
+<div class="org-src-container">
+
+<pre class="src src-go"><span style="color: #F0DFAF; font-weight: bold;">package</span> main
+</pre>
+</div>
+
+<p>
+Imported packages: 
+</p>
+<ul class="org-ul">
+<li>fmt: to print to stdout
+</li>
+<li>mgo and mgo/bson: to connect to and send operations and commands to mongo
+</li>
+<li>time is used when generating the slow query log header entry 
+</li>
+</ul>
+
+<div class="org-src-container">
+
+<pre class="src src-go"><span style="color: #F0DFAF; font-weight: bold;">import</span> (
+        <span style="color: #CC9393;">"fmt"</span>
+        <span style="color: #CC9393;">"labix.org/v2/mgo"</span>
+        <span style="color: #CC9393;">"labix.org/v2/mgo/bson"</span>
+        <span style="color: #CC9393;">"time"</span>
+)
+</pre>
+</div>
+
+<p>
+The OpInfo type is used to save significant variables found in the json for each profile document. This includes, but is not limited to, user name, client IP address, Returned bytes, etc. 
+</p>
+
+<div class="org-src-container">
+
+<pre class="src src-go"><span style="color: #F0DFAF; font-weight: bold;">type</span> <span style="color: #7CB8BB;">OpInfo</span> <span style="color: #F0DFAF; font-weight: bold;">map</span>[<span style="color: #7CB8BB;">string</span>]<span style="color: #7CB8BB;">string</span>
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-sec-5" class="outline-2">
+<h2 id="sec-5"><span class="section-number-2">5</span> The document processing bits</h2>
+<div class="outline-text-2" id="text-5">
+<p>
+Each system.profile entry will have most of the info we need to generate a good slow query log entry for use with pt-query-digest. For that, we need some aux functions to help us properly process json. 
+</p>
+
+<p>
+Sometimes we'll be processing an entry and find some subdocument to process. While processing it, we could end up with another OpInfo map, and in those cases, we'll have to merge them: 
+</p>
+
+<div class="org-src-container">
+
+<pre class="src src-go"><span style="color: #F0DFAF; font-weight: bold;">func</span> <span style="color: #93E0E3;">mergeOpInfoMaps</span>(s1 OpInfo, s2 OpInfo) (result OpInfo) {
+        result = <span style="color: #DCDCCC; font-weight: bold;">make</span>(<span style="color: #7CB8BB;">OpInfo</span>)
+        <span style="color: #F0DFAF; font-weight: bold;">for</span> k, v := <span style="color: #F0DFAF; font-weight: bold;">range</span> s1 {
+                <span style="color: #F0DFAF; font-weight: bold;">if</span> v2, ok := s2[v]; ok {
+                        result[k] = fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"%v | %v"</span>, v, v2)
+                } <span style="color: #F0DFAF; font-weight: bold;">else</span> {
+                        result[k] = v
+                }
+        }
+        <span style="color: #F0DFAF; font-weight: bold;">return</span> result
+}
+</pre>
+</div>
+
+<p>
+We process json maps recursively. We have a json map for every document in the profile collection, and we need to process recursively as some of it's elements may be maps themselves. 
+</p>
+
+<div class="org-src-container">
+
+<pre class="src src-go"><span style="color: #F0DFAF; font-weight: bold;">func</span> <span style="color: #93E0E3;">recurseJsonMap</span>(json <span style="color: #F0DFAF; font-weight: bold;">map</span>[<span style="color: #7CB8BB;">string</span>]<span style="color: #F0DFAF; font-weight: bold;">interface</span>{}) (output string, query string, info OpInfo) {
+        i := 0
+        info = <span style="color: #DCDCCC; font-weight: bold;">make</span>(<span style="color: #7CB8BB;">OpInfo</span>)
+        <span style="color: #F0DFAF; font-weight: bold;">for</span> k, v := <span style="color: #F0DFAF; font-weight: bold;">range</span> json {
+                <span style="color: #F0DFAF; font-weight: bold;">if</span> k == <span style="color: #CC9393;">"user"</span> || k == <span style="color: #CC9393;">"ns"</span> || k == <span style="color: #CC9393;">"millis"</span> || k == <span style="color: #CC9393;">"responseLength"</span> || k == <span style="color: #CC9393;">"client"</span> || k == <span style="color: #CC9393;">"nscanned"</span> || k == <span style="color: #CC9393;">"ntoreturn"</span> || k == <span style="color: #CC9393;">"ntoskip"</span> || k == <span style="color: #CC9393;">"nreturned"</span> || k == <span style="color: #CC9393;">"op"</span> || k == <span style="color: #CC9393;">"ninserted"</span> || k == <span style="color: #CC9393;">"ndeleted"</span> || k == <span style="color: #CC9393;">"nModified"</span> || k == <span style="color: #CC9393;">"cursorid"</span> {
+                        info[k] = fmt.<span style="color: #93E0E3;">Sprint</span>(v)
+                }
+                <span style="color: #F0DFAF; font-weight: bold;">if</span> k == <span style="color: #CC9393;">"query"</span> {
+                        query, _, _ = <span style="color: #93E0E3;">recurseJsonMap</span>(v.(<span style="color: #F0DFAF; font-weight: bold;">map</span>[<span style="color: #7CB8BB;">string</span>]<span style="color: #F0DFAF; font-weight: bold;">interface</span>{}))
+                }
+                <span style="color: #F0DFAF; font-weight: bold;">if</span> k ==<span style="color: #CC9393;">"updateobj"</span> {
+                        updateobj, _, _ := <span style="color: #93E0E3;">recurseJsonMap</span>(v.(<span style="color: #F0DFAF; font-weight: bold;">map</span>[<span style="color: #7CB8BB;">string</span>]<span style="color: #F0DFAF; font-weight: bold;">interface</span>{}))
+                        info[k] = updateobj
+                }
+                <span style="color: #F0DFAF; font-weight: bold;">if</span> k == <span style="color: #CC9393;">"command"</span> {
+                        command, _, _ := <span style="color: #93E0E3;">recurseJsonMap</span>(v.(<span style="color: #F0DFAF; font-weight: bold;">map</span>[<span style="color: #7CB8BB;">string</span>]<span style="color: #F0DFAF; font-weight: bold;">interface</span>{}))
+                        info[k] = command
+                }
+                i++
+                comma := <span style="color: #CC9393;">", "</span>
+                <span style="color: #F0DFAF; font-weight: bold;">if</span> i == <span style="color: #DCDCCC; font-weight: bold;">len</span>(json) {
+                        comma = <span style="color: #CC9393;">""</span>
+                }
+                <span style="color: #F0DFAF; font-weight: bold;">switch</span> extracted_v := v.(<span style="color: #F0DFAF; font-weight: bold;">type</span>) {
+                <span style="color: #F0DFAF; font-weight: bold;">case</span> string, time.Time, int, int32, int64:
+                        output += fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"%v:%v%v"</span>, k, extracted_v, comma)
+                <span style="color: #F0DFAF; font-weight: bold;">case</span> float64:
+                        output += fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"%v:%v%v"</span>, k, <span style="color: #93E0E3;">float64</span>(extracted_v), comma)
+                <span style="color: #F0DFAF; font-weight: bold;">case</span> <span style="color: #F0DFAF; font-weight: bold;">map</span>[<span style="color: #7CB8BB;">string</span>]<span style="color: #F0DFAF; font-weight: bold;">interface</span>{}:
+                        auxstr, _query, auxOpInfo := <span style="color: #93E0E3;">recurseJsonMap</span>(extracted_v)
+                        <span style="color: #F0DFAF; font-weight: bold;">if</span> _query != <span style="color: #CC9393;">""</span> {
+                                query = _query
+                        }
+                        info = <span style="color: #93E0E3;">mergeOpInfoMaps</span>(info, auxOpInfo)
+                        output += fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"%v:{%v}%v"</span>, k, auxstr, comma)
+                <span style="color: #F0DFAF; font-weight: bold;">case</span> []<span style="color: #F0DFAF; font-weight: bold;">interface</span>{}:
+                        output += fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"%v:%v%v"</span>, k, <span style="color: #93E0E3;">recurseArray</span>(extracted_v), comma)
+                <span style="color: #F0DFAF; font-weight: bold;">case</span> bson.ObjectId: 
+                        output += fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"%v:%v%v"</span>, k, extracted_v.<span style="color: #93E0E3;">String</span>(), comma)
+                <span style="color: #F0DFAF; font-weight: bold;">default</span>:
+                        output += fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"%v:%T%v"</span>, k, extracted_v, comma)
+                }
+
+        }
+        <span style="color: #F0DFAF; font-weight: bold;">return</span> output, query, info
+}
+</pre>
+</div>
+
+<p>
+Among the possible elements of the map are arrays, which must also be processed recursively, as each element may be itself an array (or a json document). 
+</p>
+
+<div class="org-src-container">
+
+<pre class="src src-go"><span style="color: #F0DFAF; font-weight: bold;">func</span> <span style="color: #93E0E3;">recurseArray</span>(input []<span style="color: #F0DFAF; font-weight: bold;">interface</span>{}) (output string) {
+        output = <span style="color: #CC9393;">"["</span>
+        i := 0
+        <span style="color: #F0DFAF; font-weight: bold;">for</span> k, v := <span style="color: #F0DFAF; font-weight: bold;">range</span> input {
+                i++
+                comma := <span style="color: #CC9393;">", "</span>
+                <span style="color: #F0DFAF; font-weight: bold;">if</span> i == <span style="color: #DCDCCC; font-weight: bold;">len</span>(input) {
+                        comma = <span style="color: #CC9393;">""</span>
+                }
+                <span style="color: #F0DFAF; font-weight: bold;">switch</span> extracted_v := v.(<span style="color: #F0DFAF; font-weight: bold;">type</span>) {
+                <span style="color: #F0DFAF; font-weight: bold;">case</span> <span style="color: #F0DFAF; font-weight: bold;">map</span>[<span style="color: #7CB8BB;">string</span>]<span style="color: #F0DFAF; font-weight: bold;">interface</span>{}:
+                        aux, _, _ := <span style="color: #93E0E3;">recurseJsonMap</span>(extracted_v)
+                        output += fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"%v:{%v}%v"</span>, k, aux, comma)
+                <span style="color: #F0DFAF; font-weight: bold;">case</span> []<span style="color: #F0DFAF; font-weight: bold;">interface</span>{}:
+                        output += fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"%v:%v%v"</span>, k, <span style="color: #93E0E3;">recurseArray</span>(extracted_v), comma)
+                <span style="color: #F0DFAF; font-weight: bold;">default</span>:
+                        output += fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"%v:%v%v"</span>, k, extracted_v, comma)
+                }
+        }
+        output += fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"]"</span>)
+        <span style="color: #F0DFAF; font-weight: bold;">return</span> output
+}
+</pre>
+</div>
+
+<p>
+Generating the header for each slow query log entry is just a matter of filling in the blanks with the data we have in the OpInfo array built for each document processed. 
+</p>
+
+<div class="org-src-container">
+
+<pre class="src src-go"><span style="color: #F0DFAF; font-weight: bold;">func</span> <span style="color: #93E0E3;">getSlowQueryLogHeader</span>(input OpInfo) (output string) {
+
+        millis, sent, user, host, inserted, scanned, deleted, returned := <span style="color: #93E0E3;">initSlowQueryLogHeaderVars</span>(input)
+        affected := inserted
+        <span style="color: #F0DFAF; font-weight: bold;">if</span> input[<span style="color: #CC9393;">"op"</span>] == <span style="color: #CC9393;">"remove"</span> {
+                affected = deleted
+        }
+        now := time.<span style="color: #93E0E3;">Now</span>().<span style="color: #93E0E3;">Format</span>(<span style="color: #CC9393;">"060102 15:04:05"</span>)
+        output = fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"# Time: %v\n"</span>, now)
+        output += fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"# User@Host: %v @ %v []\n"</span>, user, host)
+        output += <span style="color: #CC9393;">"# Thread_id: 1 Schema: Last_errno: 0 Killed: 0\n"</span>
+        output += fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"# Query_time: %v Lock_time: 0 Rows_sent: %v Rows_examined: %v Rows_affected: %v Rows_read: 1\n"</span>, millis, returned, scanned, affected)
+        output += fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"# Bytes_sent: %v\n"</span>, sent)
+        output += fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"SET timestamp=%v;\n"</span>, time.<span style="color: #93E0E3;">Now</span>().<span style="color: #93E0E3;">Unix</span>())
+        <span style="color: #F0DFAF; font-weight: bold;">return</span> output
+}
+</pre>
+</div>
+
+<p>
+The reason I moved the initialization with default values of variables that may be missing from the OpInfo map, is that the go way to do this (that I know of) has a lot of repeated code, and I wanted to move that away from the function that generates the header. 
+</p>
+
+<div class="org-src-container">
+
+<pre class="src src-go"><span style="color: #F0DFAF; font-weight: bold;">func</span> <span style="color: #93E0E3;">initSlowQueryLogHeaderVars</span>(input OpInfo) (millis string, sent string, user string, host string, inserted string, scanned string, deleted string, returned string) {
+        millis = <span style="color: #CC9393;">"n/a"</span>
+        sent = <span style="color: #CC9393;">"n/a"</span>
+        user = <span style="color: #CC9393;">""</span>
+        host = <span style="color: #CC9393;">""</span>
+        inserted = <span style="color: #CC9393;">"0"</span>
+        scanned = <span style="color: #CC9393;">"0"</span>
+        deleted = <span style="color: #CC9393;">"0"</span>
+        returned = <span style="color: #CC9393;">"0"</span>
+        <span style="color: #F0DFAF; font-weight: bold;">if</span> v, ok := input[<span style="color: #CC9393;">"millis"</span>]; ok {
+                millis = v
+        }
+        <span style="color: #F0DFAF; font-weight: bold;">if</span> v, ok := input[<span style="color: #CC9393;">"sent"</span>]; ok {
+                sent = v
+        }
+        <span style="color: #F0DFAF; font-weight: bold;">if</span> v, ok := input[<span style="color: #CC9393;">"user"</span>]; ok {
+                user = v
+        }
+        <span style="color: #F0DFAF; font-weight: bold;">if</span> v, ok := input[<span style="color: #CC9393;">"client"</span>]; ok {
+                host = v
+        }
+        <span style="color: #F0DFAF; font-weight: bold;">if</span> v, ok := input[<span style="color: #CC9393;">"ninserted"</span>]; ok {
+                inserted = v
+        }
+        <span style="color: #F0DFAF; font-weight: bold;">if</span> v, ok := input[<span style="color: #CC9393;">"nscanned"</span>]; ok {
+                scanned = v
+        }
+        <span style="color: #F0DFAF; font-weight: bold;">if</span> v, ok := input[<span style="color: #CC9393;">"ndeleted"</span>]; ok {
+                deleted = v
+        }
+        <span style="color: #F0DFAF; font-weight: bold;">if</span> v, ok := input[<span style="color: #CC9393;">"nreturned"</span>]; ok {
+                returned = v
+        }
+        <span style="color: #F0DFAF; font-weight: bold;">return</span> millis, sent, user, host, inserted, scanned, deleted, returned
+}
+</pre>
+</div>
+
+<p>
+We're now ready for main, which basically iterates over the profile collection, and processes each document found. 
+Note that this is currently hardcoded to: 
+</p>
+<ul class="org-ul">
+<li>Connect to mongo on 127.0.0.1 on the default port (27017)
+</li>
+<li>Look for the system.profile collection in the examples database
+</li>
+</ul>
+
+<div class="org-src-container">
+
+<pre class="src src-go"><span style="color: #F0DFAF; font-weight: bold;">func</span> <span style="color: #93E0E3;">main</span>() {
+        session, err := mgo.<span style="color: #93E0E3;">Dial</span>(<span style="color: #CC9393;">"127.0.0.1"</span>)
+        <span style="color: #F0DFAF; font-weight: bold;">if</span> err != <span style="color: #BFEBBF;">nil</span> {
+                <span style="color: #DCDCCC; font-weight: bold;">panic</span>(err)
+        }
+        <span style="color: #F0DFAF; font-weight: bold;">defer</span> session.<span style="color: #93E0E3;">Close</span>()
+        col := session.<span style="color: #93E0E3;">DB</span>(<span style="color: #CC9393;">"examples"</span>).<span style="color: #93E0E3;">C</span>(<span style="color: #CC9393;">"system.profile"</span>)
+
+        <span style="color: #F0DFAF; font-weight: bold;">var</span> results []<span style="color: #F0DFAF; font-weight: bold;">map</span>[<span style="color: #7CB8BB;">string</span>]<span style="color: #F0DFAF; font-weight: bold;">interface</span>{}
+        err = col.<span style="color: #93E0E3;">Find</span>(bson.<span style="color: #7CB8BB;">M</span>{}).<span style="color: #93E0E3;">All</span>(&amp;results)
+
+        <span style="color: #F0DFAF; font-weight: bold;">if</span> err != <span style="color: #BFEBBF;">nil</span> {
+                <span style="color: #DCDCCC; font-weight: bold;">panic</span>(err)
+        }
+
+        <span style="color: #F0DFAF; font-weight: bold;">for</span> _, v := <span style="color: #F0DFAF; font-weight: bold;">range</span> results {
+                <span style="color: #F0DFAF; font-weight: bold;">var</span> info OpInfo = <span style="color: #DCDCCC; font-weight: bold;">make</span>(<span style="color: #7CB8BB;">OpInfo</span>)
+                _, _query, info := <span style="color: #93E0E3;">recurseJsonMap</span>(v)
+                query := <span style="color: #CC9393;">""</span>
+                <span style="color: #F0DFAF; font-weight: bold;">if</span> v, ok := info[<span style="color: #CC9393;">"op"</span>]; ok {
+                        ns := info[<span style="color: #CC9393;">"ns"</span>] <span style="color: #5F7F5F;">// </span><span style="color: #7F9F7F;">ns is always there or we must just crash/behave erratically </span>
+                        <span style="color: #F0DFAF; font-weight: bold;">switch</span> v {
+                        <span style="color: #F0DFAF; font-weight: bold;">case</span> <span style="color: #CC9393;">"query"</span>:
+                                limit := info[<span style="color: #CC9393;">"ntoreturn"</span>]
+                                skip := info[<span style="color: #CC9393;">"ntoskip"</span>]
+                                <span style="color: #F0DFAF; font-weight: bold;">if</span> limit == <span style="color: #CC9393;">"0"</span> {
+                                        limit = <span style="color: #CC9393;">""</span>
+                                } <span style="color: #F0DFAF; font-weight: bold;">else</span> {
+                                        limit = fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">".limit(%v)"</span>, limit)
+                                }
+                                <span style="color: #F0DFAF; font-weight: bold;">if</span> skip == <span style="color: #CC9393;">"0"</span> {
+                                        skip = <span style="color: #CC9393;">""</span>
+                                } <span style="color: #F0DFAF; font-weight: bold;">else</span> {
+                                        skip = fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">".skip(%v)"</span>, skip)
+                                }
+                                query = fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"%v.find{%v}%v%v;"</span>, ns, _query, skip, limit)
+                        <span style="color: #F0DFAF; font-weight: bold;">case</span> <span style="color: #CC9393;">"insert"</span>:
+                                query = fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"%v.insert{%v}"</span>,ns, _query)
+                        <span style="color: #F0DFAF; font-weight: bold;">case</span> <span style="color: #CC9393;">"update"</span>:
+                                query = fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"%v.update({%v},{%v})"</span>, ns, _query, info[<span style="color: #CC9393;">"updateobj"</span>])
+                        <span style="color: #F0DFAF; font-weight: bold;">case</span> <span style="color: #CC9393;">"remove"</span>:
+                                query = fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"%v.remove({%v})"</span>, ns, _query)
+                        <span style="color: #F0DFAF; font-weight: bold;">case</span> <span style="color: #CC9393;">"getmore"</span>:
+                                query = fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"%v.getmore"</span>, ns)
+                        <span style="color: #F0DFAF; font-weight: bold;">case</span> <span style="color: #CC9393;">"command"</span>:
+                                query = fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"%v({%v})"</span>, ns, info[<span style="color: #CC9393;">"command"</span>])
+                        <span style="color: #F0DFAF; font-weight: bold;">default</span>:
+                                query = fmt.<span style="color: #93E0E3;">Sprintf</span>(<span style="color: #CC9393;">"__UNIMPLEMENTED__ {%v};"</span>, _query)
+                        }
+                }
+                fmt.<span style="color: #93E0E3;">Print</span>(<span style="color: #93E0E3;">getSlowQueryLogHeader</span>(info), query, <span style="color: #CC9393;">"\n"</span>)
+        }
+
+}
+</pre>
+</div>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="author">Author: Fernando Ipar</p>
+<p class="date">Created: 2015-06-23 Tue 16:03</p>
+<p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.4.51.2 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>

@@ -1,0 +1,52 @@
+
+# 190ms user time, 20ms system time, 27.22M rss, 2.37G vsz
+# Current date: Wed Jul  1 12:23:01 2015
+# Hostname: telecaster.local
+# Files: metrics.log
+# Overall: 9 total, 5 unique, 0 QPS, 0x concurrency ______________________
+# Time range: all events occurred at 2015-07-01 12:22:31
+# Attribute          total     min     max     avg     95%  stddev  median
+# ============     ======= ======= ======= ======= ======= ======= =======
+# Exec time           107s       0    107s     12s    102s     32s       0
+# Lock time              0       0       0       0       0       0       0
+# Rows sent             14       0       8    1.56    7.70    2.83       0
+# Rows examine           0       0       0       0       0       0       0
+# Rows affecte           6       0       1    0.67    0.99    0.47    0.99
+# Rows read              9       1       1       1       1       0       1
+# Query size           787      22     119   87.44  118.34   44.57  118.34
+
+# Profile
+# Rank Query ID           Response time   Calls R/Call  V/M   Item
+# ==== ================== =============== ===== ======= ===== =========
+#    1 0xBC39B911627045B8 107.0000 100.0%     4 26.7500 73.25 INSERT
+# MISC 0xMISC                0.0000  0.0%     5  0.0000   0.0 <4 ITEMS>
+
+# Query 1: 0 QPS, 0x concurrency, ID 0xBC39B911627045B8 at byte 260 ______
+# This item is included in the report because it matches --limit.
+# Scores: V/M = 73.25
+# Time range: all events occurred at 2015-07-01 12:22:31
+# Attribute    pct   total     min     max     avg     95%  stddev  median
+# ============ === ======= ======= ======= ======= ======= ======= =======
+# Count         44       4
+# Exec time    100    107s       0    107s     27s    102s     44s       0
+# Lock time      0       0       0       0       0       0       0       0
+# Rows sent      0       0       0       0       0       0       0       0
+# Rows examine   0       0       0       0       0       0       0       0
+# Rows affecte  66       4       1       1       1       1       0       1
+# Rows read     44       4       1       1       1       1       0       1
+# Query size    60     476     119     119     119     119       0     119
+# String:
+# Bytes sent   n/a
+# Hosts        192.168.0.2
+# Last errno   0
+# Users
+# Query_time distribution
+#   1us
+#  10us
+# 100us
+#   1ms
+#  10ms
+# 100ms
+#    1s
+#  10s+  ################################################################
+metrics.metrics.insert{_id:ObjectIdHex("559405159533e0c2486cc3cb"), ts:2015-07-01 12:19:49.441 -0300 UYT, a:1, b:1.002}\G

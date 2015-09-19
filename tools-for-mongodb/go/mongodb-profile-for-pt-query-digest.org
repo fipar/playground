@@ -4,7 +4,9 @@ Work on this started after some casual conversation with [[http://github.com/Low
 
 I thought this paragraph: 
 
-        You can use standard log analysis tools such as Percona Toolkit's pt-query-digest to analyze the output and build insight into queries and server performance.
+#+BEGIN_QUOTE
+You can use standard log analysis tools such as Percona Toolkit's pt-query-digest to analyze the output and build insight into queries and server performance.
+#+END_QUOTE
 
 must have been some copy and paste error, that they started publishing the tool for MySQL, and just copied that text to the web pages for other systems like mongodb and redis. Turns out I was wrong, and pt-query-digest works, not just for SQL, but for just about everything, including mongodb 'queries'. I did a quick test to verify this and it was right. This meant that, in order to use pt-query-digest with mongodb/tokumx, just a couple of things were needed: 
 
@@ -100,24 +102,32 @@ As you can imagine, turning this into a mysql-style slow query log is just a mat
   - Identifying and saving relevant variables depending on the operation type (i.e. "ntoreturn" in this case of a "getmore" operation)
   - Generating a slow query log entry for each profile collection entry, filling in the headers with the info obtained from the profile document. 
 
+* The MongoDB wire protocol
+
+While working on the pcap based approach, I relied heavily on the
+following: 
+- http://docs.mongodb.org/meta-driver/latest/legacy/mongodb-wire-protocol/
+- https://github.com/facebookgo/dvara
+
 * Preface to the code
 
 I chose Go for this as, in my experience, for something like this, it generates code that's almost as, if not as fast as what C would generate, and it provides some facilities for faster prototyping/iteration. As stated before, the code is not pretty. Some of it may be Go itself (lots of boilerplate code cannot be abstracted away in a way that could be done in, say, ruby or lisp), but most of it is probably due to my inexperience with the language. 
 
 Since this is a test, I'm going to put it all on a single file on the main package: 
 
-#+HEADERS: :tangle mongop2mysqlslow.go 
+#+NAME: main
 #+BEGIN_SRC go
 package main
 #+END_SRC
 
-Imported packages: 
+Imported packages for the tool that uses the profiler: 
   - fmt: to print to stdout
   - mgo and mgo/bson: to connect to and send operations and commands to mongo
   - time is used when generating the slow query log header entry 
 
-#+HEADERS: :tangle mongop2mysqlslow.go
+#+HEADERS: :tangle mongop2mysqlslow.go :noweb yes
 #+BEGIN_SRC go 
+<<main>>
 import (
 	"fmt"
 	"labix.org/v2/mgo"
@@ -125,6 +135,7 @@ import (
 	"time"
 )
 #+END_SRC
+
 
 The OpInfo type is used to save significant variables found in the json for each profile document. This includes, but is not limited to, user name, client IP address, Returned bytes, etc. 
 

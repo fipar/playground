@@ -1,0 +1,28 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html> <head>
+<title></title>
+<script type="text/javascript" src="smoothie.js"></script>
+</head>
+
+<body>
+<canvas id="mycanvas" width="400" height="100"></canvas>
+<script type="text/javascript">
+var smoothie = new SmoothieChart({millisPerPixel:100,grid:{fillStyle:'transparent',strokeStyle:'transparent',millisPerLine:10000,verticalSections:0}});
+
+smoothie.streamTo(document.getElementById("mycanvas"));
+// Data
+var line1 = new TimeSeries();
+var line2 = new TimeSeries();
+
+// Add a random value to each line every second
+setInterval(function() {
+  line1.append(new Date().getTime(), Math.random());
+  line2.append(new Date().getTime(), Math.random());
+}, 1000);
+
+// Add to SmoothieChart
+smoothie.addTimeSeries(line1,{strokeStyle:'#00ff00'});
+smoothie.addTimeSeries(line2,{strokeStyle:'#0000ff'});
+smoothie.streamTo(document.getElementById("mycanvas"), 1000 /*delay*/); 
+</script>
+</body> </html>
