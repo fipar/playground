@@ -9,13 +9,15 @@
 
 interval=$1
 duration=$2
+timestamp=$(date "+%s")
 
 dest=${TOOLNAME}_$(ts).gz
 trap "rm -f $dest.pid" SIGINT SIGTERM SIGHUP
 # get the header.
 $TOOLNAME ext -i 1 -c 1|grep -v '-'|awk -F '|' '{print $2}'|grep -v ^$|sed 's/Variable_name/Timestamp/g'|tr '\n' ' '|sed 's/  */ /g'|sed 's/^ //g' > $dest.header
 # now get the capture 
-$TOOLNAME ext -i $interval -c $duration | awk -F '|' '{print $3}'|sed 's/^ //g'|sed 's/  *$/ /g'|grep -v ^$|sed 's/^ $/_/g' |tr '\n' ' '| sed "s/Value/|`date '+%Y-%m-%d_%H:%M:%S'`/g" | tr '|' '\n'| grep -v ^$|sed 's/^  *//g' |sed 's/  */ /g'| gzip -c > $dest &
+$TOOLNAME ext -i $interval -c $duration | awk -F '|' '{print $3}'|sed 's/^ //g'|sed 's/  *$/ /g'|grep -v ^$|sed 's/^ $/_/g' |tr '\n' ' '| sed "s/Value/|/g" | tr '|' '\n' |grep -v ^$|sed 's/^  *//g' |sed 's/  */ /g'| while read row; do echo "$timestamp $row"; timestamp=$((timestamp+1)); done | gzip -c >> $dest & 
+#$TOOLNAME ext -i $interval -c $duration | awk -F '|' '{print $3}'|sed 's/^ //g'|sed 's/  *$/ /g'|grep -v ^$|sed 's/^ $/_/g' |tr '\n' ' '| sed "s/Value/|`date '+%Y-%m-%d_%H:%M:%S'`/g" | tr '|' '\n'| grep -v ^$|sed 's/^  *//g' |sed 's/  */ /g'| gzip -c > $dest &
 echo $! > $dest.pid
 pid=$!
 # save the pid so we can monitor disk space while the tool runs, and
