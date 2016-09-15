@@ -36,3 +36,30 @@
   N M -> true where (= N (* M M))
   N M -> false where (> (* M M) N)
   N M -> (square-h N (+ 1 M)))
+
+\\ 3.1.b
+
+(define remainder
+  N D -> N where (> D N)
+  N D -> (remainder (- N D) D))
+
+(define integer-part
+  N -> N where (integer? N)
+  N -> (- N (remainder N 1)))
+
+(define to-power-10
+  1 -> 10
+  N -> (* 10 (to-power-10 (- N 1))))
+
+\\ first version. does not work properly, at least on sbcl, because new digits are added when adding (/ 1 RoundFactor)
+
+(define round_n
+  M N -> (let
+	    RoundFactor (to-power-10 N)
+	    RoundFactorP1 (to-power-10 (+ N 1))
+   	    IntegerPart (integer-part M)
+   	    Remainder (remainder M 1)
+   	    DecimalPart (integer-part (* RoundFactor (remainder M 1)))
+	    DecimalPartP1 (integer-part (* RoundFactorP1 (remainder M 1)))
+	    Diff (* RoundFactor (- (/ DecimalPartP1 RoundFactorP1) (/ DecimalPart RoundFactor)))
+	    (if (> Diff 0.5) (+ (/ 1 RoundFactor) (+ IntegerPart (/ DecimalPart RoundFactor))) (+ IntegerPart (/ DecimalPart RoundFactor)) ) ))
