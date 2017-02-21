@@ -14,6 +14,26 @@ done
 
 # finally we generate a graph
 
+cat <<EOF>label_custom.R
+
+remove(label_custom)
+
+label_custom <- function(variable, value) {
+	if (variable=="profiler_level") { 
+		if (value=="0") { 
+			return ("no profiler")
+		} else {
+			return ("profile all queries")
+		}
+	} else if (variable=="threads") {
+		return (paste (variable,":",value))
+	} else {
+		return (value)
+	}
+}
+
+EOF
+
 env _INPUT_FILE=data.csv \
 	_OUTPUT_FILE=mongodb_profiler_impact.png \
 	_X_AXIS=ts \
@@ -25,3 +45,4 @@ env _INPUT_FILE=data.csv \
 	_AXIS_HAVE_0=no \
 	_GRAPH_TITLE="MongoDB: Profiler impact on throughput" $ba/data_presentation_scripts/csv_to_png.sh
 
+#	_R_EXP="$(cat label_custom.R)" \
