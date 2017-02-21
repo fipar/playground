@@ -39,7 +39,8 @@ profiler()
 #for run in $(seq $runs); do
 for run in 1; do
     for profiler in 0 2; do
-	for threads in 8 16 32; do
+	#for threads in 8 16 32; do
+	for threads in 32; do
 	    profiler $profiler
 	    prepare oltp
 	    tag=oltp-$threads-profiler-$profiler
