@@ -38,19 +38,13 @@ profiler()
 
 #for run in $(seq $runs); do
 for run in 1; do
-    for profiler in 0 2; do
-	for threads in 8 16 32; do
+    for profiler in 0; do
+	#for threads in 8 16 32; do
+	for threads in 32; do
 	    profiler $profiler
 	    prepare oltp
 	    tag=oltp-$threads-profiler-$profiler
-	    opcontrol --init
-	    opcontrol --start --no-vmlinux
 	    run oltp $threads 2>&1 | tee sysbench-$tag.txt
-	    sleep 2
-	    opcontrol --stop
-	    opcontrol --dump
-	    opcontrol --save=pt_collect_$tag
-	    opreport --demangle=smart --accumulated --debug-info --callgraph --global-percent --symbols --merge tgid session:pt_collect_$tag > opreport.$tag
 	    cleanup oltp
 	done
     done

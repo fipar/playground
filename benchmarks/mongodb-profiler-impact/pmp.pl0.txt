@@ -1,0 +1,18 @@
+Tue Feb 21 14:05:03 UTC 2017
+      4 pthread_cond_timedwait,__wt_cond_wait_signal,__wt_cond_auto_wait_signal,__wt_cond_auto_wait,__wt_evict_thread_run,__wt_thread_run,start_thread(libpthread.so.0),clone(libc.so.6)
+      1 sigwait(libpthread.so.0),mongo::::signalProcessingThread,execute_native_thread_routine,start_thread(libpthread.so.0),clone(libc.so.6)
+      1 select(libc.so.6),mongo::Listener::initAndListen,execute_native_thread_routine,start_thread(libpthread.so.0),clone(libc.so.6)
+      1 pthread_cond_wait,std::condition_variable::wait,mongo::waitForShutdown,mongo::::_initAndListen,main
+      1 pthread_cond_wait,std::condition_variable::wait,mongo::DeadlineMonitor::deadlineMonitorThread,execute_native_thread_routine,start_thread(libpthread.so.0),clone(libc.so.6)
+      1 pthread_cond_timedwait,__wt_cond_wait_signal,__wt_cond_auto_wait_signal,__wt_cond_auto_wait,__log_wrlsn_server,start_thread(libpthread.so.0),clone(libc.so.6)
+      1 pthread_cond_timedwait,__wt_cond_wait_signal,__wt_cond_auto_wait_signal,__log_server,start_thread(libpthread.so.0),clone(libc.so.6)
+      1 pthread_cond_timedwait,__wt_cond_wait_signal,__sweep_server,start_thread(libpthread.so.0),clone(libc.so.6)
+      1 pthread_cond_timedwait,__wt_cond_wait_signal,__log_file_server,start_thread(libpthread.so.0),clone(libc.so.6)
+      1 pthread_cond_timedwait,__wt_cond_wait_signal,__ckpt_server,start_thread(libpthread.so.0),clone(libc.so.6)
+      1 pthread_cond_timedwait,std::thread::_Impl::_M_run,execute_native_thread_routine,start_thread(libpthread.so.0),clone(libc.so.6)
+      1 pthread_cond_timedwait,mongo::RangeDeleter::doWork,execute_native_thread_routine,start_thread(libpthread.so.0),clone(libc.so.6)
+      1 pthread_cond_timedwait,mongo::::PeriodicTaskRunner::run,mongo::BackgroundJob::jobBody,execute_native_thread_routine,start_thread(libpthread.so.0),clone(libc.so.6)
+      1 pthread_cond_timedwait,mongo::FTDCController::doLoop,execute_native_thread_routine,start_thread(libpthread.so.0),clone(libc.so.6)
+      1 nanosleep(libpthread.so.0),mongo::sleepsecs,mongo::TTLMonitor::run,mongo::BackgroundJob::jobBody,execute_native_thread_routine,start_thread(libpthread.so.0),clone(libc.so.6)
+      1 nanosleep(libpthread.so.0),mongo::sleepsecs,mongo::ClientCursorMonitor::run,mongo::BackgroundJob::jobBody,execute_native_thread_routine,start_thread(libpthread.so.0),clone(libc.so.6)
+      1 nanosleep(libpthread.so.0),mongo::sleepmillis,mongo::WiredTigerKVEngine::WiredTigerJournalFlusher::run,mongo::BackgroundJob::jobBody,execute_native_thread_routine,start_thread(libpthread.so.0),clone(libc.so.6)
