@@ -38,6 +38,7 @@ env _INPUT_FILE=data.csv \
 	_OUTPUT_FILE=mongodb_profiler_impact.png \
 	_X_AXIS=ts \
 	_X_AXIS_LABEL="Time (secs)" \
+	_OUTPUT_RATIO=2 \
 	_Y_AXIS=tps \
 	_Y_AXIS_LABEL="Throughput (tps)" \
 	_FACET_X=threads \
