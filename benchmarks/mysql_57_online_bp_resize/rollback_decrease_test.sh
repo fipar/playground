@@ -9,7 +9,7 @@ nohup ./runsb.sh run &> sb_bp_rollback_decrease.txt &
 sleep 120
 ./mysql_config.sh decreased
 sleep 20
-./mysql_config.sh increased
+./mysql_config.sh normal
 sleep 100
 kill $(ps -ef|grep sysbench|awk '{print $2}')
 }

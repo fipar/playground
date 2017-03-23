@@ -1,0 +1,36 @@
+perl: warning: Setting locale failed.
+perl: warning: Please check that your locale settings:
+	LANGUAGE = (unset),
+	LC_ALL = (unset),
+	LC_CTYPE = "UTF-8",
+	LANG = "en_US.UTF-8"
+    are supported and installed on your system.
+perl: warning: Falling back to a fallback locale ("en_US.UTF-8").
+Thu Mar 23 01:49:40 UTC 2017
+81	../sysdeps/unix/syscall-template.S: No such file or directory.
+     10 libaio::??(libaio.so.1),LinuxAIOHandler::collect,LinuxAIOHandler::poll,os_aio_handler,fil_aio_wait,io_handler_thread,start_thread,clone
+      5 __libc_send,vio_write,net_write_packet,net_flush,net_send_ok,Protocol_classic::send_eof,THD::send_statement_status,dispatch_command,do_command,handle_connection,pfs_spawn_thread,start_thread,clone
+      3 pthread_cond_wait,os_event::wait_low,srv_worker_thread,start_thread,clone
+      2 sched_yield,rw_lock_x_lock_func,::??,btr_search_info_update_slow,btr_cur_search_to_nth_level,::??,row_search_mvcc,ha_innobase::index_read,handler::index_read_idx_map,handler::ha_index_read_idx_map,st_position*),JOIN::extract_func_dependent_tables,JOIN::make_join_plan,JOIN::optimize,st_select_lex::optimize,handle_query,::??,mysql_execute_command,mysql_parse,dispatch_command,do_command,handle_connection,pfs_spawn_thread,start_thread,clone
+      2 __libc_recv,vio_read,::??,::??,my_net_read,Protocol_classic::get_command,do_command,handle_connection,pfs_spawn_thread,start_thread,clone
+      1 sched_yield,rw_lock_s_lock_spin,::??,btr_search_info_update_slow,btr_cur_search_to_nth_level,::??,row_search_mvcc,ha_innobase::index_read,handler::index_read_idx_map,handler::ha_index_read_idx_map,st_position*),JOIN::extract_func_dependent_tables,JOIN::make_join_plan,JOIN::optimize,st_select_lex::optimize,handle_query,::??,mysql_execute_command,mysql_parse,dispatch_command,do_command,handle_connection,pfs_spawn_thread,start_thread,clone
+      1 pthread_cond_wait,os_event::wait_low,srv_purge_coordinator_thread,start_thread,clone
+      1 pthread_cond_wait,os_event::wait_low,buf_resize_thread,start_thread,clone
+      1 pthread_cond_wait,os_event::wait_low,buf_dump_thread,start_thread,clone
+      1 pthread_cond_wait,compress_gtid_table,pfs_spawn_thread,start_thread,clone
+      1 pthread_cond_timedwait,os_event::timed_wait,os_event::wait_time_low,srv_monitor_thread,start_thread,clone
+      1 pthread_cond_timedwait,os_event::timed_wait,os_event::wait_time_low,srv_error_monitor_thread,start_thread,clone
+      1 pthread_cond_timedwait,os_event::timed_wait,os_event::wait_time_low,lock_wait_timeout_thread,start_thread,clone
+      1 pthread_cond_timedwait,os_event::timed_wait,os_event::wait_time_low,ib_wqueue_timedwait,fts_optimize_thread,start_thread,clone
+      1 pthread_cond_timedwait,os_event::timed_wait,os_event::wait_time_low,dict_stats_thread,start_thread,clone
+      1 pthread_cond_timedwait,os_event::timed_wait,os_event::wait_time_low,buf_flush_page_cleaner_coordinator,start_thread,clone
+      1 pread64,::??,::??,os_file_read_func,fil_io,buf_read_page,buf_page_get_gen,btr_cur_search_to_nth_level,::??,row_search_mvcc,ha_innobase::index_read,handler::index_read_idx_map,handler::ha_index_read_idx_map,st_position*),JOIN::extract_func_dependent_tables,JOIN::make_join_plan,JOIN::optimize,st_select_lex::optimize,handle_query,::??,mysql_execute_command,mysql_parse,dispatch_command,do_command,handle_connection,pfs_spawn_thread,start_thread,clone
+      1 poll,Mysqld_socket_listener::listen_for_connection_event,mysqld_main,__libc_start_main,_start
+      1 nanosleep,os_thread_sleep,srv_master_thread,start_thread,clone
+      1 gettimeofday,my_timer_microseconds,pfs_start_idle_wait_v1,net_before_header_psi,::??,my_net_read,Protocol_classic::get_command,do_command,handle_connection,pfs_spawn_thread,start_thread,clone
+      1 do_sigwaitinfo,__GI___sigwaitinfo,::??,pfs_spawn_thread,start_thread,clone
+      1 do_sigwait,__sigwait,signal_hand,pfs_spawn_thread,start_thread,clone
+      1 clock_gettime,__GI___clock_gettime,my_timer_nanoseconds,pfs_end_statement_v1,dispatch_command,do_command,handle_connection,pfs_spawn_thread,start_thread,clone
+      1 THD::binlog_flush_pending_rows_event,close_thread_tables,mysql_execute_command,mysql_parse,dispatch_command,do_command,handle_connection,pfs_spawn_thread,start_thread,clone
+      1 Protocol_text::type,do_command,handle_connection,pfs_spawn_thread,start_thread,clone
+      1 ::??,MYSQLlex,MYSQLparse,parse_sql,mysql_parse,dispatch_command,do_command,handle_connection,pfs_spawn_thread,start_thread,clone

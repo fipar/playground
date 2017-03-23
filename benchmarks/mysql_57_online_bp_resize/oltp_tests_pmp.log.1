@@ -1,0 +1,32 @@
+perl: warning: Setting locale failed.
+perl: warning: Please check that your locale settings:
+	LANGUAGE = (unset),
+	LC_ALL = (unset),
+	LC_CTYPE = "UTF-8",
+	LANG = "en_US.UTF-8"
+    are supported and installed on your system.
+perl: warning: Falling back to a fallback locale ("en_US.UTF-8").
+Wed Mar 22 14:06:37 UTC 2017
+81	../sysdeps/unix/syscall-template.S: No such file or directory.
+     12 pthread_cond_wait,os_event::wait_low,log_write_up_to,trx_commit_complete_for_mysql,::??,ha_commit_low,TC_LOG_DUMMY::commit,ha_commit_trans,trans_commit,mysql_execute_command,mysql_parse,dispatch_command,do_command,handle_connection,pfs_spawn_thread,start_thread,clone
+     10 libaio::??(libaio.so.1),LinuxAIOHandler::collect,LinuxAIOHandler::poll,os_aio_handler,fil_aio_wait,io_handler_thread,start_thread,clone
+      3 pthread_cond_wait,os_event::wait_low,srv_worker_thread,start_thread,clone
+      1 pthread_cond_wait,os_event::wait_low,buf_dump_thread,start_thread,clone
+      1 pthread_cond_wait,compress_gtid_table,pfs_spawn_thread,start_thread,clone
+      1 pthread_cond_wait,Per_thread_connection_handler::block_until_new_connection,handle_connection,pfs_spawn_thread,start_thread,clone
+      1 pthread_cond_timedwait,os_event::timed_wait,os_event::wait_time_low,srv_purge_coordinator_thread,start_thread,clone
+      1 pthread_cond_timedwait,os_event::timed_wait,os_event::wait_time_low,srv_monitor_thread,start_thread,clone
+      1 pthread_cond_timedwait,os_event::timed_wait,os_event::wait_time_low,srv_error_monitor_thread,start_thread,clone
+      1 pthread_cond_timedwait,os_event::timed_wait,os_event::wait_time_low,lock_wait_timeout_thread,start_thread,clone
+      1 pthread_cond_timedwait,os_event::timed_wait,os_event::wait_time_low,ib_wqueue_timedwait,fts_optimize_thread,start_thread,clone
+      1 pthread_cond_timedwait,os_event::timed_wait,os_event::wait_time_low,dict_stats_thread,start_thread,clone
+      1 pthread_cond_timedwait,os_event::timed_wait,os_event::wait_time_low,buf_flush_page_cleaner_coordinator,start_thread,clone
+      1 poll,Mysqld_socket_listener::listen_for_connection_event,mysqld_main,__libc_start_main,_start
+      1 page_cur_search_with_match,btr_cur_search_to_nth_level,btr_pcur_restore_position_func,::??,row_search_mvcc,ha_innobase::general_fetch,handler::ha_index_next,handler::multi_range_read_next,QUICK_RANGE_SELECT::get_next,::??,sub_select,JOIN::exec,handle_query,::??,mysql_execute_command,mysql_parse,dispatch_command,do_command,handle_connection,pfs_spawn_thread,start_thread,clone
+      1 nanosleep,os_thread_sleep,srv_master_thread,start_thread,clone
+      1 fsync,os_file_flush_func,fil_flush,log_write_up_to,trx_commit_complete_for_mysql,::??,ha_commit_low,TC_LOG_DUMMY::commit,ha_commit_trans,trans_commit,mysql_execute_command,mysql_parse,dispatch_command,do_command,handle_connection,pfs_spawn_thread,start_thread,clone
+      1 fsync,os_file_flush_func,fil_flush,buf_dblwr_flush_buffered_writes,buf_dblwr_add_to_batch,buf_flush_page,::??,buf_flush_do_batch,buf_pool_resize,buf_resize_thread,start_thread,clone
+      1 do_sigwaitinfo,__GI___sigwaitinfo,::??,pfs_spawn_thread,start_thread,clone
+      1 do_sigwait,__sigwait,signal_hand,pfs_spawn_thread,start_thread,clone
+      1 __libc_send,vio_write,net_write_packet,net_flush,net_send_ok,Protocol_classic::send_eof,THD::send_statement_status,dispatch_command,do_command,handle_connection,pfs_spawn_thread,start_thread,clone
+      1 ::??,buf_page_get_gen,trx_undo_report_row_operation,btr_cur_update_in_place,btr_cur_optimistic_update,row_ins_clust_index_entry_low,row_ins_clust_index_entry,row_ins_step,::??,ha_innobase::write_row,handler::ha_write_row,write_record,Sql_cmd_insert::mysql_insert,Sql_cmd_insert::execute,mysql_execute_command,mysql_parse,dispatch_command,do_command,handle_connection,pfs_spawn_thread,start_thread,clone
