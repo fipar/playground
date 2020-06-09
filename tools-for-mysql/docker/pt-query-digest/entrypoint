@@ -1,0 +1,24 @@
+#!/usr/bin/env perl
+{
+package QANWebServer;
+
+use HTTP::Server::Simple::CGI;
+use base qw(HTTP::Server::Simple::CGI);
+use File::Slurper 'read_text';
+
+sub handle_request {
+    my $self = shift;
+    my $cgi = shift;
+
+    return if !ref $cgi;
+    my $slowlog = $cgi->param('slowlog');
+    $slowlog = $slowlog->filename;
+    system("/usr/bin/env perl /percona-toolkit/pt-query-digest ${slowlog} > /tmp/report.txt");
+    print $cgi->header,
+	$cgi->start_html(read_text('/tmp/report.txt')),
+	$cgi->end_html;
+}
+
+}
+
+QANWebServer->new(80)->run();
