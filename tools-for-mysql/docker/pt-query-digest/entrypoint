@@ -31,10 +31,7 @@ sub handle_request {
 	    exit;
 	}
 	$slowlog = $slowlog->filename;
-	system("/usr/bin/env perl /percona-toolkit/pt-query-digest ${slowlog} > /tmp/report.txt");
-	print $cgi->header,
-	    $cgi->start_html(read_text('/tmp/report.txt')),
-	    $cgi->end_html;
+	print `/usr/bin/env perl /percona-toolkit/pt-query-digest ${slowlog}`;
 	exit;
     }
 }
