@@ -2,21 +2,41 @@
 {
 package QANWebServer;
 
+use POSIX; 
 use HTTP::Server::Simple::CGI;
 use base qw(HTTP::Server::Simple::CGI);
 use File::Slurper 'read_text';
 
-sub handle_request {
-    my $self = shift;
-    my $cgi = shift;
+sub REAPER {
+    $SIG{CHLD} = \&REAPER;
+    wait; 
+}
 
-    return if !ref $cgi;
-    my $slowlog = $cgi->param('slowlog');
-    $slowlog = $slowlog->filename;
-    system("/usr/bin/env perl /percona-toolkit/pt-query-digest ${slowlog} > /tmp/report.txt");
-    print $cgi->header,
-	$cgi->start_html(read_text('/tmp/report.txt')),
-	$cgi->end_html;
+$SIG{CHLD} = \&REAPER;
+			   
+sub handle_request {
+    my $pid = fork;
+    die "fork: $!" unless defined $pid; 
+    if ($pid == 0) {
+	print "Forked child to process slow log\n";
+	my $self = shift;
+	my $cgi = shift;
+
+	exit if !ref $cgi;
+	my $slowlog = $cgi->param('slowlog');
+	if (not defined $slowlog) {
+	    print $cgi->header,
+		$cgi->start_html("HTTP POST param 'slowlog' missing"),
+		$cgi->end_html;
+	    exit;
+	}
+	$slowlog = $slowlog->filename;
+	system("/usr/bin/env perl /percona-toolkit/pt-query-digest ${slowlog} > /tmp/report.txt");
+	print $cgi->header,
+	    $cgi->start_html(read_text('/tmp/report.txt')),
+	    $cgi->end_html;
+	exit;
+    }
 }
 
 }
