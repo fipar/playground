@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Simple Touch Theremin</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            touch-action: none;
+            height: 100vh;
+            background: linear-gradient(to bottom, #2c3e50, #4ca1af);
+            color: white;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        h1 {
+            margin-bottom: 10px;
+            font-size: 24px;
+            text-align: center;
+        }
+        
+        .theremin-pad {
+            width: 100%;
+            max-width: 500px;
+            height: 60vh;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+            touch-action: none;
+        }
+        
+        .visualizer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 500px;
+            margin-top: 20px;
+        }
+        
+        .display {
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 10px 15px;
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .value {
+            font-size: 16px;
+            font-family: monospace;
+        }
+        
+        button {
+            background-color: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        button:active {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+        
+        .settings {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        
+        .settings-panel {
+            background: linear-gradient(to bottom, #2c3e50, #4ca1af);
+            border-radius: 10px;
+            padding: 20px;
+            width: 80%;
+            max-width: 300px;
+        }
+        
+        .setting-item {
+            margin-bottom: 20px;
+        }
+        
+        .setting-item label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .setting-item select, .setting-item input {
+            width: 100%;
+            padding: 5px;
+            margin-top: 5px;
+        }
+        
+        .status {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 5;
+        }
+        
+        .startup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            flex-direction: column;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .startup button {
+            margin-top: 20px;
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: #4ca1af;
+        }
+        
+        .note {
+            font-size: 14px;
+            margin-top: 20px;
+            max-width: 300px;
+            opacity: 0.8;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="startup" id="startup">
+        <h1>Touch Theremin</h1>
+        <p>A simple touchscreen musical instrument</p>
+        <button id="startButton">Start Playing</button>
+        <p class="note">This app uses your device's audio capabilities. Please make sure your volume is turned up.</p>
+    </div>
+    
+    <div class="container">
+        <h1>Touch Theremin</h1>
+        
+        <div class="display">
+            <div class="value">Frequency: <span id="freqDisplay">440</span> Hz</div>
+            <div class="value">Volume: <span id="volDisplay">0</span>%</div>
+        </div>
+        
+        <div class="theremin-pad" id="thereminPad">
+            <div class="visualizer">
+                <canvas id="canvas"></canvas>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="settingsButton">Settings</button>
+            <button id="muteButton">Mute</button>
+        </div>
+        
+        <p class="note">Move finger horizontally for pitch, vertically for volume</p>
+    </div>
+    
+    <div class="status" id="status">Ready</div>
+    
+    <div class="settings" id="settingsPanel">
+        <div class="settings-panel">
+            <h2>Settings</h2>
+            
+            <div class="setting-item">
+                <label for="waveType">Waveform Type</label>
+                <select id="waveType">
+                    <option value="sine">Sine Wave</option>
+                    <option value="triangle">Triangle Wave</option>
+                    <option value="sawtooth">Sawtooth Wave</option>
+                    <option value="square">Square Wave</option>
+                </select>
+            </div>
+            
+            <div class="setting-item">
+                <label for="minFreq">Minimum Frequency: <span id="minFreqVal">100</span> Hz</label>
+                <input type="range" id="minFreq" min="50" max="500" value="100">
+            </div>
+            
+            <div class="setting-item">
+                <label for="maxFreq">Maximum Frequency: <span id="maxFreqVal">1500</span> Hz</label>
+                <input type="range" id="maxFreq" min="500" max="2000" value="1500">
+            </div>
+            
+            <button id="closeSettings">Close</button>
+        </div>
+    </div>
+    
+    <script>
+        // Elements
+        const startup = document.getElementById('startup');
+        const startButton = document.getElementById('startButton');
+        const thereminPad = document.getElementById('thereminPad');
+        const freqDisplay = document.getElementById('freqDisplay');
+        const volDisplay = document.getElementById('volDisplay');
+        const settingsButton = document.getElementById('settingsButton');
+        const muteButton = document.getElementById('muteButton');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const closeSettings = document.getElementById('closeSettings');
+        const waveType = document.getElementById('waveType');
+        const minFreq = document.getElementById('minFreq');
+        const maxFreq = document.getElementById('maxFreq');
+        const minFreqVal = document.getElementById('minFreqVal');
+        const maxFreqVal = document.getElementById('maxFreqVal');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Audio variables
+        let audioContext;
+        let oscillator;
+        let gainNode;
+        let analyser;
+        
+        // Settings
+        let settings = {
+            waveform: 'sine',
+            minFrequency: 100,
+            maxFrequency: 1500,
+            muted: false
+        };
+        
+        // Current state
+        let isPlaying = false;
+        let currentFreq = 440;
+        let currentVol = 0;
+        
+        // Init function
+        function init() {
+            // Set up canvas
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Attach event listeners
+            startButton.addEventListener('click', startAudio);
+            thereminPad.addEventListener('touchstart', handleTouch);
+            thereminPad.addEventListener('touchmove', handleTouch);
+            thereminPad.addEventListener('touchend', endTouch);
+            settingsButton.addEventListener('click', showSettings);
+            closeSettings.addEventListener('click', hideSettings);
+            muteButton.addEventListener('click', toggleMute);
+            
+            // Settings change listeners
+            waveType.addEventListener('change', updateSettings);
+            minFreq.addEventListener('input', updateMinFreq);
+            maxFreq.addEventListener('input', updateMaxFreq);
+            
+            // Start animation loop
+            requestAnimationFrame(draw);
+        }
+        
+        // Start audio
+        function startAudio() {
+            startup.style.display = 'none';
+            
+            try {
+                // Create audio context
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create nodes
+                oscillator = audioContext.createOscillator();
+                gainNode = audioContext.createGain();
+                analyser = audioContext.createAnalyser();
+                
+                // Configure
+                analyser.fftSize = 2048;
+                oscillator.type = settings.waveform;
+                oscillator.frequency.value = currentFreq;
+                gainNode.gain.value = 0;
+                
+                // Connect
+                oscillator.connect(gainNode);
+                gainNode.connect(analyser);
+                analyser.connect(audioContext.destination);
+                
+                // Start
+                oscillator.start();
+                isPlaying = true;
+                
+                showStatus('Audio started');
+            } catch (error) {
+                console.error('Audio error:', error);
+                showStatus('Audio error: ' + error.message);
+            }
+        }
+        
+        // Resize canvas
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+        
+        // Show status message
+        function showStatus(message) {
+            status.textContent = message;
+            console.log(message);
+        }
+        
+        // Handle touch events
+        function handleTouch(event) {
+            event.preventDefault();
+            
+            if (!isPlaying) return;
+            
+            const touch = event.touches[0];
+            const rect = thereminPad.getBoundingClientRect();
+            
+            // Calculate horizontal position (for frequency)
+            const xPos = (touch.clientX - rect.left) / rect.width;
+            const freqRange = settings.maxFrequency - settings.minFrequency;
+            currentFreq = settings.minFrequency + (xPos * freqRange);
+            
+            // Calculate vertical position (for volume)
+            // Invert Y so bottom is low volume, top is high volume
+            const yPos = 1 - ((touch.clientY - rect.top) / rect.height);
+            currentVol = yPos;
+            
+            // Apply changes
+            if (oscillator && gainNode) {
+                oscillator.frequency.value = currentFreq;
+                if (!settings.muted) {
+                    gainNode.gain.value = currentVol;
+                }
+                
+                // Update display
+                freqDisplay.textContent = Math.round(currentFreq);
+                volDisplay.textContent = Math.round(currentVol * 100);
+            }
+        }
+        
+        // End touch
+        function endTouch() {
+            if (isPlaying && gainNode) {
+                gainNode.gain.value = 0;
+                currentVol = 0;
+                volDisplay.textContent = '0';
+            }
+        }
+        
+        // Show settings panel
+        function showSettings() {
+            settingsPanel.style.display = 'flex';
+        }
+        
+        // Hide settings panel
+        function hideSettings() {
+            settingsPanel.style.display = 'none';
+        }
+        
+        // Toggle mute
+        function toggleMute() {
+            settings.muted = !settings.muted;
+            
+            if (gainNode) {
+                gainNode.gain.value = settings.muted ? 0 : currentVol;
+            }
+            
+            muteButton.textContent = settings.muted ? 'Unmute' : 'Mute';
+            showStatus(settings.muted ? 'Muted' : 'Unmuted');
+        }
+        
+        // Update settings
+        function updateSettings() {
+            settings.waveform = waveType.value;
+            
+            if (oscillator) {
+                oscillator.type = settings.waveform;
+            }
+            
+            showStatus('Waveform changed to ' + settings.waveform);
+        }
+        
+        // Update minimum frequency
+        function updateMinFreq() {
+            settings.minFrequency = parseInt(minFreq.value);
+            minFreqVal.textContent = settings.minFrequency;
+            
+            // Ensure max is always greater than min
+            if (settings.maxFrequency <= settings.minFrequency) {
+                settings.maxFrequency = settings.minFrequency + 100;
+                maxFreq.value = settings.maxFrequency;
+                maxFreqVal.textContent = settings.maxFrequency;
+            }
+        }
+        
+        // Update maximum frequency
+        function updateMaxFreq() {
+            settings.maxFrequency = parseInt(maxFreq.value);
+            maxFreqVal.textContent = settings.maxFrequency;
+            
+            // Ensure min is always less than max
+            if (settings.minFrequency >= settings.maxFrequency) {
+                settings.minFrequency = settings.maxFrequency - 100;
+                minFreq.value = settings.minFrequency;
+                minFreqVal.textContent = settings.minFrequency;
+            }
+        }
+        
+        // Draw visualization
+        function draw() {
+            if (analyser && isPlaying) {
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                analyser.getByteTimeDomainData(dataArray);
+                
+                const width = canvas.width;
+                const height = canvas.height;
+                
+                // Clear canvas
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+                ctx.fillRect(0, 0, width, height);
+                
+                // Draw waveform
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = `rgba(0, 255, 255, ${0.5 + currentVol * 0.5})`;
+                ctx.beginPath();
+                
+                const sliceWidth = width / bufferLength;
+                let x = 0;
+                
+                for (let i = 0; i < bufferLength; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * height / 2;
+                    
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                    
+                    x += sliceWidth;
+                }
+                
+                ctx.lineTo(width, height / 2);
+                ctx.stroke();
+                
+                // Draw touch indicator if active
+                if (currentVol > 0) {
+                    // Calculate position based on current frequency
+                    const freqRange = settings.maxFrequency - settings.minFrequency;
+                    const xPos = (currentFreq - settings.minFrequency) / freqRange * width;
+                    const yPos = (1 - currentVol) * height;
+                    
+                    // Draw circle at touch position
+                    ctx.beginPath();
+                    ctx.arc(xPos, yPos, 20, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.fill();
+                }
+            }
+            
+            requestAnimationFrame(draw);
+        }
+        
+        // Initialize
+        init();
+    </script>
+</body>
+</html>
