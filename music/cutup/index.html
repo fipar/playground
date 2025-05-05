@@ -33,7 +33,7 @@
             background-color: #cccccc;
             cursor: not-allowed;
         }
-        input[type="number"] {
+        input[type="number"], input[type="range"] {
             width: 100px;
             padding: 5px;
         }
@@ -46,6 +46,15 @@
         progress {
             width: 100%;
             margin-top: 10px;
+        }
+        .range-container {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .range-value {
+            margin-left: 10px;
+            width: 40px;
         }
     </style>
 </head>
@@ -72,6 +81,11 @@
         <div style="margin-top: 10px;">
             <label for="duration">Total Duration (seconds):</label>
             <input type="number" id="duration" value="30" min="1" max="300">
+        </div>
+        <div class="range-container">
+            <label for="invertPercentage">Invert Chunks (%):</label>
+            <input type="range" id="invertPercentage" min="0" max="100" value="0">
+            <span id="invertValue" class="range-value">0%</span>
         </div>
     </div>
     
@@ -126,7 +140,7 @@
             },
             
             // Create random chunks mix
-            createRandomMix: function(minChunkMs, maxChunkMs, totalDurationMs) {
+            createRandomMix: function(minChunkMs, maxChunkMs, totalDurationMs, invertPercentage) {
                 updateStatus('Generating mix...');
                 
                 return new Promise((resolve) => {
@@ -157,7 +171,10 @@
                             const maxStartPositionSamples = sourceBuffer.length - chunkSizeSamples;
                             const startPositionSamples = Math.floor(Math.random() * (maxStartPositionSamples > 0 ? maxStartPositionSamples : 1));
                             
-                            // Copy chunk to output buffer
+                            // Determine if this chunk should be inverted based on invertPercentage
+                            const shouldInvert = Math.random() * 100 < invertPercentage;
+                            
+                            // Copy chunk to output buffer (potentially inverted)
                             for (let channel = 0; channel < Math.min(outputBuffer.numberOfChannels, sourceBuffer.numberOfChannels); channel++) {
                                 const outputData = outputBuffer.getChannelData(channel);
                                 const sourceData = sourceBuffer.getChannelData(channel);
@@ -165,7 +182,8 @@
                                 const outputStartSample = Math.floor(currentTimeMs * audioContext.sampleRate / 1000);
                                 
                                 for (let i = 0; i < chunkSizeSamples && (outputStartSample + i) < outputBuffer.length; i++) {
-                                    outputData[outputStartSample + i] = sourceData[startPositionSamples + i];
+                                    // Apply inversion if needed (multiply by -1)
+                                    outputData[outputStartSample + i] = sourceData[startPositionSamples + i] * (shouldInvert ? -1 : 1);
                                 }
                             }
                             
@@ -353,6 +371,7 @@
             
             if (fileList.length === 0) {
                 fileListElement.innerHTML = '<p>No files selected</p>';
+                document.getElementById('mixButton').disabled = true;
                 return;
             }
             
@@ -375,12 +394,25 @@
             const stopButton = document.getElementById('stopButton');
             const saveButton = document.getElementById('saveButton');
             const progressBar = document.getElementById('progressBar');
+            const invertPercentage = document.getElementById('invertPercentage');
+            const invertValue = document.getElementById('invertValue');
+            
+            // Update invert percentage display
+            invertPercentage.addEventListener('input', function() {
+                invertValue.textContent = `${this.value}%`;
+            });
             
             // File selection
             audioFilesInput.addEventListener('change', function(e) {
                 fileList = Array.from(e.target.files);
                 updateFileList();
                 updateStatus(`Selected ${fileList.length} file(s)`);
+                
+                // Enable/disable mix button based on file count
+                mixButton.disabled = fileList.length < 2;
+                // Stop and Save buttons should remain disabled until a mix is created
+                stopButton.disabled = true;
+                saveButton.disabled = true;
             });
             
             // Min/max validation
@@ -422,7 +454,7 @@
                     
                     if (AudioMixer.audioBuffers.length < 2) {
                         updateStatus('At least 2 valid audio files are required', true);
-                        mixButton.disabled = false;
+                        mixButton.disabled = fileList.length < 2;
                         progressBar.style.display = 'none';
                         return;
                     }
@@ -431,11 +463,12 @@
                     const minChunk = parseInt(document.getElementById('minChunk').value);
                     const maxChunk = parseInt(document.getElementById('maxChunk').value);
                     const duration = parseInt(document.getElementById('duration').value) * 1000; // convert to ms
+                    const invertPercent = parseInt(document.getElementById('invertPercentage').value);
                     
                     // Create mix
-                    await AudioMixer.createRandomMix(minChunk, maxChunk, duration);
+                    await AudioMixer.createRandomMix(minChunk, maxChunk, duration, invertPercent);
                     
-                    // Enable buttons
+                    // Re-enable buttons now that processing is complete
                     mixButton.disabled = false;
                     stopButton.disabled = false;
                     saveButton.disabled = false;
