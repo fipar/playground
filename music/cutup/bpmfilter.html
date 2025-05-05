@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Rhythm Filter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        input[type="number"], input[type="range"] {
+            width: 100px;
+            padding: 5px;
+        }
+        .range-container {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .range-value {
+            margin-left: 10px;
+            width: 40px;
+        }
+        #fileInfo {
+            margin-top: 10px;
+            font-style: italic;
+        }
+        progress {
+            width: 100%;
+            margin-top: 10px;
+        }
+        canvas {
+            width: 100%;
+            height: 150px;
+            background-color: #f5f5f5;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Audio Rhythm Filter</h1>
+    
+    <div class="section">
+        <h2>1. Upload Audio File</h2>
+        <p>Select an audio file (supports WAV, MP3, OGG, AIFF/AIF)</p>
+        <input type="file" id="audioFile" accept=".wav,.mp3,.ogg,.aiff,.aif">
+        <div id="fileInfo"></div>
+    </div>
+    
+    <div class="section">
+        <h2>2. Rhythm Parameters</h2>
+        <div>
+            <label for="bpm">Tempo (BPM):</label>
+            <input type="number" id="bpm" value="120" min="30" max="300">
+        </div>
+        
+        <div class="range-container">
+            <label for="resonance">Resonance:</label>
+            <input type="range" id="resonance" min="1" max="30" value="5">
+            <span id="resonanceValue" class="range-value">5</span>
+        </div>
+        
+        <div class="range-container">
+            <label for="depth">Filter Depth:</label>
+            <input type="range" id="depth" min="0" max="100" value="75">
+            <span id="depthValue" class="range-value">75%</span>
+        </div>
+        
+        <div class="range-container">
+            <label for="attack">Attack (ms):</label>
+            <input type="range" id="attack" min="1" max="200" value="10">
+            <span id="attackValue" class="range-value">10</span>
+        </div>
+        
+        <div class="range-container">
+            <label for="release">Release (ms):</label>
+            <input type="range" id="release" min="10" max="1000" value="200">
+            <span id="releaseValue" class="range-value">200</span>
+        </div>
+
+        <div>
+            <label for="filterType">Filter Type:</label>
+            <select id="filterType">
+                <option value="lowpass">Low Pass</option>
+                <option value="highpass">High Pass</option>
+                <option value="bandpass" selected>Band Pass</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>3. Output Options</h2>
+        <div>
+            <label>
+                <input type="radio" name="outputType" value="play" checked> 
+                Play directly
+            </label>
+            <label style="margin-left: 20px;">
+                <input type="radio" name="outputType" value="save"> 
+                Save as file
+            </label>
+        </div>
+    </div>
+
+    <div class="section">
+        <canvas id="visualizer"></canvas>
+        <button id="processButton" disabled>Process Audio</button>
+        <button id="stopButton" disabled>Stop Playback</button>
+        <button id="saveButton" disabled>Save Processed Audio</button>
+        <div id="status"></div>
+        <progress id="progressBar" value="0" max="100" style="display: none;"></progress>
+    </div>
+
+    <script>
+        // Audio Rhythm Filter Implementation
+        const RhythmFilter = {
+            // Audio context and nodes
+            audioContext: null,
+            sourceBuffer: null,
+            processedBuffer: null,
+            activeSource: null,
+            
+            // Initialize audio context
+            init: function() {
+                if (!this.audioContext) {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            
+            // Load audio file
+            loadAudioFile: async function(file) {
+                updateStatus(`Loading: ${file.name}...`);
+                
+                try {
+                    this.init();
+                    
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+                    
+                    this.sourceBuffer = audioBuffer;
+                    updateStatus(`Loaded: ${file.name}, Duration: ${audioBuffer.duration.toFixed(2)}s`);
+                    
+                    return true;
+                } catch (error) {
+                    updateStatus(`Error: Failed to load ${file.name}: ${error.message}`, true);
+                    return false;
+                }
+            },
+            
+            // Process audio with rhythm filter
+            processAudio: function(bpm, resonance, depth, attack, release, filterType) {
+                return new Promise((resolve) => {
+                    updateStatus('Processing audio...');
+                    
+                    if (!this.sourceBuffer) {
+                        updateStatus('No audio file loaded', true);
+                        resolve(false);
+                        return;
+                    }
+                    
+                    // Create output buffer
+                    const outputBuffer = this.audioContext.createBuffer(
+                        this.sourceBuffer.numberOfChannels,
+                        this.sourceBuffer.length,
+                        this.sourceBuffer.sampleRate
+                    );
+                    
+                    // Calculate rhythm parameters
+                    const secondsPerBeat = 60 / bpm;
+                    const samplesPerBeat = Math.floor(secondsPerBeat * this.sourceBuffer.sampleRate);
+                    
+                    // Convert attack and release from ms to samples
+                    const attackSamples = Math.floor((attack / 1000) * this.sourceBuffer.sampleRate);
+                    const releaseSamples = Math.floor((release / 1000) * this.sourceBuffer.sampleRate);
+                    
+                    // Filter depth (0-1)
+                    const filterDepth = depth / 100;
+                    
+                    // Process in chunks to allow UI updates
+                    const processChunk = (startSample, endSample) => {
+                        for (let channel = 0; channel < this.sourceBuffer.numberOfChannels; channel++) {
+                            const inputData = this.sourceBuffer.getChannelData(channel);
+                            const outputData = outputBuffer.getChannelData(channel);
+                            
+                            for (let i = startSample; i < endSample && i < this.sourceBuffer.length; i++) {
+                                // Calculate position in the beat cycle
+                                const beatPosition = i % samplesPerBeat;
+                                
+                                // Calculate envelope
+                                let envelope = 0;
+                                
+                                // Beat starts at position 0
+                                if (beatPosition < attackSamples) {
+                                    // Attack phase - linear ramp up
+                                    envelope = beatPosition / attackSamples;
+                                } else if (beatPosition < attackSamples + releaseSamples) {
+                                    // Release phase - exponential decay
+                                    const releasePosition = beatPosition - attackSamples;
+                                    envelope = Math.pow(1 - (releasePosition / releaseSamples), 0.7);
+                                } else {
+                                    // Silent phase
+                                    envelope = 0;
+                                }
+                                
+                                // Apply filter effect (simplified simulation)
+                                // In a real application, we would use actual audio filters
+                                let filteredSample = inputData[i];
+                                
+                                if (filterType === 'lowpass' || filterType === 'bandpass') {
+                                    // Simulate resonant filter with some feedback
+                                    const resonanceFactor = resonance / 10;
+                                    
+                                    // For simplicity, we're using a moving average filter
+                                    // with some feedback to simulate resonance
+                                    if (i > 1) {
+                                        filteredSample = (
+                                            inputData[i] + 
+                                            inputData[i-1] * resonanceFactor * 0.5 +
+                                            outputData[i-1] * 0.8
+                                        ) / (1 + resonanceFactor * 0.5 + 0.8);
+                                    }
+                                }
+                                
+                                if (filterType === 'highpass' || filterType === 'bandpass') {
+                                    // Simulate high pass by subtracting low frequencies
+                                    if (i > 1) {
+                                        filteredSample -= (outputData[i-1] + outputData[i-2]) * 0.25;
+                                    }
+                                }
+                                
+                                // Mix the dry and filtered signal based on the envelope and depth
+                                outputData[i] = inputData[i] * (1 - envelope * filterDepth) + 
+                                              filteredSample * (envelope * filterDepth);
+                            }
+                        }
+                        
+                        // Calculate progress
+                        const progress = Math.min(100, Math.floor((endSample / this.sourceBuffer.length) * 100));
+                        document.getElementById('progressBar').value = progress;
+                        
+                        if (endSample < this.sourceBuffer.length) {
+                            // Schedule next chunk
+                            setTimeout(() => {
+                                processChunk(endSample, endSample + 44100); // Process ~1 second at a time
+                            }, 0);
+                        } else {
+                            // Done
+                            this.processedBuffer = outputBuffer;
+                            updateStatus('Audio processing complete');
+                            
+                            // Draw waveform
+                            this.drawWaveform(this.processedBuffer);
+                            
+                            resolve(true);
+                        }
+                    };
+                    
+                    // Start processing
+                    processChunk(0, 44100);
+                });
+            },
+            
+            // Draw waveform visualization
+            drawWaveform: function(buffer) {
+                const canvas = document.getElementById('visualizer');
+                const ctx = canvas.getContext('2d');
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Get the first channel data
+                const data = buffer.getChannelData(0);
+                
+                // The width of each segment
+                const step = Math.ceil(data.length / canvas.width);
+                const amp = canvas.height / 2;
+                
+                // Draw the waveform
+                ctx.beginPath();
+                ctx.moveTo(0, amp);
+                
+                for (let i = 0; i < canvas.width; i++) {
+                    // For each pixel, find the peak sample
+                    let min = 1.0;
+                    let max = -1.0;
+                    
+                    for (let j = 0; j < step; j++) {
+                        const sample = data[(i * step) + j];
+                        if (sample < min) min = sample;
+                        if (sample > max) max = sample;
+                    }
+                    
+                    // Draw min and max as a vertical line
+                    ctx.moveTo(i, amp * (1 + min));
+                    ctx.lineTo(i, amp * (1 + max));
+                }
+                
+                ctx.stroke();
+            },
+            
+            // Play the processed audio
+            playAudio: function() {
+                if (!this.processedBuffer) {
+                    updateStatus('No processed audio available', true);
+                    return null;
+                }
+                
+                // Stop any currently playing audio
+                this.stopPlayback();
+                
+                const source = this.audioContext.createBufferSource();
+                source.buffer = this.processedBuffer;
+                source.connect(this.audioContext.destination);
+                source.start();
+                this.activeSource = source;
+                
+                updateStatus('Playing processed audio...');
+                
+                source.onended = () => {
+                    this.activeSource = null;
+                    updateStatus('Playback finished');
+                    document.getElementById('stopButton').disabled = true;
+                };
+                
+                return source;
+            },
+            
+            // Stop playback
+            stopPlayback: function() {
+                if (this.activeSource) {
+                    this.activeSource.stop();
+                    this.activeSource = null;
+                    updateStatus('Playback stopped');
+                }
+            },
+            
+            // Export processed audio to file (WAV format)
+            exportAudio: function() {
+                if (!this.processedBuffer) {
+                    updateStatus('No processed audio available', true);
+                    return;
+                }
+                
+                // Create WAV file
+                const wavData = this.audioBufferToWav(this.processedBuffer);
+                const blob = new Blob([wavData], { type: 'audio/wav' });
+                
+                // Create download link
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'rhythm_filtered_audio.wav';
+                document.body.appendChild(a);
+                a.click();
+                
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+                
+                updateStatus('Processed audio exported as WAV file');
+            },
+            
+            // Convert AudioBuffer to WAV format
+            audioBufferToWav: function(buffer) {
+                const numChannels = buffer.numberOfChannels;
+                const sampleRate = buffer.sampleRate;
+                const format = 1; // PCM
+                const bitDepth = 16;
+                
+                let result;
+                if (numChannels === 2) {
+                    result = this.interleave(buffer.getChannelData(0), buffer.getChannelData(1));
+                } else {
+                    result = buffer.getChannelData(0);
+                }
+                
+                const dataLength = result.length * (bitDepth / 8);
+                const buffer2 = new ArrayBuffer(44 + dataLength);
+                const view = new DataView(buffer2);
+                
+                // Write WAV header
+                // "RIFF" chunk descriptor
+                this.writeString(view, 0, 'RIFF');
+                view.setUint32(4, 36 + dataLength, true);
+                this.writeString(view, 8, 'WAVE');
+                
+                // "fmt " sub-chunk
+                this.writeString(view, 12, 'fmt ');
+                view.setUint32(16, 16, true); // fmt chunk size
+                view.setUint16(20, format, true);
+                view.setUint16(22, numChannels, true);
+                view.setUint32(24, sampleRate, true);
+                view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true); // byte rate
+                view.setUint16(32, numChannels * (bitDepth / 8), true); // block align
+                view.setUint16(34, bitDepth, true);
+                
+                // "data" sub-chunk
+                this.writeString(view, 36, 'data');
+                view.setUint32(40, dataLength, true);
+                
+                // Write PCM samples
+                const offset = 44;
+                this.floatTo16BitPCM(view, offset, result);
+                
+                return buffer2;
+            },
+            
+            // Helper for WAV creation
+            writeString: function(view, offset, string) {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            },
+            
+            // Helper for WAV creation
+            floatTo16BitPCM: function(output, offset, input) {
+                for (let i = 0; i < input.length; i++, offset += 2) {
+                    const s = Math.max(-1, Math.min(1, input[i]));
+                    output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                }
+            },
+            
+            // Helper for WAV creation
+            interleave: function(inputL, inputR) {
+                const length = inputL.length + inputR.length;
+                const result = new Float32Array(length);
+                
+                let index = 0;
+                let inputIndex = 0;
+                
+                while (index < length) {
+                    result[index++] = inputL[inputIndex];
+                    result[index++] = inputR[inputIndex];
+                    inputIndex++;
+                }
+                
+                return result;
+            }
+        };
+
+        // UI Control Functions
+        let selectedFile = null;
+        
+        function updateStatus(message, isError = false) {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = message;
+            statusElement.style.color = isError ? 'red' : 'black';
+            console.log(message);
+        }
+        
+        // Set up event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            const audioFileInput = document.getElementById('audioFile');
+            const processButton = document.getElementById('processButton');
+            const stopButton = document.getElementById('stopButton');
+            const saveButton = document.getElementById('saveButton');
+            const progressBar = document.getElementById('progressBar');
+            const fileInfo = document.getElementById('fileInfo');
+            const visualizer = document.getElementById('visualizer');
+            
+            // Set canvas size to match display size
+            visualizer.width = visualizer.clientWidth;
+            visualizer.height = visualizer.clientHeight;
+            
+            // Parameter sliders
+            const resonanceSlider = document.getElementById('resonance');
+            const resonanceValue = document.getElementById('resonanceValue');
+            const depthSlider = document.getElementById('depth');
+            const depthValue = document.getElementById('depthValue');
+            const attackSlider = document.getElementById('attack');
+            const attackValue = document.getElementById('attackValue');
+            const releaseSlider = document.getElementById('release');
+            const releaseValue = document.getElementById('releaseValue');
+            
+            // Update slider value displays
+            resonanceSlider.addEventListener('input', function() {
+                resonanceValue.textContent = this.value;
+            });
+            
+            depthSlider.addEventListener('input', function() {
+                depthValue.textContent = `${this.value}%`;
+            });
+            
+            attackSlider.addEventListener('input', function() {
+                attackValue.textContent = this.value;
+            });
+            
+            releaseSlider.addEventListener('input', function() {
+                releaseValue.textContent = this.value;
+            });
+            
+            // File selection
+            audioFileInput.addEventListener('change', async function(e) {
+                if (e.target.files.length === 0) {
+                    fileInfo.textContent = 'No file selected';
+                    processButton.disabled = true;
+                    return;
+                }
+                
+                selectedFile = e.target.files[0];
+                fileInfo.textContent = `Selected: ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)`;
+                
+                // Load the file
+                const success = await RhythmFilter.loadAudioFile(selectedFile);
+                processButton.disabled = !success;
+            });
+            
+            // Process audio
+            processButton.addEventListener('click', async function() {
+                if (!selectedFile) {
+                    updateStatus('Please select an audio file', true);
+                    return;
+                }
+                
+                // Disable buttons during processing
+                processButton.disabled = true;
+                stopButton.disabled = true;
+                saveButton.disabled = true;
+                
+                // Show progress bar
+                progressBar.style.display = 'block';
+                progressBar.value = 0;
+                
+                try {
+                    // Get parameters
+                    const bpm = parseInt(document.getElementById('bpm').value);
+                    const resonance = parseInt(document.getElementById('resonance').value);
+                    const depth = parseInt(document.getElementById('depth').value);
+                    const attack = parseInt(document.getElementById('attack').value);
+                    const release = parseInt(document.getElementById('release').value);
+                    const filterType = document.getElementById('filterType').value;
+                    
+                    // Process audio
+                    const success = await RhythmFilter.processAudio(
+                        bpm, resonance, depth, attack, release, filterType
+                    );
+                    
+                    // Re-enable buttons
+                    processButton.disabled = false;
+                    stopButton.disabled = false;
+                    saveButton.disabled = !success;
+                    
+                    // Play if selected
+                    if (success && document.querySelector('input[name="outputType"]:checked').value === 'play') {
+                        RhythmFilter.playAudio();
+                    }
+                    
+                } catch (error) {
+                    updateStatus(`Error: ${error.message}`, true);
+                    processButton.disabled = false;
+                }
+                
+                // Hide progress bar
+                progressBar.style.display = 'none';
+            });
+            
+            // Stop playback
+            stopButton.addEventListener('click', function() {
+                RhythmFilter.stopPlayback();
+                stopButton.disabled = true;
+            });
+            
+            // Save processed audio
+            saveButton.addEventListener('click', function() {
+                RhythmFilter.exportAudio();
+            });
+        });
+    </script>
+</body>
+</html>
