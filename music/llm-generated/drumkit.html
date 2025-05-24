@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Vocoder Processor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2a6dd0;
+            --secondary-color: #4c8bf5;
+            --background-color: #f5f5f7;
+            --text-color: #333;
+            --border-color: #ddd;
+            --success-color: #4caf50;
+            --warning-color: #ff9800;
+            --error-color: #f44336;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--background-color);
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .app-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .app-container {
+                grid-template-columns: 300px 1fr;
+            }
+        }
+
+        .panel {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .control-section {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        .control-section:last-child {
+            border-bottom: none;
+        }
+
+        .control-section h3 {
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        input[type="file"],
+        input[type="range"],
+        button {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+
+        input[type="file"] {
+            padding: 8px 0;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            border: none;
+        }
+
+        button:hover {
+            background-color: var(--secondary-color);
+        }
+
+        button:disabled {
+            background-color: var(--border-color);
+            cursor: not-allowed;
+        }
+
+        .range-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .visualizer-container {
+            position: relative;
+            width: 100%;
+            height: 150px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .drum-pads {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* Adjusted minmax for button */
+            gap: 15px; /* Adjusted gap */
+            margin-top: 20px;
+        }
+
+        .drum-pad-container { /* New container for pad and its download button */
+            position: relative;
+            background-color: var(--secondary-color);
+            border-radius: 4px;
+            transition: all 0.1s;
+        }
+        .drum-pad-container:hover {
+            background-color: var(--primary-color);
+        }
+
+
+        .drum-pad {
+            padding: 15px 10px;
+            text-align: center;
+            cursor: pointer;
+            user-select: none;
+            color: white;
+            width: 100%;
+            background: transparent; /* Pad itself is transparent, container has color */
+            border: none;
+        }
+
+        .drum-pad:active {
+            transform: scale(0.98); /* Apply to pad for click feedback */
+        }
+
+        .drum-pad-download-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: auto; /* Override default button width */
+            padding: 4px 7px;
+            font-size: 12px;
+            background-color: rgba(0,0,0,0.2);
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            z-index: 10;
+        }
+        .drum-pad-download-btn:hover {
+            background-color: rgba(0,0,0,0.4);
+        }
+
+
+        .status-message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background-color: #e8f4fd;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .status-message.success {
+            background-color: #e8f8e8;
+            border-left: 4px solid var(--success-color);
+        }
+
+        .status-message.warning {
+            background-color: #fff8e8;
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .status-message.error {
+            background-color: #fde8e8;
+            border-left: 4px solid var(--error-color);
+        }
+
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Audio Vocoder Processor</h1>
+        <p>Create drum samples using vocoder effects</p>
+    </header>
+
+    <div class="app-container">
+        <div class="panel control-panel">
+            <div class="control-section">
+                <h3>Input Audio</h3>
+                <div class="form-group">
+                    <label for="audio-files">Upload Audio Files (WAV, MP3, OGG, AIFF)</label>
+                    <input type="file" id="audio-files" accept=".wav,.mp3,.ogg,.aiff" multiple>
+                </div>
+                <div id="file-list"></div>
+            </div>
+
+            <div class="control-section">
+                <h3>Chunk Settings</h3>
+                <div class="form-group">
+                    <label for="min-chunk-size">Minimum Chunk Size (ms)</label>
+                    <input type="range" id="min-chunk-size" min="10" max="1000" value="50">
+                    <div class="range-labels">
+                        <span>10ms</span>
+                        <span>1000ms</span>
+                    </div>
+                    <div id="min-chunk-size-value">50ms</div>
+                </div>
+                <div class="form-group">
+                    <label for="max-chunk-size">Maximum Chunk Size (ms)</label>
+                    <input type="range" id="max-chunk-size" min="20" max="2000" value="300">
+                    <div class="range-labels">
+                        <span>20ms</span>
+                        <span>2000ms</span>
+                    </div>
+                    <div id="max-chunk-size-value">300ms</div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Vocoder Settings</h3>
+                <div class="form-group">
+                    <label for="num-bands">Number of Vocoder Bands</label>
+                    <input type="range" id="num-bands" min="8" max="32" value="16">
+                    <div class="range-labels">
+                        <span>8 bands</span>
+                        <span>32 bands</span>
+                    </div>
+                    <div id="num-bands-value">16 bands</div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Generation</h3>
+                <button id="process-button">Generate Drum Samples</button>
+                <div class="loader" id="loader"></div>
+            </div>
+        </div>
+
+        <div class="panel main-panel">
+            <div id="status-message" class="status-message">
+                Upload audio files to begin processing
+            </div>
+
+            <h3>Input Audio Visualization</h3>
+            <div class="visualizer-container">
+                <canvas id="input-canvas"></canvas>
+            </div>
+
+            <h3>Generated Drum Samples</h3>
+            <div id="drum-pads" class="drum-pads">
+                </div>
+             <div class="control-section" style="margin-top: 20px; padding-bottom: 0;">
+                <h3>Download Options</h3>
+                <button id="download-all-button" disabled>Download All Samples (ZIP)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Main application object
+        const AudioVocoderProcessor = {
+            // Configuration
+            config: {
+                supportedFormats: ['.wav', '.mp3', '.ogg', '.aiff'],
+                maxFileSize: 100 * 1024 * 1024, // 100MB
+                drumTypes: [
+                    { type: 'kick', count: 2, freqRange: [40, 150], attackTime: 0.01, releaseTime: 0.5 },
+                    { type: 'snare', count: 2, freqRange: [100, 500], attackTime: 0.01, releaseTime: 0.3 },
+                    { type: 'hihat', count: 2, freqRange: [800, 12000], attackTime: 0.001, releaseTime: 0.1 },
+                    { type: 'tom', count: 2, freqRange: [200, 350], attackTime: 0.01, releaseTime: 0.4 },
+                    { type: 'crash', count: 1, freqRange: [500, 15000], attackTime: 0.001, releaseTime: 1.0 },
+                    { type: 'ride', count: 1, freqRange: [400, 10000], attackTime: 0.001, releaseTime: 0.8 }
+                ]
+            },
+
+            // State
+            state: {
+                audioContext: null,
+                uploadedFiles: [],
+                audioBuffers: [],
+                chunks: [],
+                generatedSamples: [],
+                isProcessing: false,
+                initialized: false
+            },
+
+            // DOM Elements cache
+            elements: {},
+
+            // Initialization
+            init() {
+                this.cacheElements();
+                this.setupEventListeners();
+                this.updateUI();
+                this.drawEmptyCanvas();
+                this.state.initialized = true;
+            },
+
+            cacheElements() {
+                this.elements = {
+                    audioFilesInput: document.getElementById('audio-files'),
+                    fileList: document.getElementById('file-list'),
+                    minChunkSize: document.getElementById('min-chunk-size'),
+                    maxChunkSize: document.getElementById('max-chunk-size'),
+                    minChunkSizeValue: document.getElementById('min-chunk-size-value'),
+                    maxChunkSizeValue: document.getElementById('max-chunk-size-value'),
+                    numBands: document.getElementById('num-bands'),
+                    numBandsValue: document.getElementById('num-bands-value'),
+                    processButton: document.getElementById('process-button'),
+                    loader: document.getElementById('loader'),
+                    statusMessage: document.getElementById('status-message'),
+                    inputCanvas: document.getElementById('input-canvas'),
+                    drumPads: document.getElementById('drum-pads'),
+                    downloadAllButton: document.getElementById('download-all-button') // Cache new button
+                };
+            },
+
+            setupEventListeners() {
+                this.elements.audioFilesInput.addEventListener('change', (e) => this.handleFileUpload(e));
+                this.elements.minChunkSize.addEventListener('input', (e) => {
+                    const value = e.target.value;
+                    this.elements.minChunkSizeValue.textContent = `${value}ms`;
+                    if (parseInt(value) > parseInt(this.elements.maxChunkSize.value)) {
+                        this.elements.maxChunkSize.value = value;
+                        this.elements.maxChunkSizeValue.textContent = `${value}ms`;
+                    }
+                });
+                this.elements.maxChunkSize.addEventListener('input', (e) => {
+                    const value = e.target.value;
+                    this.elements.maxChunkSizeValue.textContent = `${value}ms`;
+                    if (parseInt(value) < parseInt(this.elements.minChunkSize.value)) {
+                        this.elements.minChunkSize.value = value;
+                        this.elements.minChunkSizeValue.textContent = `${value}ms`;
+                    }
+                });
+                this.elements.numBands.addEventListener('input', (e) => {
+                    const value = e.target.value;
+                    this.elements.numBandsValue.textContent = `${value} bands`;
+                });
+                this.elements.processButton.addEventListener('click', () => this.processAudio());
+                this.elements.downloadAllButton.addEventListener('click', () => this.downloadAllSamplesAsZip()); // Listener for new button
+            },
+
+            async handleFileUpload(event) {
+                const files = Array.from(event.target.files);
+                if (files.length === 0) return;
+
+                this.showStatus('Loading audio files...', 'info');
+                this.elements.fileList.innerHTML = '';
+                this.state.uploadedFiles = [];
+                this.state.audioBuffers = [];
+
+                for (const file of files) {
+                    const extension = '.' + file.name.split('.').pop().toLowerCase();
+                    if (!this.config.supportedFormats.includes(extension)) {
+                        this.showStatus(`File format ${extension} is not supported.`, 'error');
+                        continue;
+                    }
+                    if (file.size > this.config.maxFileSize) {
+                        this.showStatus(`File ${file.name} exceeds the maximum size limit of 100MB.`, 'error');
+                        continue;
+                    }
+                    this.state.uploadedFiles.push(file);
+                    const fileEntry = document.createElement('div');
+                    fileEntry.textContent = file.name;
+                    this.elements.fileList.appendChild(fileEntry);
+                }
+
+                if (this.state.uploadedFiles.length === 0) {
+                    this.showStatus('No valid audio files were selected.', 'error');
+                    return;
+                }
+
+                if (!this.state.audioContext) {
+                    try {
+                        this.state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    } catch (error) {
+                        this.showStatus('Web Audio API is not supported in your browser.', 'error');
+                        return;
+                    }
+                }
+
+                try {
+                    await this.loadAudioFiles();
+                    this.showStatus(`${this.state.audioBuffers.length} audio files loaded successfully.`, 'success');
+                    this.visualizeInputAudio();
+                    this.updateUI();
+                } catch (error) {
+                    this.showStatus(`Error loading audio files: ${error.message}`, 'error');
+                }
+            },
+
+            async loadAudioFiles() {
+                const loadPromises = this.state.uploadedFiles.map(file => {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = async (event) => {
+                            try {
+                                const arrayBuffer = event.target.result;
+                                const audioBuffer = await this.decodeAudioData(arrayBuffer);
+                                resolve(audioBuffer);
+                            } catch (error) {
+                                reject(error);
+                            }
+                        };
+                        reader.onerror = () => {
+                            reject(new Error(`Error reading file: ${file.name}`));
+                        };
+                        reader.readAsArrayBuffer(file);
+                    });
+                });
+                this.state.audioBuffers = await Promise.all(loadPromises);
+            },
+
+            async decodeAudioData(arrayBuffer) {
+                return new Promise((resolve, reject) => {
+                    this.state.audioContext.decodeAudioData(arrayBuffer,
+                        (buffer) => resolve(buffer),
+                        (error) => reject(error || new Error('Error decoding audio data'))
+                    );
+                });
+            },
+
+            async processAudio() {
+                if (this.state.audioBuffers.length === 0) {
+                    this.showStatus('Please upload audio files first.', 'warning');
+                    return;
+                }
+                if (this.state.isProcessing) return;
+
+                this.state.isProcessing = true;
+                this.elements.loader.style.display = 'block';
+                this.elements.processButton.disabled = true;
+                this.elements.downloadAllButton.disabled = true;
+                this.showStatus('Processing audio and generating samples...', 'info');
+
+                try {
+                    const minChunkSize = parseInt(this.elements.minChunkSize.value);
+                    const maxChunkSize = parseInt(this.elements.maxChunkSize.value);
+                    const numBands = parseInt(this.elements.numBands.value);
+
+                    this.state.chunks = [];
+                    this.state.generatedSamples = [];
+
+                    await this.splitAudioIntoChunks(minChunkSize, maxChunkSize);
+                    await this.generateDrumSamples(numBands);
+                    this.createDrumPads();
+
+                    this.showStatus('Drum samples generated successfully!', 'success');
+                } catch (error) {
+                    this.showStatus(`Error processing audio: ${error.message}`, 'error');
+                    console.error("Processing error:", error);
+                }
+
+                this.state.isProcessing = false;
+                this.elements.loader.style.display = 'none';
+                this.updateUI();
+            },
+
+            async splitAudioIntoChunks(minChunkSizeMs, maxChunkSizeMs) {
+                this.showStatus('Splitting audio into chunks...', 'info');
+                for (const buffer of this.state.audioBuffers) {
+                    const sampleRate = buffer.sampleRate;
+                    const minChunkSizeSamples = Math.floor((minChunkSizeMs / 1000) * sampleRate);
+                    const maxChunkSizeSamples = Math.floor((maxChunkSizeMs / 1000) * sampleRate);
+                    let position = 0;
+                    while (position < buffer.length) {
+                        const chunkSize = Math.floor(
+                            minChunkSizeSamples +
+                            Math.random() * (maxChunkSizeSamples - minChunkSizeSamples)
+                        );
+                        const endPosition = Math.min(position + chunkSize, buffer.length);
+                        const actualChunkSize = endPosition - position;
+                        if (actualChunkSize < minChunkSizeSamples / 2) {
+                            position = endPosition;
+                            continue;
+                        }
+                        const chunkBuffer = this.state.audioContext.createBuffer(
+                            buffer.numberOfChannels,
+                            actualChunkSize,
+                            sampleRate
+                        );
+                        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                            const originalData = buffer.getChannelData(channel);
+                            const chunkData = chunkBuffer.getChannelData(channel);
+                            for (let i = 0; i < actualChunkSize; i++) {
+                                chunkData[i] = originalData[position + i];
+                            }
+                        }
+                        this.state.chunks.push(chunkBuffer);
+                        position = endPosition;
+                    }
+                }
+                this.showStatus(`Created ${this.state.chunks.length} audio chunks.`, 'info');
+            },
+
+            async generateDrumSamples(numBands) {
+                if (this.state.chunks.length < 2) { // Need at least 2 for carrier and modulator
+                    this.showStatus('Not enough audio chunks to process (need at least 2). Ensure input audio is long enough and chunk sizes are appropriate.', 'warning');
+                    throw new Error('Not enough audio chunks.');
+                }
+
+                this.showStatus(`Generating drum samples using vocoder with ${numBands} bands...`, 'info');
+                for (const drumType of this.config.drumTypes) {
+                    for (let i = 0; i < drumType.count; i++) {
+                        const sampleBuffer = await this.createDrumSample(
+                            numBands,
+                            drumType.type,
+                            drumType.freqRange,
+                            drumType.attackTime,
+                            drumType.releaseTime,
+                            i + 1
+                        );
+                        this.state.generatedSamples.push({
+                            type: drumType.type,
+                            index: i + 1,
+                            buffer: sampleBuffer,
+                            filename: `${drumType.type}_${i + 1}.wav` // Store filename
+                        });
+                    }
+                }
+                this.showStatus(`Generated ${this.state.generatedSamples.length} drum samples.`, 'info');
+            },
+
+            async createDrumSample(numBands, type, freqRange, attackTime, releaseTime, index) {
+                let outputLength;
+                switch (type) {
+                    case 'kick': outputLength = Math.floor(this.state.audioContext.sampleRate * 0.5); break;
+                    case 'snare': outputLength = Math.floor(this.state.audioContext.sampleRate * 0.3); break;
+                    case 'hihat': outputLength = Math.floor(this.state.audioContext.sampleRate * 0.2); break;
+                    case 'tom': outputLength = Math.floor(this.state.audioContext.sampleRate * 0.4); break;
+                    case 'crash': case 'ride': outputLength = Math.floor(this.state.audioContext.sampleRate * 1.0); break;
+                    default: outputLength = Math.floor(this.state.audioContext.sampleRate * 0.5);
+                }
+
+                const outputBuffer = this.state.audioContext.createBuffer(
+                    2, // Stereo output
+                    outputLength,
+                    this.state.audioContext.sampleRate
+                );
+
+                const getRandomChunk = () => {
+                    const randomIndex = Math.floor(Math.random() * this.state.chunks.length);
+                    return this.state.chunks[randomIndex];
+                };
+
+                const carrierChunk = getRandomChunk();
+                let modulatorChunk = getRandomChunk();
+                // Ensure carrier and modulator are different if possible and chunks are enough
+                if (this.state.chunks.length > 1) {
+                    while (modulatorChunk === carrierChunk) { // Simple check
+                        modulatorChunk = getRandomChunk();
+                    }
+                }
+
+                await this.processVocoder(carrierChunk, modulatorChunk, outputBuffer, freqRange, numBands);
+                this.applyDrumEnvelope(outputBuffer, type, attackTime, releaseTime);
+                return outputBuffer;
+            },
+
+
+            applyDrumEnvelope(buffer, type, attackTime, releaseTime) {
+                const sampleRate = buffer.sampleRate;
+                const attackSamples = Math.floor(attackTime * sampleRate);
+                const releaseSamples = Math.floor(releaseTime * sampleRate);
+
+                for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                    const data = buffer.getChannelData(channel);
+                    const totalSamples = data.length;
+
+                    for (let i = 0; i < totalSamples; i++) {
+                        let envelope = 1.0;
+                        // Attack
+                        if (i < attackSamples) {
+                            envelope *= (i / attackSamples);
+                        }
+                        // Release
+                        if (i > totalSamples - releaseSamples) {
+                             envelope *= ((totalSamples - i) / releaseSamples);
+                        }
+                        data[i] *= Math.max(0, envelope); // Ensure non-negative envelope
+                    }
+                    // Type-specific shaping (can be refined)
+                    switch (type) {
+                        case 'kick':
+                            for (let i = 0; i < data.length; i++) data[i] *= Math.pow(0.992, i / (sampleRate*0.01));
+                            break;
+                        case 'snare':
+                            for (let i = Math.floor(data.length * 0.05); i < data.length; i++) data[i] *= Math.pow(0.995, (i - Math.floor(data.length * 0.05)) / (sampleRate*0.01));
+                            break;
+                        case 'hihat':
+                             for (let i = 0; i < data.length; i++) data[i] *= Math.pow(0.97, i / (sampleRate*0.005) );
+                            break;
+                        case 'crash': case 'ride':
+                            for (let i = 0; i < data.length; i++) data[i] *= Math.pow(0.999, i / (sampleRate*0.01)) * (1 + 0.05 * Math.sin(i * 0.05));
+                            break;
+                    }
+                }
+            },
+
+async processVocoder(carrierBuffer, modulatorBuffer, outputBuffer, freqRange, numBands) {
+                const offlineCtx = new OfflineAudioContext(
+                    outputBuffer.numberOfChannels,
+                    outputBuffer.length,
+                    outputBuffer.sampleRate
+                );
+
+                const carrierSource = offlineCtx.createBufferSource();
+                carrierSource.buffer = carrierBuffer;
+
+                const modulatorSource = offlineCtx.createBufferSource();
+                modulatorSource.buffer = modulatorBuffer;
+
+                const masterGain = offlineCtx.createGain();
+                masterGain.gain.value = 1.0; // Will be adjusted by normalization later
+                masterGain.connect(offlineCtx.destination);
+
+                const minFreq = freqRange[0];
+                const maxFreq = freqRange[1];
+
+                // Create analysis and synthesis filter banks
+                for (let i = 0; i < numBands; i++) {
+                    const centerFreq = minFreq * Math.pow(maxFreq / minFreq, (i + 0.5) / numBands);
+                    const qValue = numBands * 0.35; // Experiment with Q, lower Q = wider band
+
+                    // --- Modulator Path (Analysis) ---
+                    const modulatorFilter = offlineCtx.createBiquadFilter();
+                    modulatorFilter.type = 'bandpass';
+                    modulatorFilter.frequency.value = centerFreq;
+                    modulatorFilter.Q.value = qValue;
+
+                    // Rudimentary envelope follower: rectify and low-pass filter
+                    // For a better vocoder, a more sophisticated envelope detector is needed (e.g., using AudioWorklet)
+                    // This is a very simplified stand-in.
+                    const envelopeFollowerGain = offlineCtx.createGain(); // To simulate rectification (abs value) if needed, though GainNode alone doesn't do that.
+                                                                        // A WaveShaperNode could do rectification.
+                    const lowpassForEnvelope = offlineCtx.createBiquadFilter();
+                    lowpassForEnvelope.type = 'lowpass';
+                    lowpassForEnvelope.frequency.value = 100; // Cutoff for envelope signal, e.g., 10-100Hz
+
+                    modulatorSource.connect(modulatorFilter);
+                    modulatorFilter.connect(envelopeFollowerGain); // Simplification: just pass through
+                    envelopeFollowerGain.connect(lowpassForEnvelope);
+
+                    // --- Carrier Path (Synthesis) ---
+                    const carrierFilter = offlineCtx.createBiquadFilter();
+                    carrierFilter.type = 'bandpass';
+                    carrierFilter.frequency.value = centerFreq;
+                    carrierFilter.Q.value = qValue;
+
+                    const bandGain = offlineCtx.createGain();
+                    bandGain.gain.value = 0; // Start with 0 gain, will be modulated
+
+                    carrierSource.connect(carrierFilter);
+                    carrierFilter.connect(bandGain);
+                    bandGain.connect(masterGain);
+
+                    // Connect the modulator's processed envelope signal to control the carrier band's gain
+                    // The output of `lowpassForEnvelope` (which represents the modulator's band amplitude)
+                    // is connected to the `gain` AudioParam of the `bandGain` node.
+                    lowpassForEnvelope.connect(bandGain.gain);
+                }
+
+                carrierSource.start(0);
+                modulatorSource.start(0);
+
+                const renderedBuffer = await offlineCtx.startRendering();
+
+                // Copy rendered data to output buffer
+                for (let channel = 0; channel < outputBuffer.numberOfChannels; channel++) {
+                    const outputData = outputBuffer.getChannelData(channel);
+                    // Ensure renderedData exists for the channel, otherwise use a silent array
+                    const renderedChannelData = (channel < renderedBuffer.numberOfChannels) ? renderedBuffer.getChannelData(channel) : new Float32Array(outputBuffer.length);
+
+                    for (let i = 0; i < outputData.length; i++) {
+                         // Ensure we don't read past the end of renderedChannelData
+                        outputData[i] = (i < renderedChannelData.length) ? renderedChannelData[i] : 0;
+                    }
+                }
+                this.normalizeBuffer(outputBuffer, 0.7); // Normalize to 70% to leave headroom
+            },
+
+            normalizeBuffer(buffer, targetMaxLevel = 0.9) {
+                let maxVal = 0;
+                for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                    const data = buffer.getChannelData(channel);
+                    for (let i = 0; i < data.length; i++) {
+                        maxVal = Math.max(maxVal, Math.abs(data[i]));
+                    }
+                }
+                if (maxVal > 0.001) { // Avoid division by zero or tiny numbers
+                    const normalizeFactor = targetMaxLevel / maxVal;
+                    for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                        const data = buffer.getChannelData(channel);
+                        for (let i = 0; i < data.length; i++) {
+                            data[i] *= normalizeFactor;
+                        }
+                    }
+                }
+            },
+
+            createDrumPads() {
+                this.elements.drumPads.innerHTML = '';
+                for (const sample of this.state.generatedSamples) {
+                    const padContainer = document.createElement('div');
+                    padContainer.className = 'drum-pad-container';
+
+                    const padDiv = document.createElement('button'); // Use button for better accessibility
+                    padDiv.className = 'drum-pad';
+                    padDiv.textContent = `${sample.type} ${sample.index}`;
+                    padDiv.dataset.type = sample.type;
+                    padDiv.dataset.index = sample.index;
+
+                    padDiv.addEventListener('click', () => {
+                        this.playSample(sample);
+                        // Visual feedback on container
+                        padContainer.style.boxShadow = '0 0 10px var(--primary-color)';
+                        setTimeout(() => {
+                            padContainer.style.boxShadow = '';
+                        }, 200);
+                    });
+
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.className = 'drum-pad-download-btn';
+                    downloadBtn.innerHTML = '💾'; // Save icon
+                    downloadBtn.title = `Download ${sample.filename}`;
+                    downloadBtn.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Prevent pad click event
+                        this.downloadSingleSample(sample);
+                    });
+
+                    padContainer.appendChild(padDiv);
+                    padContainer.appendChild(downloadBtn);
+                    this.elements.drumPads.appendChild(padContainer);
+                }
+                this.updateUI(); // Update button states
+            },
+
+            playSample(sample) {
+                if (!this.state.audioContext) { /* ... error handling ... */ return; }
+                const source = this.state.audioContext.createBufferSource();
+                source.buffer = sample.buffer;
+                const gain = this.state.audioContext.createGain();
+                gain.gain.value = 0.8; // Overall playback gain
+                source.connect(gain);
+                gain.connect(this.state.audioContext.destination);
+                source.start();
+            },
+
+            // --- Download and WAV conversion methods ---
+            interleave(inputL, inputR) { // Helper for stereo to interleaved Float32Array
+                const length = inputL.length + inputR.length;
+                const result = new Float32Array(length);
+                let index = 0, inputIndex = 0;
+                while (index < length) {
+                    result[index++] = inputL[inputIndex];
+                    result[index++] = inputR[inputIndex];
+                    inputIndex++;
+                }
+                return result;
+            },
+
+            audioBufferToWav(audioBuffer) {
+                const numChannels = audioBuffer.numberOfChannels;
+                const sampleRate = audioBuffer.sampleRate;
+                const format = 1; // PCM
+                const bitDepth = 16;
+
+                let pcmData;
+                if (numChannels === 2) {
+                    pcmData = this.interleave(audioBuffer.getChannelData(0), audioBuffer.getChannelData(1));
+                } else { // Mono
+                    pcmData = audioBuffer.getChannelData(0);
+                }
+
+                const dataLength = pcmData.length * (bitDepth / 8);
+                const bufferLength = 44 + dataLength; // 44 bytes for header
+                const wavFileBuffer = new ArrayBuffer(bufferLength);
+                const view = new DataView(wavFileBuffer);
+
+                let offset = 0;
+                const writeString = (str) => {
+                    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+                    offset += str.length;
+                };
+                const writeUint32 = (val) => { view.setUint32(offset, val, true); offset += 4; };
+                const writeUint16 = (val) => { view.setUint16(offset, val, true); offset += 2; };
+
+                writeString('RIFF');              // ChunkID
+                writeUint32(bufferLength - 8);    // ChunkSize
+                writeString('WAVE');              // Format
+                writeString('fmt ');              // Subchunk1ID
+                writeUint32(16);                  // Subchunk1Size (16 for PCM)
+                writeUint16(format);              // AudioFormat (1 for PCM)
+                writeUint16(numChannels);         // NumChannels
+                writeUint32(sampleRate);          // SampleRate
+                writeUint32(sampleRate * numChannels * (bitDepth / 8)); // ByteRate
+                writeUint16(numChannels * (bitDepth / 8)); // BlockAlign
+                writeUint16(bitDepth);            // BitsPerSample
+                writeString('data');              // Subchunk2ID
+                writeUint32(dataLength);          // Subchunk2Size
+
+                // Write PCM data
+                for (let i = 0; i < pcmData.length; i++) {
+                    let sample = Math.max(-1, Math.min(1, pcmData[i])); // Clamp to [-1, 1]
+                    sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF; // Convert to 16-bit int
+                    view.setInt16(offset, sample, true);
+                    offset += 2;
+                }
+                return new Blob([view], { type: 'audio/wav' });
+            },
+
+            downloadSingleSample(sample) {
+                if (!sample || !sample.buffer) {
+                    this.showStatus('Sample data is missing.', 'error'); return;
+                }
+                try {
+                    const wavBlob = this.audioBufferToWav(sample.buffer);
+                    const url = URL.createObjectURL(wavBlob);
+                    const a = document.createElement('a');
+                    document.body.appendChild(a);
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = sample.filename || `${sample.type}_${sample.index}.wav`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    this.showStatus(`Downloaded ${a.download}`, 'success');
+                } catch (error) {
+                    this.showStatus(`Error downloading sample: ${error.message}`, 'error');
+                    console.error("Error downloading sample:", error);
+                }
+            },
+
+            async downloadAllSamplesAsZip() {
+                if (this.state.generatedSamples.length === 0) {
+                    this.showStatus('No samples to download.', 'warning'); return;
+                }
+                if (typeof JSZip === 'undefined') {
+                    this.showStatus('JSZip library not loaded. Cannot create ZIP file.', 'error');
+                    console.error("JSZip not found. Please ensure it's included.");
+                    return;
+                }
+
+                this.showStatus('Preparing ZIP file...', 'info');
+                this.elements.downloadAllButton.disabled = true;
+                this.elements.processButton.disabled = true;
+
+
+                const zip = new JSZip();
+                try {
+                    for (const sample of this.state.generatedSamples) {
+                        if (sample.buffer) {
+                            const wavBlob = this.audioBufferToWav(sample.buffer);
+                            zip.file(sample.filename || `${sample.type}_${sample.index}.wav`, wavBlob);
+                        }
+                    }
+                    const zipBlob = await zip.generateAsync({ type: 'blob', compression: "DEFLATE", compressionOptions: { level: 6 } });
+                    const url = URL.createObjectURL(zipBlob);
+                    const a = document.createElement('a');
+                    document.body.appendChild(a);
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = 'vocoder_drum_samples.zip';
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    this.showStatus('All samples downloaded as ZIP!', 'success');
+                } catch (error) {
+                    this.showStatus(`Error creating ZIP file: ${error.message}`, 'error');
+                    console.error("Error creating ZIP:", error);
+                } finally {
+                    this.updateUI(); // Re-enable buttons based on state
+                }
+            },
+
+
+            visualizeInputAudio() {
+                if (this.state.audioBuffers.length === 0) {
+                    this.drawEmptyCanvas(); return;
+                }
+                const canvas = this.elements.inputCanvas;
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+                const ctx = canvas.getContext('2d');
+
+                const combinedLength = this.state.audioBuffers.reduce((sum, buffer) => sum + buffer.length, 0);
+                const downsampledLength = Math.min(canvas.width, combinedLength);
+                const downsampledData = new Float32Array(downsampledLength);
+
+                let position = 0;
+                for (const buffer of this.state.audioBuffers) {
+                    const channelData = buffer.getChannelData(0); // Use first channel for viz
+                    const samplesPerPixel = Math.max(1, Math.floor(channelData.length / (downsampledLength * (channelData.length / combinedLength) ) ) );
+
+                    for (let i = 0; position < downsampledLength && i < channelData.length; i += samplesPerPixel) {
+                        let sum = 0, count = 0;
+                        for (let j = 0; j < samplesPerPixel && i + j < channelData.length; j++) {
+                            sum += Math.abs(channelData[i + j]);
+                            count++;
+                        }
+                        if (count > 0 && position < downsampledLength) {
+                            downsampledData[position++] = sum / count;
+                        }
+                    }
+                }
+                this.drawWaveform(canvas, downsampledData);
+            },
+
+            drawWaveform(canvas, data) {
+                const ctx = canvas.getContext('2d');
+                const width = canvas.width;
+                const height = canvas.height;
+                ctx.clearRect(0, 0, width, height);
+                ctx.fillStyle = '#f0f0f0';
+                ctx.fillRect(0, 0, width, height);
+                ctx.beginPath();
+                ctx.strokeStyle = '#aaa';
+                ctx.moveTo(0, height / 2);
+                ctx.lineTo(width, height / 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.strokeStyle = 'var(--primary-color)';
+                ctx.lineWidth = 1.5; // Thinner line for detail
+                const amplitude = height * 0.45; // Slightly more amplitude
+                for (let i = 0; i < data.length; i++) {
+                    const x = (i / (data.length -1)) * width; // Ensure last point reaches edge
+                    const yTop = (height / 2) - (data[i] * amplitude);
+                    const yBottom = (height / 2) + (data[i] * amplitude);
+                    ctx.moveTo(x, yTop);
+                    ctx.lineTo(x, yBottom);
+                }
+                ctx.stroke();
+            },
+
+            drawEmptyCanvas() {
+                const canvas = this.elements.inputCanvas;
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#f0f0f0';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.beginPath();
+                ctx.strokeStyle = '#aaa';
+                ctx.moveTo(0, canvas.height / 2);
+                ctx.lineTo(canvas.width, canvas.height / 2);
+                ctx.stroke();
+                ctx.fillStyle = '#999';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('No audio data', canvas.width / 2, canvas.height / 2 - 7);
+            },
+
+            showStatus(message, type = 'info') {
+                this.elements.statusMessage.textContent = message;
+                this.elements.statusMessage.className = `status-message ${type}`;
+            },
+
+            updateUI() {
+                const hasAudio = this.state.audioBuffers.length > 0;
+                const hasSamples = this.state.generatedSamples.length > 0;
+
+                this.elements.processButton.disabled = !hasAudio || this.state.isProcessing;
+                this.elements.downloadAllButton.disabled = !hasSamples || this.state.isProcessing;
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            AudioVocoderProcessor.init();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spectral Audio Reconstructor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        h2 {
+            color: #3498db;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        button {
+            padding: 10px 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background-color: #cccccc;
+            transform: none;
+            cursor: not-allowed;
+        }
+        input[type="number"], input[type="range"] {
+            width: 100px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #fileList, #referenceFileInfo {
+            margin-top: 10px;
+        }
+        .file-item {
+            margin-bottom: 5px;
+            padding: 8px;
+            background-color: #f1f1f1;
+            border-radius: 4px;
+        }
+        progress {
+            width: 100%;
+            height: 20px;
+            margin-top: 10px;
+            border-radius: 10px;
+        }
+        .waveform-container {
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        canvas {
+            width: 100%;
+            height: 100px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .canvas-label {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        .range-container {
+            display: flex;
+            align-items: center;
+            margin-top: 15px;
+        }
+        .range-value {
+            margin-left: 10px;
+            width: 50px;
+            text-align: center;
+            background: #e9f7fe;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            background-color: white;
+        }
+        .visualization-tabs {
+            display: flex;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .visualization-tab {
+            padding: 8px 15px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+        }
+        .visualization-tab.active {
+            border-bottom: 3px solid #3498db;
+            font-weight: bold;
+        }
+        #visualizationContainer {
+            height: 250px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Spectral Audio Reconstructor</h1>
+    
+    <div class="section">
+        <h2>1. Reference File</h2>
+        <p>Select the reference file that will be reconstructed (supports WAV, MP3, OGG, AIFF/AIF)</p>
+        <input type="file" id="referenceFile" accept=".wav,.mp3,.ogg,.aiff,.aif">
+        <div id="referenceFileInfo"></div>
+        <div class="waveform-container">
+            <div class="canvas-label">Reference Audio Waveform:</div>
+            <canvas id="referenceWaveform"></canvas>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>2. Source Files</h2>
+        <p>Select source files to be used as building blocks (supports WAV, MP3, OGG, AIFF/AIF)</p>
+        <input type="file" id="sourceFiles" multiple accept=".wav,.mp3,.ogg,.aiff,.aif">
+        <div id="fileList"></div>
+    </div>
+    
+    <div class="section">
+        <h2>3. Reconstruction Parameters</h2>
+        <div>
+            <label for="minChunk">Minimum Chunk Size (ms):</label>
+            <input type="number" id="minChunk" value="100" min="10" max="5000">
+        </div>
+        <div style="margin-top: 15px;">
+            <label for="maxChunk">Maximum Chunk Size (ms):</label>
+            <input type="number" id="maxChunk" value="500" min="10" max="5000">
+        </div>
+        <div class="range-container">
+            <label for="spectrumWeight">Spectrum Matching Weight:</label>
+            <input type="range" id="spectrumWeight" min="0" max="100" value="70">
+            <span id="spectrumWeightValue" class="range-value">70%</span>
+        </div>
+        <div class="range-container">
+            <label for="pitchWeight">Pitch Matching Weight:</label>
+            <input type="range" id="pitchWeight" min="0" max="100" value="50">
+            <span id="pitchWeightValue" class="range-value">50%</span>
+        </div>
+        <div class="range-container">
+            <label for="randomization">Randomization Factor:</label>
+            <input type="range" id="randomization" min="0" max="100" value="25">
+            <span id="randomizationValue" class="range-value">25%</span>
+        </div>
+        <div style="margin-top: 15px;">
+            <label for="reconstructionType">Reconstruction Type:</label>
+            <select id="reconstructionType">
+                <option value="spectral">Spectral Matching</option>
+                <option value="hybrid">Hybrid (Spectral + Pitch)</option>
+                <option value="mosaic">Audio Mosaic</option>
+                <option value="creative">Creative Reconstruction</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>4. Visualization</h2>
+        <div class="visualization-tabs">
+            <div class="visualization-tab active" data-viz="waveform">Waveform</div>
+            <div class="visualization-tab" data-viz="spectrum">Spectrum</div>
+            <div class="visualization-tab" data-viz="match">Match Score</div>
+        </div>
+        <div id="visualizationContainer">
+            <canvas id="outputWaveform"></canvas>
+            <canvas id="outputSpectrum" style="display: none;"></canvas>
+            <canvas id="matchScoreGraph" style="display: none;"></canvas>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>5. Output Options</h2>
+        <div>
+            <label>
+                <input type="radio" name="outputType" value="play" checked> 
+                Play directly
+            </label>
+            <label style="margin-left: 20px;">
+                <input type="radio" name="outputType" value="save"> 
+                Save as file
+            </label>
+        </div>
+    </div>
+    
+    <div class="section">
+        <button id="reconstructButton" disabled>Reconstruct Audio</button>
+        <button id="playRefButton" disabled>Play Reference</button>
+        <button id="stopButton" disabled>Stop Playback</button>
+        <button id="saveButton" disabled>Save Reconstruction</button>
+        <div id="status" style="margin-top: 15px;"></div>
+        <progress id="progressBar" value="0" max="100" style="display: none;"></progress>
+    </div>
+
+    <script>
+        // Audio Reconstructor Implementation
+        const SpectralReconstructor = {
+            // Store loaded audio buffers and analysis data
+            audioContext: null,
+            referenceBuffer: null,
+            sourceBuffers: [],
+            outputBuffer: null,
+            activeSource: null,
+            
+            // Analysis data
+            referenceAnalysis: null,
+            sourceAnalyses: [],
+            
+            // Initialize audio context
+            init: function() {
+                if (!this.audioContext) {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            
+            // Load reference file
+            loadReferenceFile: async function(file) {
+                updateStatus(`Loading reference: ${file.name}...`);
+                
+                try {
+                    this.init();
+                    
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+                    
+                    this.referenceBuffer = audioBuffer;
+                    updateStatus(`Loaded reference: ${file.name}, Duration: ${audioBuffer.duration.toFixed(2)}s`);
+                    
+                    // Analyze reference file
+                    this.referenceAnalysis = this.analyzeAudio(audioBuffer);
+                    
+                    // Draw waveform
+                    this.drawWaveform(audioBuffer, 'referenceWaveform');
+                    
+                    return true;
+                } catch (error) {
+                    updateStatus(`Error: Failed to load ${file.name}: ${error.message}`, true);
+                    return false;
+                }
+            },
+            
+            // Load source audio files
+            loadSourceFiles: async function(fileList) {
+                this.sourceBuffers = [];
+                this.sourceAnalyses = [];
+                
+                for (const file of fileList) {
+                    try {
+                        updateStatus(`Loading source: ${file.name}...`);
+                        const arrayBuffer = await file.arrayBuffer();
+                        const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+                        
+                        // Store buffer
+                        this.sourceBuffers.push(audioBuffer);
+                        
+                        // Analyze and store analysis
+                        const analysis = this.analyzeAudio(audioBuffer);
+                        this.sourceAnalyses.push(analysis);
+                        
+                        updateStatus(`Loaded source: ${file.name}, Duration: ${audioBuffer.duration.toFixed(2)}s`);
+                    } catch (error) {
+                        updateStatus(`Error: Failed to load ${file.name}: ${error.message}`, true);
+                    }
+                }
+                
+                return this.sourceBuffers.length > 0;
+            },
+            
+            // Analyze audio buffer for spectral and pitch content
+            analyzeAudio: function(buffer) {
+                const analysis = {
+                    duration: buffer.duration,
+                    sampleRate: buffer.sampleRate,
+                    numberOfChannels: buffer.numberOfChannels,
+                    // Create a simplified spectral analysis
+                    spectralFrames: [],
+                    // Extract an approximation of pitch content
+                    pitchContent: [],
+                    // Energy/loudness over time
+                    energyProfile: []
+                };
+                
+                // Simple frame-by-frame energy calculation
+                const frameSize = 1024;
+                const hopSize = 512;
+                const channel = buffer.getChannelData(0); // Use first channel for analysis
+                
+                for (let frameStart = 0; frameStart < channel.length; frameStart += hopSize) {
+                    // Calculate energy/loudness
+                    let energy = 0;
+                    let spectralBands = new Array(8).fill(0); // 8 spectral bands
+                    
+                    for (let i = 0; i < frameSize && (frameStart + i) < channel.length; i++) {
+                        const sample = channel[frameStart + i];
+                        energy += sample * sample;
+                        
+                        // Extremely simplified spectral analysis
+                        // In a real implementation, we would use FFT here
+                        // This is just a crude approximation for demonstration
+                        const normalizedIndex = i / frameSize;
+                        const bandIndex = Math.min(7, Math.floor(normalizedIndex * 8));
+                        spectralBands[bandIndex] += Math.abs(sample);
+                    }
+                    
+                    // Normalize energy
+                    energy = Math.sqrt(energy / frameSize);
+                    analysis.energyProfile.push(energy);
+                    
+                    // Normalize spectral bands
+                    const maxBand = Math.max(...spectralBands);
+                    if (maxBand > 0) {
+                        for (let i = 0; i < spectralBands.length; i++) {
+                            spectralBands[i] /= maxBand;
+                        }
+                    }
+                    analysis.spectralFrames.push(spectralBands);
+                    
+                    // Extremely crude pitch estimation (just for demonstration)
+                    // Real implementation would use autocorrelation or other pitch detection
+                    let zeroCrossings = 0;
+                    let prevSample = 0;
+                    for (let i = 0; i < frameSize && (frameStart + i) < channel.length; i++) {
+                        const sample = channel[frameStart + i];
+                        if ((prevSample < 0 && sample >= 0) || (prevSample >= 0 && sample < 0)) {
+                            zeroCrossings++;
+                        }
+                        prevSample = sample;
+                    }
+                    
+                    // Zero crossing rate as a very crude proxy for pitch
+                    analysis.pitchContent.push(zeroCrossings / frameSize);
+                }
+                
+                return analysis;
+            },
+            
+            // Find the best matching chunk from source files for a specific reference frame
+            findBestMatchingChunk: function(referenceFrameIndex, minChunkFrames, maxChunkFrames, 
+                                           spectrumWeight, pitchWeight, randomizationFactor, reconstructionType) {
+                
+                if (!this.referenceAnalysis || this.sourceAnalyses.length === 0) {
+                    return null;
+                }
+                
+                // Convert weights to 0-1
+                spectrumWeight = spectrumWeight / 100;
+                pitchWeight = pitchWeight / 100;
+                randomizationFactor = randomizationFactor / 100;
+                
+                let bestMatch = {
+                    sourceIndex: 0,
+                    startFrame: 0,
+                    numFrames: minChunkFrames,
+                    score: 0
+                };
+                
+                // Number of frames in the reference analysis
+                const refFrames = this.referenceAnalysis.spectralFrames.length;
+                
+                // Don't go beyond the end of reference
+                const framesToMatch = Math.min(
+                    maxChunkFrames,
+                    refFrames - referenceFrameIndex
+                );
+                
+                // Different search strategies based on reconstruction type
+                let potentialMatches = [];
+                
+                for (let sourceIdx = 0; sourceIdx < this.sourceAnalyses.length; sourceIdx++) {
+                    const sourceAnalysis = this.sourceAnalyses[sourceIdx];
+                    const sourceFrames = sourceAnalysis.spectralFrames.length;
+                    
+                    // Skip if source is too short
+                    if (sourceFrames < minChunkFrames) continue;
+                    
+                    // Search step depends on reconstruction type
+                    const searchStep = reconstructionType === 'mosaic' ? 
+                                      Math.max(1, Math.floor(minChunkFrames / 4)) : 1;
+                    
+                    for (let startFrame = 0; startFrame <= sourceFrames - minChunkFrames; startFrame += searchStep) {
+                        // Determine how many frames to compare
+                        const numFramesToCompare = Math.min(
+                            Math.min(maxChunkFrames, sourceFrames - startFrame),
+                            framesToMatch
+                        );
+                        
+                        // Calculate match score
+                        let spectrumScore = 0;
+                        let pitchScore = 0;
+                        let energyScore = 0;
+                        
+                        for (let frame = 0; frame < numFramesToCompare; frame++) {
+                            const refIdx = referenceFrameIndex + frame;
+                            const srcIdx = startFrame + frame;
+                            
+                            if (refIdx >= refFrames || srcIdx >= sourceFrames) break;
+                            
+                            // Compare spectral content
+                            const refSpectrum = this.referenceAnalysis.spectralFrames[refIdx];
+                            const srcSpectrum = sourceAnalysis.spectralFrames[srcIdx];
+                            
+                            let frameDiff = 0;
+                            for (let band = 0; band < refSpectrum.length; band++) {
+                                frameDiff += Math.abs(refSpectrum[band] - srcSpectrum[band]);
+                            }
+                            spectrumScore += 1 - (frameDiff / refSpectrum.length);
+                            
+                            // Compare pitch content
+                            const refPitch = this.referenceAnalysis.pitchContent[refIdx];
+                            const srcPitch = sourceAnalysis.pitchContent[srcIdx];
+                            pitchScore += 1 - Math.abs(refPitch - srcPitch);
+                            
+                            // Compare energy profiles
+                            const refEnergy = this.referenceAnalysis.energyProfile[refIdx];
+                            const srcEnergy = sourceAnalysis.energyProfile[srcIdx];
+                            energyScore += 1 - Math.abs(refEnergy - srcEnergy);
+                        }
+                        
+                        // Normalize scores
+                        spectrumScore /= numFramesToCompare;
+                        pitchScore /= numFramesToCompare;
+                        energyScore /= numFramesToCompare;
+                        
+                        // Apply different weights based on reconstruction type
+                        let totalScore;
+                        switch(reconstructionType) {
+                            case 'spectral':
+                                totalScore = spectrumScore * 0.7 + energyScore * 0.3;
+                                break;
+                            case 'hybrid':
+                                totalScore = spectrumScore * spectrumWeight + 
+                                           pitchScore * pitchWeight + 
+                                           energyScore * (1 - spectrumWeight - pitchWeight);
+                                break;
+                            case 'mosaic':
+                                totalScore = energyScore * 0.5 + 
+                                           (spectrumScore * spectrumWeight + pitchScore * pitchWeight) * 0.5;
+                                break;
+                            case 'creative':
+                                // Creative mode does more complex analysis and weighting
+                                const frameRatio = numFramesToCompare / maxChunkFrames;
+                                totalScore = spectrumScore * 0.4 + pitchScore * 0.3 + 
+                                           energyScore * 0.2 + frameRatio * 0.1;
+                                break;
+                            default:
+                                totalScore = spectrumScore * 0.5 + pitchScore * 0.3 + energyScore * 0.2;
+                        }
+                        
+                        // Apply randomization factor
+                        if (randomizationFactor > 0) {
+                            totalScore = totalScore * (1 - randomizationFactor) + Math.random() * randomizationFactor;
+                        }
+                        
+                        // Store this match
+                        potentialMatches.push({
+                            sourceIndex: sourceIdx,
+                            startFrame: startFrame,
+                            numFrames: numFramesToCompare,
+                            score: totalScore
+                        });
+                    }
+                }
+                
+                // Sort matches by score
+                potentialMatches.sort((a, b) => b.score - a.score);
+                
+                // Take the best match or a random high-scoring match for "creative" mode
+                if (reconstructionType === 'creative' && potentialMatches.length > 5) {
+                    // Pick randomly from top 20% of matches
+                    const topMatchCount = Math.max(3, Math.floor(potentialMatches.length * 0.2));
+                    const randomIndex = Math.floor(Math.random() * topMatchCount);
+                    bestMatch = potentialMatches[randomIndex];
+                } else if (potentialMatches.length > 0) {
+                    bestMatch = potentialMatches[0];
+                }
+                
+                return bestMatch;
+            },
+            
+            // Convert analysis frame index to sample index
+            frameToSample: function(frameIndex) {
+                return frameIndex * 512; // Hop size used in analysis
+            },
+            
+            // Reconstruct audio by matching chunks
+            reconstructAudio: function(minChunkMs, maxChunkMs, spectrumWeight, pitchWeight, 
+                                     randomizationFactor, reconstructionType) {
+                return new Promise((resolve) => {
+                    updateStatus('Reconstructing audio...');
+                    
+                    if (!this.referenceBuffer || this.sourceBuffers.length === 0) {
+                        updateStatus('Reference file and at least one source file are required', true);
+                        resolve(null);
+                        return;
+                    }
+                    
+                    // Create output buffer matching reference duration and channels
+                    const outputBuffer = this.audioContext.createBuffer(
+                        this.referenceBuffer.numberOfChannels,
+                        this.referenceBuffer.length,
+                        this.referenceBuffer.sampleRate
+                    );
+                    
+                    // Clear the output buffer
+                    for (let channel = 0; channel < outputBuffer.numberOfChannels; channel++) {
+                        const outputData = outputBuffer.getChannelData(channel);
+                        for (let i = 0; i < outputData.length; i++) {
+                            outputData[i] = 0;
+                        }
+                    }
+                    
+                    // Convert ms to frames (analysis frames)
+                    const minChunkFrames = Math.floor(minChunkMs * this.referenceBuffer.sampleRate / 1000 / 512);
+                    const maxChunkFrames = Math.floor(maxChunkMs * this.referenceBuffer.sampleRate / 1000 / 512);
+                    
+                    // Make sure we have some valid frame sizes
+                    if (minChunkFrames < 1) minChunkFrames = 1;
+                    if (maxChunkFrames < minChunkFrames) maxChunkFrames = minChunkFrames;
+                    
+                    // Number of analysis frames in reference
+                    const refFrameCount = this.referenceAnalysis.spectralFrames.length;
+                    
+                    // Chunk placement data for visualization
+                    const chunks = [];
+                    
+                    // Keep track of current position in the reference
+                    let currentFrame = 0;
+                    let progressCounter = 0;
+                    
+                    // Set up processing loop with setTimeout to allow UI updates
+                    const processNextChunk = () => {
+                        // Check if we've reached the end
+                        if (currentFrame >= refFrameCount) {
+                            // Done processing
+                            this.outputBuffer = outputBuffer;
+                            updateStatus('Reconstruction complete!');
+                            
+                            // Draw output waveform
+                            this.drawWaveform(outputBuffer, 'outputWaveform');
+                            
+                            // Store chunk metadata for visualization
+                            this.chunkData = chunks;
+                            
+                            resolve(outputBuffer);
+                            return;
+                        }
+                        
+                        // Find best matching chunk
+                        const match = this.findBestMatchingChunk(
+                            currentFrame, minChunkFrames, maxChunkFrames,
+                            spectrumWeight, pitchWeight, randomizationFactor, reconstructionType
+                        );
+                        
+                        if (match) {
+                            // Convert frames to samples
+                            const outputStartSample = this.frameToSample(currentFrame);
+                            const sourceStartSample = this.frameToSample(match.startFrame);
+                            const samplesToCopy = this.frameToSample(match.numFrames);
+                            
+                            // Get source buffer
+                            const sourceBuffer = this.sourceBuffers[match.sourceIndex];
+                            
+                            // Store chunk data for visualization
+                            chunks.push({
+                                startFrame: currentFrame,
+                                numFrames: match.numFrames,
+                                score: match.score,
+                                sourceIndex: match.sourceIndex
+                            });
+                            
+                            // Copy audio data with cross-fade
+                            for (let channel = 0; channel < Math.min(outputBuffer.numberOfChannels, sourceBuffer.numberOfChannels); channel++) {
+                                const outputData = outputBuffer.getChannelData(channel);
+                                const sourceData = sourceBuffer.getChannelData(channel);
+                                
+                                // Apply cross-fade at chunk boundaries
+                                const fadeLength = Math.min(1024, samplesToCopy / 4);
+                                
+                                for (let i = 0; i < samplesToCopy; i++) {
+                                    if (outputStartSample + i >= outputBuffer.length) break;
+                                    if (sourceStartSample + i >= sourceBuffer.length) break;
+                                    
+                                    let sample = sourceData[sourceStartSample + i];
+                                    
+                                    // Apply fade-in
+                                    if (i < fadeLength) {
+                                        const fadeInGain = i / fadeLength;
+                                        sample *= fadeInGain;
+                                    }
+                                    
+                                    // Apply fade-out
+                                    if (i >= samplesToCopy - fadeLength) {
+                                        const fadeOutGain = (samplesToCopy - i) / fadeLength;
+                                        sample *= fadeOutGain;
+                                    }
+                                    
+                                    // Add to output buffer
+                                    outputData[outputStartSample + i] += sample;
+                                }
+                            }
+                            
+                            // Move to next position
+                            currentFrame += match.numFrames;
+                        } else {
+                            // If no match, move forward a small amount
+                            currentFrame += Math.max(1, minChunkFrames / 4);
+                        }
+                        
+                        // Update progress
+                        progressCounter++;
+                        if (progressCounter % 5 === 0) {
+                            const progress = Math.min(100, Math.floor((currentFrame / refFrameCount) * 100));
+                            document.getElementById('progressBar').value = progress;
+                        }
+                        
+                        // Continue processing
+                        setTimeout(processNextChunk, 0);
+                    };
+                    
+                    // Start processing
+                    processNextChunk();
+                });
+            },
+            
+            // Draw waveform visualization
+            drawWaveform: function(buffer, canvasId) {
+                const canvas = document.getElementById(canvasId);
+                if (!canvas) return;
+                
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas size to match display size
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Background
+                ctx.fillStyle = '#f8f9fa';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Get the first channel data
+                const data = buffer.getChannelData(0);
+                
+                // The width of each segment
+                const step = Math.ceil(data.length / canvas.width);
+                const amp = canvas.height / 2;
+                
+                // Draw the center line
+                ctx.beginPath();
+                ctx.strokeStyle = '#ccc';
+                ctx.moveTo(0, amp);
+                ctx.lineTo(canvas.width, amp);
+                ctx.stroke();
+                
+                // Draw the waveform
+                ctx.beginPath();
+                ctx.strokeStyle = '#3498db';
+                ctx.lineWidth = 1;
+                
+                for (let i = 0; i < canvas.width; i++) {
+                    // For each pixel, find the peak sample
+                    let min = 1.0;
+                    let max = -1.0;
+                    
+                    for (let j = 0; j < step; j++) {
+                        const idx = (i * step) + j;
+                        if (idx < data.length) {
+                            const sample = data[idx];
+                            if (sample < min) min = sample;
+                            if (sample > max) max = sample;
+                        }
+                    }
+                    
+                    // Draw min and max as a vertical line
+                    ctx.moveTo(i, amp * (1 + min * 0.9));
+                    ctx.lineTo(i, amp * (1 + max * 0.9));
+                }
+                
+                ctx.stroke();
+            },
+            
+            // Draw spectrum visualization
+            drawSpectrum: function() {
+                const canvas = document.getElementById('outputSpectrum');
+                if (!canvas || !this.outputBuffer) return;
+                
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas size to match display size
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Background
+                ctx.fillStyle = '#f8f9fa';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // TODO: Implement a more meaningful spectral visualization
+                // For now, just show a placeholder
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#666';
+                ctx.textAlign = 'center';
+                ctx.fillText('Spectral analysis would be shown here', canvas.width / 2, canvas.height / 2);
+            },
+            
+            // Draw match score visualization
+            drawMatchScores: function() {
+                const canvas = document.getElementById('matchScoreGraph');
+                if (!canvas || !this.chunkData) return;
+                
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas size to match display size
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Background
+                ctx.fillStyle = '#f8f9fa';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // If we have chunk data, visualize the match scores
+                if (this.chunkData.length > 0) {
+                    const chunks = this.chunkData;
+                    const totalFrames = this.referenceAnalysis.spectralFrames.length;
+                    
+                    // Draw frame boundaries
+                    ctx.strokeStyle = '#ddd';
+                    ctx.beginPath();
+                    for (let chunk of chunks) {
+                        const x = (chunk.startFrame / totalFrames) * canvas.width;
+                        ctx.moveTo(x, 0);
+                        ctx.lineTo(x, canvas.height);
+                    }
+                    ctx.stroke();
+                    
+                    // Draw match scores
+                    ctx.strokeStyle = '#27ae60';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    
+                    for (let i = 0; i < chunks.length; i++) {
+                        const chunk = chunks[i];
+                        const x = ((chunk.startFrame + chunk.numFrames/2) / totalFrames) * canvas.width;
+                        const y = (1 - chunk.score) * canvas.height;
+                        
+                        if (i === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+                    ctx.stroke();
+                    
+                    // Add source index markers
+                    const colorPalette = ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#1abc9c', '#d35400'];
+                    
+                    for (let i = 0; i < chunks.length; i++) {
+                        const chunk = chunks[i];
+                        const x = ((chunk.startFrame + chunk.numFrames/2) / totalFrames) * canvas.width;
+                        const y = (1 - chunk.score) * canvas.height;
+                        
+                        const sourceColor = colorPalette[chunk.sourceIndex % colorPalette.length];
+                        ctx.fillStyle = sourceColor;
+                        ctx.beginPath();
+                        ctx.arc(x, y, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                } else {
+                    // Show placeholder text
+                    ctx.font = '16px Arial';
+                    ctx.fillStyle = '#666';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Chunk match scores will be shown here', canvas.width / 2, canvas.height / 2);
+                }
+            },
+            
+            // Play the reference audio
+            playReference: function() {
+                if (!this.referenceBuffer) {
+                    updateStatus('No reference file loaded', true);
+                    return null;
+                }
+                
+                // Stop any currently playing audio
+                this.stopPlayback();
+                
+                const source = this.audioContext.createBufferSource();
+                source.buffer = this.referenceBuffer;
+                source.connect(this.audioContext.destination);
+                source.start();
+                this.activeSource = source;
+                
+                updateStatus('Playing reference audio...');
+                
+                source.onended = () => {
+                    this.activeSource = null;
+                    updateStatus('Playback finished');
+                    document.getElementById('stopButton').disabled = true;
+                };
+                
+                return source;
+            },
+            
+            // Play the reconstructed audio
+            playOutput: function() {
+                if (!this.outputBuffer) {
+                    updateStatus('No reconstructed audio available', true);
+                    return null;
+                }
+                
+                // Stop any currently playing audio
+                this.stopPlayback();
+                
+                const source = this.audioContext.createBufferSource();
+                source.buffer = this.outputBuffer;
+                source.connect(this.audioContext.destination);
+                source.start();
+                this.activeSource = source;
+                
+                updateStatus('Playing reconstructed audio...');
+                
+                source.onended = () => {
+                    this.activeSource = null;
+                    updateStatus('Playback finished');
+                    document.getElementById('stopButton').disabled = true;
+                };
+                
+                return source;
+            },
+            
+            // Stop playback
+            stopPlayback: function() {
+                if (this.activeSource) {
+                    this.activeSource.stop();
+                    this.activeSource = null;
+                    updateStatus('Playback stopped');
+                }
+            },
+            
+            // Export reconstructed audio to file (WAV format)
+            exportAudio: function() {
+                if (!this.outputBuffer) {
+                    updateStatus('No reconstructed audio available', true);
+                    return;
+                }
+                
+                // Create WAV file
+                const wavData = this.audioBufferToWav(this.outputBuffer);
+                const blob = new Blob([wavData], { type: 'audio/wav' });
+                
+                // Create download link
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'spectral_reconstruction.wav';
+                document.body.appendChild(a);
+                a.click();
+                
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+                
+                updateStatus('Reconstructed audio exported as WAV file');
+            },
+            
+            // Convert AudioBuffer to WAV format
+            audioBufferToWav: function(buffer) {
+                const numChannels = buffer.numberOfChannels;
+                const sampleRate = buffer.sampleRate;
+                const format = 1; // PCM
+                const bitDepth = 16;
+                
+                let result;
+                if (numChannels === 2) {
+                    result = this.interleave(buffer.getChannelData(0), buffer.getChannelData(1));
+                } else {
+                    result = buffer.getChannelData(0);
+                }
+                
+                const dataLength = result.length * (bitDepth / 8);
+                const buffer2 = new ArrayBuffer(44 + dataLength);
+                const view = new DataView(buffer2);
+                
+                // Write WAV header
+                // "RIFF" chunk descriptor
+                this.writeString(view, 0, 'RIFF');
+                view.setUint32(4, 36 + dataLength, true);
+                this.writeString(view, 8, 'WAVE');
+                
+                // "fmt " sub-chunk
+                this.writeString(view, 12, 'fmt ');
+                view.setUint32(16, 16, true); // fmt chunk size
+                view.setUint16(20, format, true);
+                view.setUint16(22, numChannels, true);
+                view.setUint32(24, sampleRate, true);
+                view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true); // byte rate
+                view.setUint16(32, numChannels * (bitDepth / 8), true); // block align
+                view.setUint16(34, bitDepth, true);
+                
+                // "data" sub-chunk
+                this.writeString(view, 36, 'data');
+                view.setUint32(40, dataLength, true);
+                
+                // Write PCM samples
+                const offset = 44;
+                this.floatTo16BitPCM(view, offset, result);
+                
+                return buffer2;
+            },
+            
+            // Helper for WAV creation
+            writeString: function(view, offset, string) {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            },
+            
+            // Helper for WAV creation
+            floatTo16BitPCM: function(output, offset, input) {
+                for (let i = 0; i < input.length; i++, offset += 2) {
+                    const s = Math.max(-1, Math.min(1, input[i]));
+                    output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                }
+            },
+            
+            // Helper for WAV creation
+            interleave: function(inputL, inputR) {
+                const length = inputL.length + inputR.length;
+                const result = new Float32Array(length);
+                
+                let index = 0;
+                let inputIndex = 0;
+                
+                while (index < length) {
+                    result[index++] = inputL[inputIndex];
+                    result[index++] = inputR[inputIndex];
+                    inputIndex++;
+                }
+                
+                return result;
+            }
+        };
+
+        // UI Control Functions
+        let referenceFile = null;
+        let sourceFiles = [];
+        
+        function updateStatus(message, isError = false) {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = message;
+            statusElement.style.color = isError ? 'red' : 'black';
+            console.log(message);
+        }
+        
+        function updateReferenceFileInfo() {
+            const fileInfoElement = document.getElementById('referenceFileInfo');
+            
+            if (!referenceFile) {
+                fileInfoElement.innerHTML = '<p>No reference file selected</p>';
+                return;
+            }
+            
+            fileInfoElement.innerHTML = `<p>Reference: ${referenceFile.name} (${(referenceFile.size / 1024).toFixed(1)} KB)</p>`;
+        }
+        
+        function updateSourceFileList() {
+            const fileListElement = document.getElementById('fileList');
+            
+            if (sourceFiles.length === 0) {
+                fileListElement.innerHTML = '<p>No source files selected</p>';
+                return;
+            }
+            
+            let html = '';
+            for (let i = 0; i < sourceFiles.length; i++) {
+                const file = sourceFiles[i];
+                html += `<div class="file-item">${i+1}. ${file.name} (${(file.size / 1024).toFixed(1)} KB)</div>`;
+            }
+            
+            fileListElement.innerHTML = html;
+            
+            // Enable/disable buttons based on file selections
+            document.getElementById('reconstructButton').disabled = !(referenceFile && sourceFiles.length > 0);
+        }
+        
+        // Set up event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get UI elements
+            const referenceFileInput = document.getElementById('referenceFile');
+            const sourceFilesInput = document.getElementById('sourceFiles');
+            const reconstructButton = document.getElementById('reconstructButton');
+            const playRefButton = document.getElementById('playRefButton');
+            const stopButton = document.getElementById('stopButton');
+            const saveButton = document.getElementById('saveButton');
+            const progressBar = document.getElementById('progressBar');
+            
+            // Set canvas sizes
+            const canvases = document.querySelectorAll('canvas');
+            canvases.forEach(canvas => {
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+            });
+            
+            // Visualization tabs
+            const vizTabs = document.querySelectorAll('.visualization-tab');
+            vizTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Update active tab
+                    vizTabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Show selected visualization
+                    const vizType = this.getAttribute('data-viz');
+                    document.getElementById('outputWaveform').style.display = 'none';
+                    document.getElementById('outputSpectrum').style.display = 'none';
+                    document.getElementById('matchScoreGraph').style.display = 'none';
+                    
+                    document.getElementById(`output${vizType.charAt(0).toUpperCase() + vizType.slice(1)}`).style.display = 'block';
+                    
+                    // Update visualization if needed
+                    if (vizType === 'spectrum') {
+                        SpectralReconstructor.drawSpectrum();
+                    } else if (vizType === 'match') {
+                        SpectralReconstructor.drawMatchScores();
+                    }
+                });
+            });
+            
+            // Parameter sliders
+            const spectrumWeightSlider = document.getElementById('spectrumWeight');
+            const spectrumWeightValue = document.getElementById('spectrumWeightValue');
+            const pitchWeightSlider = document.getElementById('pitchWeight');
+            const pitchWeightValue = document.getElementById('pitchWeightValue');
+            const randomizationSlider = document.getElementById('randomization');
+            const randomizationValue = document.getElementById('randomizationValue');
+            
+            // Update slider value displays
+            spectrumWeightSlider.addEventListener('input', function() {
+                spectrumWeightValue.textContent = `${this.value}%`;
+            });
+            
+            pitchWeightSlider.addEventListener('input', function() {
+                pitchWeightValue.textContent = `${this.value}%`;
+            });
+            
+            randomizationSlider.addEventListener('input', function() {
+                randomizationValue.textContent = `${this.value}%`;
+            });
+            
+            // Reference file selection
+            referenceFileInput.addEventListener('change', async function(e) {
+                if (e.target.files.length === 0) {
+                    referenceFile = null;
+                    updateReferenceFileInfo();
+                    return;
+                }
+                
+                referenceFile = e.target.files[0];
+                updateReferenceFileInfo();
+                
+                // Load the reference file
+                const success = await SpectralReconstructor.loadReferenceFile(referenceFile);
+                playRefButton.disabled = !success;
+                
+                // Update button state
+                reconstructButton.disabled = !(success && sourceFiles.length > 0);
+            });
+            
+            // Source files selection
+            sourceFilesInput.addEventListener('change', function(e) {
+                sourceFiles = Array.from(e.target.files);
+                updateSourceFileList();
+                
+                // Update button state
+                reconstructButton.disabled = !(referenceFile && sourceFiles.length > 0);
+            });
+            
+            // Min/max validation
+            document.getElementById('minChunk').addEventListener('change', function() {
+                const min = parseInt(this.value);
+                const max = parseInt(document.getElementById('maxChunk').value);
+                if (min > max) {
+                    document.getElementById('maxChunk').value = min;
+                }
+            });
+            
+            document.getElementById('maxChunk').addEventListener('change', function() {
+                const min = parseInt(document.getElementById('minChunk').value);
+                const max = parseInt(this.value);
+                if (max < min) {
+                    document.getElementById('minChunk').value = max;
+                }
+            });
+            
+            // Play reference audio
+            playRefButton.addEventListener('click', function() {
+                SpectralReconstructor.playReference();
+                stopButton.disabled = false;
+            });
+            
+            // Reconstruct audio
+            reconstructButton.addEventListener('click', async function() {
+                if (!referenceFile || sourceFiles.length === 0) {
+                    updateStatus('Please select a reference file and at least one source file', true);
+                    return;
+                }
+                
+                // Disable buttons during processing
+                reconstructButton.disabled = true;
+                playRefButton.disabled = true;
+                stopButton.disabled = true;
+                saveButton.disabled = true;
+                
+                // Show progress bar
+                progressBar.style.display = 'block';
+                progressBar.value = 0;
+                
+                try {
+                    // Load source files if not already loaded
+                    if (SpectralReconstructor.sourceBuffers.length === 0) {
+                        await SpectralReconstructor.loadSourceFiles(sourceFiles);
+                    }
+                    
+                    // Get parameters
+                    const minChunk = parseInt(document.getElementById('minChunk').value);
+                    const maxChunk = parseInt(document.getElementById('maxChunk').value);
+                    const spectrumWeight = parseInt(spectrumWeightSlider.value);
+                    const pitchWeight = parseInt(pitchWeightSlider.value);
+                    const randomization = parseInt(randomizationSlider.value);
+                    const reconstructionType = document.getElementById('reconstructionType').value;
+                    
+                    // Reconstruct audio
+                    const outputBuffer = await SpectralReconstructor.reconstructAudio(
+                        minChunk, maxChunk, spectrumWeight, pitchWeight, randomization, reconstructionType
+                    );
+                    
+                    // Re-enable buttons
+                    reconstructButton.disabled = false;
+                    playRefButton.disabled = false;
+                    stopButton.disabled = true;
+                    saveButton.disabled = !outputBuffer;
+                    
+                    // Update visualizations
+                    SpectralReconstructor.drawSpectrum();
+                    SpectralReconstructor.drawMatchScores();
+                    
+                    // Play if selected
+                    if (outputBuffer && document.querySelector('input[name="outputType"]:checked').value === 'play') {
+                        SpectralReconstructor.playOutput();
+                        stopButton.disabled = false;
+                    }
+                    
+                } catch (error) {
+                    updateStatus(`Error: ${error.message}`, true);
+                    reconstructButton.disabled = false;
+                    playRefButton.disabled = false;
+                }
+                
+                // Hide progress bar
+                progressBar.style.display = 'none';
+            });
+            
+            // Stop playback
+            stopButton.addEventListener('click', function() {
+                SpectralReconstructor.stopPlayback();
+                stopButton.disabled = true;
+            });
+            
+            // Save reconstructed audio
+            saveButton.addEventListener('click', function() {
+                SpectralReconstructor.exportAudio();
+            });
+        });
+    </script>
+</body>
+</html>

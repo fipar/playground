@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tape Splice Audio Mixer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        input[type="number"], input[type="range"] {
+            width: 100px;
+            padding: 5px;
+        }
+        #fileList {
+            margin-top: 10px;
+        }
+        .file-item {
+            margin-bottom: 5px;
+        }
+        progress {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .range-container {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .range-value {
+            margin-left: 10px;
+            width: 40px;
+        }
+        
+        /* Cut angle visualization */
+        .cut-visualization {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .cut-visual {
+            width: 200px;
+            height: 100px;
+            position: relative;
+            border: 1px solid #ddd;
+            margin: 0 auto;
+        }
+        .tape-segment {
+            position: absolute;
+            height: 30px;
+            top: 35px;
+        }
+        .left-segment {
+            background-color: #3498db;
+            left: 0;
+            width: 50%;
+        }
+        .right-segment {
+            background-color: #e74c3c;
+            right: 0;
+            width: 50%;
+        }
+        .cut-line {
+            position: absolute;
+            width: 3px;
+            height: 120px;
+            background-color: #333;
+            top: -10px;
+            left: 50%;
+            transform-origin: center;
+            transform: rotate(90deg);
+        }
+        canvas {
+            width: 100%;
+            height: 150px;
+            background-color: #f5f5f5;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tape Splice Audio Mixer</h1>
+    
+    <div class="section">
+        <h2>1. Upload Audio Files</h2>
+        <p>Select at least 2 audio files (supports WAV, MP3, OGG, AIFF/AIF)</p>
+        <input type="file" id="audioFiles" multiple accept=".wav,.mp3,.ogg,.aiff,.aif">
+        <div id="fileList"></div>
+    </div>
+    
+    <div class="section">
+        <h2>2. Set Parameters</h2>
+        <div>
+            <label for="minChunk">Minimum Chunk Size (ms):</label>
+            <input type="number" id="minChunk" value="500" min="10" max="10000">
+        </div>
+        <div style="margin-top: 10px;">
+            <label for="maxChunk">Maximum Chunk Size (ms):</label>
+            <input type="number" id="maxChunk" value="2000" min="10" max="10000">
+        </div>
+        <div class="range-container">
+            <label for="invertPercentage">Invert Chunks (%):</label>
+            <input type="range" id="invertPercentage" min="0" max="100" value="0">
+            <span id="invertValue" class="range-value">0%</span>
+        </div>
+        <div class="range-container">
+            <label for="overlapPercentage">Chunk Overlap (%):</label>
+            <input type="range" id="overlapPercentage" min="0" max="75" value="0">
+            <span id="overlapValue" class="range-value">0%</span>
+        </div>
+        
+        <!-- New Cut Angle Controls -->
+        <div style="margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 15px;">
+            <h3>Tape Splice Controls</h3>
+            <div class="range-container">
+                <label for="cutAngle">Cut Angle (degrees):</label>
+                <input type="range" id="cutAngle" min="5" max="90" value="90">
+                <span id="cutAngleValue" class="range-value">90°</span>
+            </div>
+            
+            <div class="range-container">
+                <label for="angleVariation">Angle Variation (%):</label>
+                <input type="range" id="angleVariation" min="0" max="100" value="20">
+                <span id="angleVariationValue" class="range-value">20%</span>
+            </div>
+            
+            <div class="cut-visualization">
+                <div class="cut-visual">
+                    <div class="tape-segment left-segment"></div>
+                    <div class="tape-segment right-segment"></div>
+                    <div class="cut-line" id="visualCutLine"></div>
+                </div>
+            </div>
+            <p style="text-align: center; font-size: 14px; color: #666;">
+                <span style="color: #3498db;">■</span> Source A &nbsp;&nbsp; 
+                <span style="color: #e74c3c;">■</span> Source B
+            </p>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>3. Output Options</h2>
+        <div>
+            <label>
+                <input type="radio" name="outputType" value="play" checked> 
+                Play directly
+            </label>
+            <label style="margin-left: 20px;">
+                <input type="radio" name="outputType" value="save"> 
+                Save as file
+            </label>
+        </div>
+        <canvas id="waveformVisualizer"></canvas>
+    </div>
+    
+    <div class="section">
+        <button id="mixButton" disabled>Generate Mix</button>
+        <button id="stopButton" disabled>Stop Playback</button>
+        <button id="saveButton" disabled>Save Mix</button>
+        <div id="status"></div>
+        <progress id="progressBar" value="0" max="100" style="display: none;"></progress>
+    </div>
+
+    <script>
+        // Audio Mixer Implementation
+        const TapeSpliceMixer = {
+            // Store loaded audio buffers
+            audioBuffers: [],
+            activeSource: null,
+            mixedBuffer: null,
+            
+            // Load audio files
+            loadAudioFiles: async function(fileList) {
+                this.audioBuffers = [];
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                for (const file of fileList) {
+                    try {
+                        updateStatus(`Loading: ${file.name}...`);
+                        const arrayBuffer = await file.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        this.audioBuffers.push(audioBuffer);
+                        updateStatus(`Loaded: ${file.name}, Duration: ${audioBuffer.duration.toFixed(2)}s`);
+                    } catch (error) {
+                        updateStatus(`Error: Failed to load ${file.name}: ${error.message}`, true);
+                    }
+                }
+                
+                return this.audioBuffers.length > 0;
+            },
+            
+            // Calculate crossfade length based on cut angle
+            calculateCrossfadeSamples: function(angle, sampleRate) {
+                // Convert angle to radians
+                const angleRad = (angle * Math.PI) / 180;
+                
+                // Map angle to crossfade time:
+                // 90° (perpendicular) = no crossfade
+                // 5° (very oblique) = maximum crossfade (500ms)
+                const maxCrossfadeMs = 500;
+                const normalizedAngle = (90 - angle) / 85; // 0 at 90°, 1 at 5°
+                const crossfadeMs = normalizedAngle * maxCrossfadeMs;
+                
+                // Convert ms to samples
+                return Math.floor(crossfadeMs * sampleRate / 1000);
+            },
+            
+            // Create random chunks mix with oblique cuts
+            createRandomMix: function(minChunkMs, maxChunkMs, totalDurationMs, invertPercentage, overlapPercentage, cutAngle, angleVariation) {
+                updateStatus('Generating mix...');
+                
+                return new Promise((resolve) => {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const outputBuffer = audioContext.createBuffer(
+                        2, // Stereo output
+                        Math.ceil(totalDurationMs * audioContext.sampleRate / 1000),
+                        audioContext.sampleRate
+                    );
+                    
+                    // Clear the output buffer first
+                    for (let channel = 0; channel < outputBuffer.numberOfChannels; channel++) {
+                        const outputData = outputBuffer.getChannelData(channel);
+                        for (let i = 0; i < outputData.length; i++) {
+                            outputData[i] = 0;
+                        }
+                    }
+                    
+                    let currentTimeMs = 0;
+                    const totalSamples = outputBuffer.length;
+                    const sampleRate = audioContext.sampleRate;
+                    
+                    // Store chunk boundaries and transitions for visualization
+                    const chunkBoundaries = [];
+                    
+                    // Use setTimeout to allow UI updates during processing
+                    const processChunk = () => {
+                        const startTime = performance.now();
+                        
+                        while (currentTimeMs < totalDurationMs && (performance.now() - startTime) < 50) {
+                            // Select random source buffer
+                            const sourceIdx = Math.floor(Math.random() * this.audioBuffers.length);
+                            const sourceBuffer = this.audioBuffers[sourceIdx];
+                            
+                            // Calculate random chunk size
+                            const chunkSizeMs = Math.floor(minChunkMs + Math.random() * (maxChunkMs - minChunkMs));
+                            const chunkSizeSamples = Math.floor(chunkSizeMs * sampleRate / 1000);
+                            
+                            // Select random starting position in source buffer
+                            const maxStartPositionSamples = sourceBuffer.length - chunkSizeSamples;
+                            const startPositionSamples = Math.floor(Math.random() * (maxStartPositionSamples > 0 ? maxStartPositionSamples : 1));
+                            
+                            // Determine if this chunk should be inverted based on invertPercentage
+                            const shouldInvert = Math.random() * 100 < invertPercentage;
+                            
+                            // Calculate random cut angle based on variation
+                            const variationFactor = (Math.random() * 2 - 1) * (angleVariation / 100);
+                            const chunkCutAngle = Math.max(5, Math.min(90, cutAngle + cutAngle * variationFactor));
+                            
+                            // Calculate crossfade length in samples based on cut angle
+                            const crossfadeSamples = this.calculateCrossfadeSamples(chunkCutAngle, sampleRate);
+                            
+                            // Calculate overlap for next chunk
+                            let nextChunkOverlapMs = 0;
+                            if (overlapPercentage > 0 && Math.random() < 0.7) { // 70% chance of overlap
+                                // Maximum overlap is a percentage of the chunk size
+                                const maxOverlapMs = chunkSizeMs * (overlapPercentage / 100);
+                                nextChunkOverlapMs = Math.floor(Math.random() * maxOverlapMs);
+                            }
+                            
+                            // Calculate output start position
+                            const outputStartSample = Math.floor(currentTimeMs * sampleRate / 1000);
+                            
+                            // Store chunk boundary info for visualization
+                            chunkBoundaries.push({
+                                start: outputStartSample,
+                                end: outputStartSample + chunkSizeSamples,
+                                angle: chunkCutAngle,
+                                crossfade: crossfadeSamples
+                            });
+                            
+                            // Copy chunk to output buffer (potentially inverted) with crossfades
+                            for (let channel = 0; channel < Math.min(outputBuffer.numberOfChannels, sourceBuffer.numberOfChannels); channel++) {
+                                const outputData = outputBuffer.getChannelData(channel);
+                                const sourceData = sourceBuffer.getChannelData(channel);
+                                
+                                for (let i = 0; i < chunkSizeSamples && (outputStartSample + i) < outputBuffer.length; i++) {
+                                    // Get the sample value, apply inversion if needed
+                                    const sampleValue = sourceData[startPositionSamples + i] * (shouldInvert ? -1 : 1);
+                                    
+                                    // Apply entry crossfade (oblique cut fade-in)
+                                    let entryGain = 1.0;
+                                    if (i < crossfadeSamples) {
+                                        entryGain = i / crossfadeSamples;
+                                    }
+                                    
+                                    // Apply exit crossfade (oblique cut fade-out)
+                                    let exitGain = 1.0;
+                                    if (i >= chunkSizeSamples - crossfadeSamples) {
+                                        exitGain = (chunkSizeSamples - i) / crossfadeSamples;
+                                    }
+                                    
+                                    // Combine gains and apply to sample
+                                    const combinedGain = Math.min(entryGain, exitGain);
+                                    
+                                    // Add to the output buffer (allows for overlapping chunks)
+                                    if (outputStartSample + i < outputBuffer.length) {
+                                        outputData[outputStartSample + i] += sampleValue * combinedGain;
+                                    }
+                                }
+                            }
+                            
+                            // Move time forward, considering overlap for next chunk
+                            currentTimeMs += (chunkSizeMs - nextChunkOverlapMs);
+                            
+                            // Update progress
+                            const progress = Math.min(100, Math.floor((currentTimeMs / totalDurationMs) * 100));
+                            document.getElementById('progressBar').value = progress;
+                        }
+                        
+                        if (currentTimeMs < totalDurationMs) {
+                            // Continue processing
+                            setTimeout(processChunk, 0);
+                        } else {
+                            // Normalize the output to prevent clipping
+                            this.normalizeAudioBuffer(outputBuffer);
+                            
+                            // Finished
+                            updateStatus('Mix generated successfully!');
+                            this.mixedBuffer = outputBuffer;
+                            this.chunkBoundaries = chunkBoundaries;
+                            
+                            // Draw waveform visualization
+                            this.drawWaveform(outputBuffer, chunkBoundaries);
+                            
+                            resolve(outputBuffer);
+                        }
+                    };
+                    
+                    // Start processing
+                    processChunk();
+                });
+            },
+            
+            // Normalize audio buffer to prevent clipping
+            normalizeAudioBuffer: function(buffer) {
+                // Find the maximum absolute sample value
+                let maxSample = 0;
+                
+                for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                    const data = buffer.getChannelData(channel);
+                    for (let i = 0; i < data.length; i++) {
+                        const absoluteSample = Math.abs(data[i]);
+                        if (absoluteSample > maxSample) {
+                            maxSample = absoluteSample;
+                        }
+                    }
+                }
+                
+                // If the max sample is too high, scale all samples
+                if (maxSample > 0.99) {
+                    const scaleFactor = 0.9 / maxSample; // Target 90% of maximum to be safe
+                    
+                    for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                        const data = buffer.getChannelData(channel);
+                        for (let i = 0; i < data.length; i++) {
+                            data[i] *= scaleFactor;
+                        }
+                    }
+                }
+            },
+            
+            // Draw waveform with chunk boundaries visualization
+            drawWaveform: function(buffer, chunkBoundaries) {
+                const canvas = document.getElementById('waveformVisualizer');
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas dimensions
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw background
+                ctx.fillStyle = '#f5f5f5';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Get audio data
+                const data = buffer.getChannelData(0);
+                const step = Math.ceil(data.length / canvas.width);
+                const amp = canvas.height / 2;
+                
+                // Draw center line
+                ctx.beginPath();
+                ctx.strokeStyle = '#cccccc';
+                ctx.moveTo(0, amp);
+                ctx.lineTo(canvas.width, amp);
+                ctx.stroke();
+                
+                // Draw waveform
+                ctx.beginPath();
+                ctx.strokeStyle = '#3498db';
+                ctx.lineWidth = 1;
+                
+                for (let i = 0; i < canvas.width; i++) {
+                    // For each pixel, find the peak samples
+                    let min = 1.0;
+                    let max = -1.0;
+                    
+                    for (let j = 0; j < step; j++) {
+                        const sample = data[(i * step) + j];
+                        if (sample < min) min = sample;
+                        if (sample > max) max = sample;
+                    }
+                    
+                    // Draw min and max as a vertical line
+                    ctx.moveTo(i, amp * (1 + min));
+                    ctx.lineTo(i, amp * (1 + max));
+                }
+                
+                ctx.stroke();
+                
+                // Draw chunk boundaries with angled lines
+                if (chunkBoundaries && chunkBoundaries.length > 0) {
+                    const bufferLength = data.length;
+                    
+                    for (let i = 0; i < chunkBoundaries.length; i++) {
+                        const boundary = chunkBoundaries[i];
+                        
+                        // Skip boundaries outside the canvas
+                        if (boundary.start >= bufferLength) continue;
+                        
+                        // Calculate x position for boundary
+                        const x = Math.floor((boundary.start / bufferLength) * canvas.width);
+                        
+                        // Draw angled line
+                        const angle = boundary.angle;
+                        const angleOffset = (90 - angle) * 0.5; // Visual scaling of angle
+                        const height = canvas.height * 1.2; // Make line a bit longer than canvas
+                        
+                        ctx.save();
+                        ctx.translate(x, 0);
+                        ctx.rotate((Math.PI / 180) * (90 - angleOffset));
+                        
+                        // Draw oblique cut line
+                        ctx.beginPath();
+                        ctx.strokeStyle = 'rgba(231, 76, 60, 0.7)';
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([5, 3]);
+                        ctx.moveTo(0, -height/2);
+                        ctx.lineTo(0, height/2);
+                        ctx.stroke();
+                        
+                        ctx.restore();
+                        
+                        // Mark crossfade regions
+                        if (boundary.crossfade > 0) {
+                            // Calculate fade width in pixels
+                            const fadeWidth = Math.ceil((boundary.crossfade / bufferLength) * canvas.width);
+                            
+                            // Entry fade (fade in)
+                            const gradientIn = ctx.createLinearGradient(x - fadeWidth, 0, x, 0);
+                            gradientIn.addColorStop(0, 'rgba(231, 76, 60, 0)');
+                            gradientIn.addColorStop(1, 'rgba(231, 76, 60, 0.2)');
+                            
+                            ctx.fillStyle = gradientIn;
+                            ctx.fillRect(x - fadeWidth, 0, fadeWidth, canvas.height);
+                            
+                            // Exit fade (fade out)
+                            const gradientOut = ctx.createLinearGradient(x, 0, x + fadeWidth, 0);
+                            gradientOut.addColorStop(0, 'rgba(231, 76, 60, 0.2)');
+                            gradientOut.addColorStop(1, 'rgba(231, 76, 60, 0)');
+                            
+                            ctx.fillStyle = gradientOut;
+                            ctx.fillRect(x, 0, fadeWidth, canvas.height);
+                        }
+                    }
+                }
+            },
+            
+            // Play the mixed audio
+            playMix: function() {
+                if (!this.mixedBuffer) {
+                    updateStatus('No mix available to play', true);
+                    return null;
+                }
+                
+                // Stop any currently playing audio
+                this.stopPlayback();
+                
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createBufferSource();
+                source.buffer = this.mixedBuffer;
+                source.connect(audioContext.destination);
+                source.start();
+                this.activeSource = source;
+                
+                updateStatus('Playing mix...');
+                
+                source.onended = () => {
+                    this.activeSource = null;
+                    updateStatus('Playback finished');
+                    document.getElementById('stopButton').disabled = true;
+                };
+                
+                return source;
+            },
+            
+            // Stop playback
+            stopPlayback: function() {
+                if (this.activeSource) {
+                    this.activeSource.stop();
+                    this.activeSource = null;
+                    updateStatus('Playback stopped');
+                }
+            },
+            
+            // Export mix to file (WAV format)
+            exportMix: function() {
+                if (!this.mixedBuffer) {
+                    updateStatus('No mix available to export', true);
+                    return;
+                }
+                
+                // Create WAV file
+                const wavData = this.audioBufferToWav(this.mixedBuffer);
+                const blob = new Blob([wavData], { type: 'audio/wav' });
+                
+                // Create download link
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'tape_splice_mix.wav';
+                document.body.appendChild(a);
+                a.click();
+                
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+                
+                updateStatus('Mix exported as WAV file');
+            },
+            
+            // Convert AudioBuffer to WAV format
+            audioBufferToWav: function(buffer) {
+                const numChannels = buffer.numberOfChannels;
+                const sampleRate = buffer.sampleRate;
+                const format = 1; // PCM
+                const bitDepth = 16;
+                
+                let result;
+                if (numChannels === 2) {
+                    result = this.interleave(buffer.getChannelData(0), buffer.getChannelData(1));
+                } else {
+                    result = buffer.getChannelData(0);
+                }
+                
+                const dataLength = result.length * (bitDepth / 8);
+                const buffer2 = new ArrayBuffer(44 + dataLength);
+                const view = new DataView(buffer2);
+                
+                // Write WAV header
+                // "RIFF" chunk descriptor
+                this.writeString(view, 0, 'RIFF');
+                view.setUint32(4, 36 + dataLength, true);
+                this.writeString(view, 8, 'WAVE');
+                
+                // "fmt " sub-chunk
+                this.writeString(view, 12, 'fmt ');
+                view.setUint32(16, 16, true); // fmt chunk size
+                view.setUint16(20, format, true);
+                view.setUint16(22, numChannels, true);
+                view.setUint32(24, sampleRate, true);
+                view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true); // byte rate
+                view.setUint16(32, numChannels * (bitDepth / 8), true); // block align
+                view.setUint16(34, bitDepth, true);
+                
+                // "data" sub-chunk
+                this.writeString(view, 36, 'data');
+                view.setUint32(40, dataLength, true);
+                
+                // Write PCM samples
+                const offset = 44;
+                this.floatTo16BitPCM(view, offset, result);
+                
+                return buffer2;
+            },
+            
+            // Helper for WAV creation
+            writeString: function(view, offset, string) {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            },
+            
+            // Helper for WAV creation
+            floatTo16BitPCM: function(output, offset, input) {
+                for (let i = 0; i < input.length; i++, offset += 2) {
+                    const s = Math.max(-1, Math.min(1, input[i]));
+                    output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                }
+            },
+            
+            // Helper for WAV creation
+            interleave: function(inputL, inputR) {
+                const length = inputL.length + inputR.length;
+                const result = new Float32Array(length);
+                
+                let index = 0;
+                let inputIndex = 0;
+                
+                while (index < length) {
+                    result[index++] = inputL[inputIndex];
+                    result[index++] = inputR[inputIndex];
+                    inputIndex++;
+                }
+                
+                return result;
+            }
+        };
+
+        // UI Control Functions
+        let fileList = [];
+        
+        function updateStatus(message, isError = false) {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = message;
+            statusElement.style.color = isError ? 'red' : 'black';
+            console.log(message);
+        }
+        
+        function updateFileList() {
+            const fileListElement = document.getElementById('fileList');
+            fileListElement.innerHTML = '';
+            
+            if (fileList.length === 0) {
+                fileListElement.innerHTML = '<p>No files selected</p>';
+                document.getElementById('mixButton').disabled = true;
+                return;
+            }
+            
+            for (let i = 0; i < fileList.length; i++) {
+                const file = fileList[i];
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.textContent = `${i+1}. ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                fileListElement.appendChild(fileItem);
+            }
+            
+            // Enable/disable mix button based on file count
+            document.getElementById('mixButton').disabled = fileList.length < 2;
+        }
+        
+        // Update the cut angle visualization
+        function updateCutVisualization() {
+            const angle = parseInt(document.getElementById('cutAngle').value);
+            const visualCutLine = document.getElementById('visualCutLine');
+            
+            // Rotate the cut line
+            visualCutLine.style.transform = `rotate(${angle}deg)`;
+        }
+        
+        // Set up event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            const audioFilesInput = document.getElementById('audioFiles');
+            const mixButton = document.getElementById('mixButton');
+            const stopButton = document.getElementById('stopButton');
+            const saveButton = document.getElementById('saveButton');
+            const progressBar = document.getElementById('progressBar');
+            
+            // Parameter sliders
+            const invertPercentage = document.getElementById('invertPercentage');
+            const invertValue = document.getElementById('invertValue');
+            const overlapPercentage = document.getElementById('overlapPercentage');
+            const overlapValue = document.getElementById('overlapValue');
+            const cutAngle = document.getElementById('cutAngle');
+            const cutAngleValue = document.getElementById('cutAngleValue');
+            const angleVariation = document.getElementById('angleVariation');
+            const angleVariationValue = document.getElementById('angleVariationValue');
+            
+            // Initialize cut visualization
+            updateCutVisualization();
+            
+            // Update slider value displays
+            invertPercentage.addEventListener('input', function() {
+                invertValue.textContent = `${this.value}%`;
+            });
+            
+            overlapPercentage.addEventListener('input', function() {
+                overlapValue.textContent = `${this.value}%`;
+            });
+            
+            cutAngle.addEventListener('input', function() {
+                cutAngleValue.textContent = `${this.value}°`;
+                updateCutVisualization();
+            });
+            
+            angleVariation.addEventListener('input', function() {
+                angleVariationValue.textContent = `${this.value}%`;
+            });
+            
+            // File selection
+            audioFilesInput.addEventListener('change', function(e) {
+                fileList = Array.from(e.target.files);
+                updateFileList();
+                updateStatus(`Selected ${fileList.length} file(s)`);
+                
+                // Enable/disable mix button based on file count
+                mixButton.disabled = fileList.length < 2;
+                // Stop and Save buttons should remain disabled until a mix is created
+                stopButton.disabled = true;
+                saveButton.disabled = true;
+            });
+            
+            // Min/max validation
+            document.getElementById('minChunk').addEventListener('change', function() {
+                const min = parseInt(this.value);
+                const max = parseInt(document.getElementById('maxChunk').value);
+                if (min > max) {
+                    document.getElementById('maxChunk').value = min;
+                }
+            });
+            
+            document.getElementById('maxChunk').addEventListener('change', function() {
+                const min = parseInt(document.getElementById('minChunk').value);
+                const max = parseInt(this.value);
+                if (max < min) {
+                    document.getElementById('minChunk').value = max;
+                }
+            });
+            
+            // Generate mix
+            mixButton.addEventListener('click', async function() {
+                if (fileList.length < 2) {
+                    updateStatus('Please select at least 2 audio files', true);
+                    return;
+                }
+                
+                // Disable buttons during processing
+                mixButton.disabled = true;
+                stopButton.disabled = true;
+                saveButton.disabled = true;
+                
+                // Show progress bar
+                progressBar.style.display = 'block';
+                progressBar.value = 0;
+                
+                try {
+                    // Load audio files
+                    await TapeSpliceMixer.loadAudioFiles(fileList);
+                    
+                    if (TapeSpliceMixer.audioBuffers.length < 2) {
+                        updateStatus('At least 2 valid audio files are required', true);
+                        mixButton.disabled = fileList.length < 2;
+                        progressBar.style.display = 'none';
+                        return;
+                    }
+                    
+                    // Get parameters
+                    const minChunk = parseInt(document.getElementById('minChunk').value);
+                    const maxChunk = parseInt(document.getElementById('maxChunk').value);
+                    const duration = parseInt(document.getElementById('maxChunk').value) * 20; // 20x max chunk as total duration
+                    const invertPercent = parseInt(document.getElementById('invertPercentage').value);
+                    const overlapPercent = parseInt(document.getElementById('overlapPercentage').value);
+                    const cutAngle = parseInt(document.getElementById('cutAngle').value);
+                    const angleVariation = parseInt(document.getElementById('angleVariation').value);
+                    
+                    // Create mix
+                    await TapeSpliceMixer.createRandomMix(
+                        minChunk, maxChunk, duration, invertPercent, 
+                        overlapPercent, cutAngle, angleVariation
+                    );
+                    
+                    // Re-enable buttons
+                    mixButton.disabled = false;
+                    stopButton.disabled = false;
+                    saveButton.disabled = false;
+                    
+                    // Play if selected
+                    if (document.querySelector('input[name="outputType"]:checked').value === 'play') {
+                        TapeSpliceMixer.playMix();
+                    }
+                    
+                } catch (error) {
+                    updateStatus(`Error: ${error.message}`, true);
+                    mixButton.disabled = fileList.length < 2;
+                }
+                
+                // Hide progress bar
+                progressBar.style.display = 'none';
+            });
+            
+            // Stop playback
+            stopButton.addEventListener('click', function() {
+                TapeSpliceMixer.stopPlayback();
+                stopButton.disabled = true;
+            });
+            
+            // Save mix
+            saveButton.addEventListener('click', function() {
+                TapeSpliceMixer.exportMix();
+            });
+        });
+    </script>
+</body>
+</html>

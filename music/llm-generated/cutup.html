@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Chunk Mixer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        input[type="number"], input[type="range"] {
+            width: 100px;
+            padding: 5px;
+        }
+        #fileList {
+            margin-top: 10px;
+        }
+        .file-item {
+            margin-bottom: 5px;
+        }
+        progress {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .range-container {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .range-value {
+            margin-left: 10px;
+            width: 40px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Audio Chunk Mixer</h1>
+    
+    <div class="section">
+        <h2>1. Upload Audio Files</h2>
+        <p>Select at least 2 audio files (supports WAV, MP3, OGG, AIFF/AIF)</p>
+        <input type="file" id="audioFiles" multiple accept=".wav,.mp3,.ogg,.aiff,.aif">
+        <div id="fileList"></div>
+    </div>
+    
+    <div class="section">
+        <h2>2. Set Parameters</h2>
+        <div>
+            <label for="minChunk">Minimum Chunk Size (ms):</label>
+            <input type="number" id="minChunk" value="500" min="10" max="10000">
+        </div>
+        <div style="margin-top: 10px;">
+            <label for="maxChunk">Maximum Chunk Size (ms):</label>
+            <input type="number" id="maxChunk" value="2000" min="10" max="10000">
+        </div>
+        <div style="margin-top: 10px;">
+            <label for="duration">Total Duration (seconds):</label>
+            <input type="number" id="duration" value="30" min="1" max="300">
+        </div>
+        <div class="range-container">
+            <label for="invertPercentage">Invert Chunks (%):</label>
+            <input type="range" id="invertPercentage" min="0" max="100" value="0">
+            <span id="invertValue" class="range-value">0%</span>
+        </div>
+        <div class="range-container">
+            <label for="overlapPercentage">Chunk Overlap (%):</label>
+            <input type="range" id="overlapPercentage" min="0" max="75" value="0">
+            <span id="overlapValue" class="range-value">0%</span>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>3. Output Options</h2>
+        <div>
+            <label>
+                <input type="radio" name="outputType" value="play" checked> 
+                Play directly
+            </label>
+            <label style="margin-left: 20px;">
+                <input type="radio" name="outputType" value="save"> 
+                Save as file
+            </label>
+        </div>
+    </div>
+    
+    <div class="section">
+        <button id="mixButton" disabled>Generate Mix</button>
+        <button id="stopButton" disabled>Stop Playback</button>
+        <button id="saveButton" disabled>Save Mix</button>
+        <div id="status"></div>
+        <progress id="progressBar" value="0" max="100" style="display: none;"></progress>
+    </div>
+
+    <script>
+        // Audio Mixer Implementation
+        const AudioMixer = {
+            // Store loaded audio buffers
+            audioBuffers: [],
+            activeSource: null,
+            mixedBuffer: null,
+            
+            // Load audio files
+            loadAudioFiles: async function(fileList) {
+                this.audioBuffers = [];
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                for (const file of fileList) {
+                    try {
+                        updateStatus(`Loading: ${file.name}...`);
+                        const arrayBuffer = await file.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        this.audioBuffers.push(audioBuffer);
+                        updateStatus(`Loaded: ${file.name}, Duration: ${audioBuffer.duration.toFixed(2)}s`);
+                    } catch (error) {
+                        updateStatus(`Error: Failed to load ${file.name}: ${error.message}`, true);
+                    }
+                }
+                
+                return this.audioBuffers.length > 0;
+            },
+            
+            // Create random chunks mix
+            createRandomMix: function(minChunkMs, maxChunkMs, totalDurationMs, invertPercentage, overlapPercentage) {
+                updateStatus('Generating mix...');
+                
+                return new Promise((resolve) => {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const outputBuffer = audioContext.createBuffer(
+                        2, // Stereo output
+                        Math.ceil(totalDurationMs * audioContext.sampleRate / 1000),
+                        audioContext.sampleRate
+                    );
+                    
+                    // Clear the output buffer first
+                    for (let channel = 0; channel < outputBuffer.numberOfChannels; channel++) {
+                        const outputData = outputBuffer.getChannelData(channel);
+                        for (let i = 0; i < outputData.length; i++) {
+                            outputData[i] = 0;
+                        }
+                    }
+                    
+                    let currentTimeMs = 0;
+                    const totalSamples = outputBuffer.length;
+                    
+                    // Use setTimeout to allow UI updates during processing
+                    const processChunk = () => {
+                        const startTime = performance.now();
+                        
+                        while (currentTimeMs < totalDurationMs && (performance.now() - startTime) < 50) {
+                            // Select random source buffer
+                            const sourceIdx = Math.floor(Math.random() * this.audioBuffers.length);
+                            const sourceBuffer = this.audioBuffers[sourceIdx];
+                            
+                            // Calculate random chunk size
+                            const chunkSizeMs = Math.floor(minChunkMs + Math.random() * (maxChunkMs - minChunkMs));
+                            const chunkSizeSamples = Math.floor(chunkSizeMs * audioContext.sampleRate / 1000);
+                            
+                            // Select random starting position in source buffer
+                            const maxStartPositionSamples = sourceBuffer.length - chunkSizeSamples;
+                            const startPositionSamples = Math.floor(Math.random() * (maxStartPositionSamples > 0 ? maxStartPositionSamples : 1));
+                            
+                            // Determine if this chunk should be inverted based on invertPercentage
+                            const shouldInvert = Math.random() * 100 < invertPercentage;
+                            
+                            // Calculate overlap for next chunk
+                            let nextChunkOverlapMs = 0;
+                            if (overlapPercentage > 0 && Math.random() < 0.7) { // 70% chance of overlap
+                                // Maximum overlap is a percentage of the chunk size
+                                const maxOverlapMs = chunkSizeMs * (overlapPercentage / 100);
+                                nextChunkOverlapMs = Math.floor(Math.random() * maxOverlapMs);
+                            }
+                            
+                            // Calculate output start position
+                            const outputStartSample = Math.floor(currentTimeMs * audioContext.sampleRate / 1000);
+                            
+                            // Copy chunk to output buffer (potentially inverted)
+                            for (let channel = 0; channel < Math.min(outputBuffer.numberOfChannels, sourceBuffer.numberOfChannels); channel++) {
+                                const outputData = outputBuffer.getChannelData(channel);
+                                const sourceData = sourceBuffer.getChannelData(channel);
+                                
+                                for (let i = 0; i < chunkSizeSamples && (outputStartSample + i) < outputBuffer.length; i++) {
+                                    // Get the sample value, apply inversion if needed
+                                    const sampleValue = sourceData[startPositionSamples + i] * (shouldInvert ? -1 : 1);
+                                    
+                                    // Add to the output buffer (allows for overlapping chunks)
+                                    if (outputStartSample + i < outputBuffer.length) {
+                                        outputData[outputStartSample + i] += sampleValue;
+                                    }
+                                }
+                            }
+                            
+                            // Move time forward, considering overlap for next chunk
+                            currentTimeMs += (chunkSizeMs - nextChunkOverlapMs);
+                            
+                            // Update progress
+                            const progress = Math.min(100, Math.floor((currentTimeMs / totalDurationMs) * 100));
+                            document.getElementById('progressBar').value = progress;
+                        }
+                        
+                        if (currentTimeMs < totalDurationMs) {
+                            // Continue processing
+                            setTimeout(processChunk, 0);
+                        } else {
+                            // Normalize the output to prevent clipping
+                            this.normalizeAudioBuffer(outputBuffer);
+                            
+                            // Finished
+                            updateStatus('Mix generated successfully!');
+                            this.mixedBuffer = outputBuffer;
+                            resolve(outputBuffer);
+                        }
+                    };
+                    
+                    // Start processing
+                    processChunk();
+                });
+            },
+            
+            // Normalize audio buffer to prevent clipping
+            normalizeAudioBuffer: function(buffer) {
+                // Find the maximum absolute sample value
+                let maxSample = 0;
+                
+                for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                    const data = buffer.getChannelData(channel);
+                    for (let i = 0; i < data.length; i++) {
+                        const absoluteSample = Math.abs(data[i]);
+                        if (absoluteSample > maxSample) {
+                            maxSample = absoluteSample;
+                        }
+                    }
+                }
+                
+                // If the max sample is too high, scale all samples
+                if (maxSample > 0.99) {
+                    const scaleFactor = 0.9 / maxSample; // Target 90% of maximum to be safe
+                    
+                    for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                        const data = buffer.getChannelData(channel);
+                        for (let i = 0; i < data.length; i++) {
+                            data[i] *= scaleFactor;
+                        }
+                    }
+                }
+            },
+            
+            // Play the mixed audio
+            playMix: function() {
+                if (!this.mixedBuffer) {
+                    updateStatus('No mix available to play', true);
+                    return null;
+                }
+                
+                // Stop any currently playing audio
+                this.stopPlayback();
+                
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createBufferSource();
+                source.buffer = this.mixedBuffer;
+                source.connect(audioContext.destination);
+                source.start();
+                this.activeSource = source;
+                
+                updateStatus('Playing mix...');
+                
+                source.onended = () => {
+                    this.activeSource = null;
+                    updateStatus('Playback finished');
+                    document.getElementById('stopButton').disabled = true;
+                };
+                
+                return source;
+            },
+            
+            // Stop playback
+            stopPlayback: function() {
+                if (this.activeSource) {
+                    this.activeSource.stop();
+                    this.activeSource = null;
+                    updateStatus('Playback stopped');
+                }
+            },
+            
+            // Export mix to file (WAV format)
+            exportMix: function() {
+                if (!this.mixedBuffer) {
+                    updateStatus('No mix available to export', true);
+                    return;
+                }
+                
+                // Create WAV file
+                const wavData = this.audioBufferToWav(this.mixedBuffer);
+                const blob = new Blob([wavData], { type: 'audio/wav' });
+                
+                // Create download link
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'audio_mix.wav';
+                document.body.appendChild(a);
+                a.click();
+                
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+                
+                updateStatus('Mix exported as WAV file');
+            },
+            
+            // Convert AudioBuffer to WAV format
+            audioBufferToWav: function(buffer) {
+                const numChannels = buffer.numberOfChannels;
+                const sampleRate = buffer.sampleRate;
+                const format = 1; // PCM
+                const bitDepth = 16;
+                
+                let result;
+                if (numChannels === 2) {
+                    result = this.interleave(buffer.getChannelData(0), buffer.getChannelData(1));
+                } else {
+                    result = buffer.getChannelData(0);
+                }
+                
+                const dataLength = result.length * (bitDepth / 8);
+                const buffer2 = new ArrayBuffer(44 + dataLength);
+                const view = new DataView(buffer2);
+                
+                // Write WAV header
+                // "RIFF" chunk descriptor
+                this.writeString(view, 0, 'RIFF');
+                view.setUint32(4, 36 + dataLength, true);
+                this.writeString(view, 8, 'WAVE');
+                
+                // "fmt " sub-chunk
+                this.writeString(view, 12, 'fmt ');
+                view.setUint32(16, 16, true); // fmt chunk size
+                view.setUint16(20, format, true);
+                view.setUint16(22, numChannels, true);
+                view.setUint32(24, sampleRate, true);
+                view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true); // byte rate
+                view.setUint16(32, numChannels * (bitDepth / 8), true); // block align
+                view.setUint16(34, bitDepth, true);
+                
+                // "data" sub-chunk
+                this.writeString(view, 36, 'data');
+                view.setUint32(40, dataLength, true);
+                
+                // Write PCM samples
+                const offset = 44;
+                const volume = 1;
+                this.floatTo16BitPCM(view, offset, result);
+                
+                return buffer2;
+            },
+            
+            // Helper for WAV creation
+            writeString: function(view, offset, string) {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            },
+            
+            // Helper for WAV creation
+            floatTo16BitPCM: function(output, offset, input) {
+                for (let i = 0; i < input.length; i++, offset += 2) {
+                    const s = Math.max(-1, Math.min(1, input[i]));
+                    output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                }
+            },
+            
+            // Helper for WAV creation
+            interleave: function(inputL, inputR) {
+                const length = inputL.length + inputR.length;
+                const result = new Float32Array(length);
+                
+                let index = 0;
+                let inputIndex = 0;
+                
+                while (index < length) {
+                    result[index++] = inputL[inputIndex];
+                    result[index++] = inputR[inputIndex];
+                    inputIndex++;
+                }
+                
+                return result;
+            }
+        };
+
+        // UI Control Functions
+        let fileList = [];
+        
+        function updateStatus(message, isError = false) {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = message;
+            statusElement.style.color = isError ? 'red' : 'black';
+            console.log(message);
+        }
+        
+        function updateFileList() {
+            const fileListElement = document.getElementById('fileList');
+            fileListElement.innerHTML = '';
+            
+            if (fileList.length === 0) {
+                fileListElement.innerHTML = '<p>No files selected</p>';
+                document.getElementById('mixButton').disabled = true;
+                return;
+            }
+            
+            for (let i = 0; i < fileList.length; i++) {
+                const file = fileList[i];
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.textContent = `${i+1}. ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                fileListElement.appendChild(fileItem);
+            }
+            
+            // Enable/disable mix button based on file count
+            document.getElementById('mixButton').disabled = fileList.length < 2;
+        }
+        
+        // Set up event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            const audioFilesInput = document.getElementById('audioFiles');
+            const mixButton = document.getElementById('mixButton');
+            const stopButton = document.getElementById('stopButton');
+            const saveButton = document.getElementById('saveButton');
+            const progressBar = document.getElementById('progressBar');
+            const invertPercentage = document.getElementById('invertPercentage');
+            const invertValue = document.getElementById('invertValue');
+            const overlapPercentage = document.getElementById('overlapPercentage');
+            const overlapValue = document.getElementById('overlapValue');
+            
+            // Update percentage displays
+            invertPercentage.addEventListener('input', function() {
+                invertValue.textContent = `${this.value}%`;
+            });
+            
+            overlapPercentage.addEventListener('input', function() {
+                overlapValue.textContent = `${this.value}%`;
+            });
+            
+            // File selection
+            audioFilesInput.addEventListener('change', function(e) {
+                fileList = Array.from(e.target.files);
+                updateFileList();
+                updateStatus(`Selected ${fileList.length} file(s)`);
+                
+                // Enable/disable mix button based on file count
+                mixButton.disabled = fileList.length < 2;
+                // Stop and Save buttons should remain disabled until a mix is created
+                stopButton.disabled = true;
+                saveButton.disabled = true;
+            });
+            
+            // Min/max validation
+            document.getElementById('minChunk').addEventListener('change', function() {
+                const min = parseInt(this.value);
+                const max = parseInt(document.getElementById('maxChunk').value);
+                if (min > max) {
+                    document.getElementById('maxChunk').value = min;
+                }
+            });
+            
+            document.getElementById('maxChunk').addEventListener('change', function() {
+                const min = parseInt(document.getElementById('minChunk').value);
+                const max = parseInt(this.value);
+                if (max < min) {
+                    document.getElementById('minChunk').value = max;
+                }
+            });
+            
+            // Generate mix
+            mixButton.addEventListener('click', async function() {
+                if (fileList.length < 2) {
+                    updateStatus('Please select at least 2 audio files', true);
+                    return;
+                }
+                
+                // Disable buttons during processing
+                mixButton.disabled = true;
+                stopButton.disabled = true;
+                saveButton.disabled = true;
+                
+                // Show progress bar
+                progressBar.style.display = 'block';
+                progressBar.value = 0;
+                
+                try {
+                    // Load audio files
+                    await AudioMixer.loadAudioFiles(fileList);
+                    
+                    if (AudioMixer.audioBuffers.length < 2) {
+                        updateStatus('At least 2 valid audio files are required', true);
+                        mixButton.disabled = fileList.length < 2;
+                        progressBar.style.display = 'none';
+                        return;
+                    }
+                    
+                    // Get parameters
+                    const minChunk = parseInt(document.getElementById('minChunk').value);
+                    const maxChunk = parseInt(document.getElementById('maxChunk').value);
+                    const duration = parseInt(document.getElementById('duration').value) * 1000; // convert to ms
+                    const invertPercent = parseInt(document.getElementById('invertPercentage').value);
+                    const overlapPercent = parseInt(document.getElementById('overlapPercentage').value);
+                    
+                    // Create mix
+                    await AudioMixer.createRandomMix(minChunk, maxChunk, duration, invertPercent, overlapPercent);
+                    
+                    // Re-enable buttons now that processing is complete
+                    mixButton.disabled = false;
+                    stopButton.disabled = false;
+                    saveButton.disabled = false;
+                    
+                    // Play if selected
+                    const outputType = document.querySelector('input[name="outputType"]:checked').value;
+                    if (outputType === 'play') {
+                        AudioMixer.playMix();
+                    }
+                    
+                } catch (error) {
+                    updateStatus(`Error: ${error.message}`, true);
+                    mixButton.disabled = fileList.length < 2;
+                }
+                
+                // Hide progress bar
+                progressBar.style.display = 'none';
+            });
+            
+            // Stop playback
+            stopButton.addEventListener('click', function() {
+                AudioMixer.stopPlayback();
+                stopButton.disabled = true;
+            });
+            
+            // Save mix
+            saveButton.addEventListener('click', function() {
+                AudioMixer.exportMix();
+            });
+        });
+    </script>
+</body>
+</html>

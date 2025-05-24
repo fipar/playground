@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Chunk Drum Sampler</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --accent-color: #e74c3c;
+            --bg-color: #f5f5f5;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --border-color: #dddddd;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .app-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .app-container {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .section-title {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        .upload-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        #file-drop-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        #file-drop-area.highlight {
+            border-color: var(--primary-color);
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+
+        #file-list {
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+        .file-remove {
+            color: var(--accent-color);
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .button-secondary {
+            background-color: var(--secondary-color);
+        }
+
+        .button-secondary:hover {
+            background-color: #27ae60;
+        }
+
+        .button-accent {
+            background-color: var(--accent-color);
+        }
+
+        .button-accent:hover {
+            background-color: #c0392b;
+        }
+
+        .waveform-container {
+            width: 100%;
+            height: 100px;
+            position: relative;
+            margin: 15px 0;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .drum-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        @media (min-width: 992px) {
+            .drum-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .drum-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+
+        .drum-item:hover {
+            background-color: #e9ecef;
+        }
+
+        .drum-canvas {
+            width: 100%;
+            height: 60px;
+            background-color: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .drum-controls {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            margin-top: 5px;
+        }
+
+        .drum-controls button {
+            padding: 6px 10px;
+            font-size: 0.9rem;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-message {
+            background-color: #f8f9fa;
+            border-left: 4px solid var(--primary-color);
+            padding: 10px 15px;
+            margin: 15px 0;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .status-error {
+            border-left-color: var(--accent-color);
+            background-color: #ffeeee;
+        }
+
+        .status-success {
+            border-left-color: var(--secondary-color);
+            background-color: #eeffee;
+        }
+
+        .parameter-control {
+            margin: 15px 0;
+        }
+
+        .parameter-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .parameter-label {
+            width: 30%;
+            font-weight: bold;
+        }
+
+        .parameter-input {
+            width: 70%;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+
+        .slider {
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+
+        .slider-value {
+            width: 40px;
+            text-align: right;
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            margin-left: 5px;
+            color: var(--primary-color);
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Audio Chunk Drum Sampler</h1>
+        <p>Upload audio files, split them into chunks, and generate custom drum samples for your music production.</p>
+    </header>
+
+    <div class="app-container">
+        <section class="card">
+            <h2 class="section-title">Audio Source</h2>
+            <div class="upload-container">
+                <div id="file-drop-area">
+                    <p>Drop audio files here or <span id="file-select-button" style="color: var(--primary-color); text-decoration: underline;">click to select</span></p>
+                    <p><small>Supported formats: WAV, MP3, OGG, AIFF</small></p>
+                    <input type="file" id="file-input" style="display: none;" accept=".wav,.mp3,.ogg,.aiff" multiple>
+                </div>
+                <div id="file-list">
+                    <p>No files uploaded</p>
+                </div>
+                <button id="process-button" disabled>Process Audio Files</button>
+            </div>
+            <div id="status-container"></div>
+        </section>
+
+        <section class="card">
+            <h2 class="section-title">Processing Parameters</h2>
+            <div class="parameter-control">
+                <div class="parameter-row">
+                    <div class="parameter-label">
+                        Chunk Size (ms)
+                        <span class="tooltip">?
+                            <span class="tooltip-text">Controls how large each audio chunk will be. Smaller values create shorter samples.</span>
+                        </span>
+                    </div>
+                    <div class="parameter-input">
+                        <div class="slider-container">
+                            <input type="range" id="chunk-size" class="slider" min="50" max="500" value="150" step="10">
+                            <span id="chunk-size-value" class="slider-value">150</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="parameter-row">
+                    <div class="parameter-label">
+                        Spectral Variety
+                        <span class="tooltip">?
+                            <span class="tooltip-text">Controls how much the algorithm prioritizes frequency variety when generating samples.</span>
+                        </span>
+                    </div>
+                    <div class="parameter-input">
+                        <div class="slider-container">
+                            <input type="range" id="spectral-variety" class="slider" min="0" max="100" value="70" step="5">
+                            <span id="spectral-variety-value" class="slider-value">70</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="parameter-row">
+                    <div class="parameter-label">
+                        Transient Emphasis
+                        <span class="tooltip">?
+                            <span class="tooltip-text">Adjusts how much the algorithm emphasizes transients (sharp attacks) in generated samples.</span>
+                        </span>
+                    </div>
+                    <div class="parameter-input">
+                        <div class="slider-container">
+                            <input type="range" id="transient-emphasis" class="slider" min="0" max="100" value="60" step="5">
+                            <span id="transient-emphasis-value" class="slider-value">60</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="parameter-row">
+                    <div class="parameter-label">
+                        Low-end Boost
+                        <span class="tooltip">?
+                            <span class="tooltip-text">Increases the prominence of bass frequencies in generated samples.</span>
+                        </span>
+                    </div>
+                    <div class="parameter-input">
+                        <div class="slider-container">
+                            <input type="range" id="low-end-boost" class="slider" min="0" max="100" value="50" step="5">
+                            <span id="low-end-boost-value" class="slider-value">50</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card" style="grid-column: 1 / -1;">
+            <h2 class="section-title">Generated Drum Samples</h2>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button id="regenerate-all-button" disabled>Regenerate All Samples</button>
+                <button id="download-all-button" class="button-secondary" disabled>Download All Samples</button>
+            </div>
+            <div id="drum-samples-container" class="drum-grid">
+                <p>Process audio files to generate drum samples.</p>
+            </div>
+        </section>
+    </div>
+
+    <div class="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script>
+        /**
+         * Audio Chunk Drum Sampler
+         * 
+         * This application allows users to upload audio files, split them into chunks,
+         * and generate custom drum samples based on spectral analysis and processing.
+         * 
+         * Features:
+         * - Upload multiple audio file formats (WAV, MP3, OGG, AIFF)
+         * - Process audio into chunks with adjustable parameters
+         * - Generate various drum sample types with appropriate characteristics
+         * - Visualize waveforms
+         * - Preview generated samples
+         * - Regenerate individual samples or all samples
+         * - Export generated samples as WAV files
+         */
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Main application namespace
+            const AudioApp = {
+                // Audio context and sources
+                audioContext: null,
+                audioBuffers: [],
+                fileList: [],
+                audioChunks: [],
+                drumSamples: [],
+                
+                // UI elements
+                fileDropArea: document.getElementById('file-drop-area'),
+                fileInput: document.getElementById('file-input'),
+                fileSelectButton: document.getElementById('file-select-button'),
+                fileListElement: document.getElementById('file-list'),
+                processButton: document.getElementById('process-button'),
+                regenerateAllButton: document.getElementById('regenerate-all-button'),
+                drumSamplesContainer: document.getElementById('drum-samples-container'),
+                statusContainer: document.getElementById('status-container'),
+                loadingOverlay: document.querySelector('.loading-overlay'),
+                
+                // Parameter sliders
+                chunkSizeSlider: document.getElementById('chunk-size'),
+                spectralVarietySlider: document.getElementById('spectral-variety'),
+                transientEmphasisSlider: document.getElementById('transient-emphasis'),
+                lowEndBoostSlider: document.getElementById('low-end-boost'),
+                
+                // Parameter value displays
+                chunkSizeValue: document.getElementById('chunk-size-value'),
+                spectralVarietyValue: document.getElementById('spectral-variety-value'),
+                transientEmphasisValue: document.getElementById('transient-emphasis-value'),
+                lowEndBoostValue: document.getElementById('low-end-boost-value'),
+                
+                // Drum sample definitions
+                drumTypes: [
+                    { name: 'Kick 1', freqRange: [40, 150], attack: 0.001, decay: 0.3, sustain: 0.1, release: 0.2, transientEmphasis: 0.8 },
+                    { name: 'Kick 2', freqRange: [30, 120], attack: 0.001, decay: 0.4, sustain: 0.05, release: 0.3, transientEmphasis: 0.9 },
+                    { name: 'Snare 1', freqRange: [200, 3000], attack: 0.001, decay: 0.1, sustain: 0.2, release: 0.3, transientEmphasis: 0.7 },
+                    { name: 'Snare 2', freqRange: [180, 4000], attack: 0.001, decay: 0.15, sustain: 0.15, release: 0.25, transientEmphasis: 0.8 },
+                    { name: 'Hi-Hat Closed 1', freqRange: [4000, 16000], attack: 0.001, decay: 0.05, sustain: 0.01, release: 0.08, transientEmphasis: 0.95 },
+                    { name: 'Hi-Hat Closed 2', freqRange: [3500, 14000], attack: 0.001, decay: 0.04, sustain: 0.01, release: 0.1, transientEmphasis: 0.9 },
+                    { name: 'Hi-Hat Open 1', freqRange: [3000, 14000], attack: 0.001, decay: 0.1, sustain: 0.4, release: 0.5, transientEmphasis: 0.7 },
+                    { name: 'Hi-Hat Open 2', freqRange: [3200, 15000], attack: 0.001, decay: 0.08, sustain: 0.35, release: 0.6, transientEmphasis: 0.75 },
+                    { name: 'Tom Low 1', freqRange: [80, 350], attack: 0.001, decay: 0.2, sustain: 0.1, release: 0.4, transientEmphasis: 0.6 },
+                    { name: 'Tom Low 2', freqRange: [100, 400], attack: 0.001, decay: 0.15, sustain: 0.15, release: 0.3, transientEmphasis: 0.65 },
+                    { name: 'Tom Mid 1', freqRange: [120, 600], attack: 0.001, decay: 0.15, sustain: 0.1, release: 0.3, transientEmphasis: 0.65 },
+                    { name: 'Tom Mid 2', freqRange: [140, 700], attack: 0.001, decay: 0.12, sustain: 0.1, release: 0.25, transientEmphasis: 0.7 },
+                    { name: 'Tom High 1', freqRange: [200, 900], attack: 0.001, decay: 0.1, sustain: 0.05, release: 0.2, transientEmphasis: 0.7 },
+                    { name: 'Tom High 2', freqRange: [250, 1000], attack: 0.001, decay: 0.08, sustain: 0.05, release: 0.15, transientEmphasis: 0.75 },
+                    { name: 'Cymbal Crash 1', freqRange: [1000, 16000], attack: 0.001, decay: 0.3, sustain: 0.5, release: 1.5, transientEmphasis: 0.8 },
+                    { name: 'Cymbal Crash 2', freqRange: [1200, 16000], attack: 0.001, decay: 0.25, sustain: 0.6, release: 1.7, transientEmphasis: 0.85 },
+                    { name: 'Ride 1', freqRange: [800, 12000], attack: 0.001, decay: 0.2, sustain: 0.4, release: 1.2, transientEmphasis: 0.7 },
+                    { name: 'Ride 2', freqRange: [900, 14000], attack: 0.001, decay: 0.15, sustain: 0.5, release: 1.0, transientEmphasis: 0.75 },
+                    { name: 'Clap 1', freqRange: [400, 6000], attack: 0.001, decay: 0.05, sustain: 0.1, release: 0.2, transientEmphasis: 0.9 },
+                    { name: 'Clap 2', freqRange: [450, 7000], attack: 0.001, decay: 0.04, sustain: 0.1, release: 0.25, transientEmphasis: 0.95 },
+                    { name: 'Rim 1', freqRange: [500, 4000], attack: 0.001, decay: 0.03, sustain: 0.01, release: 0.1, transientEmphasis: 0.95 },
+                    { name: 'Rim 2', freqRange: [600, 5000], attack: 0.001, decay: 0.02, sustain: 0.01, release: 0.08, transientEmphasis: 0.98 },
+                    { name: 'Cowbell 1', freqRange: [700, 3000], attack: 0.001, decay: 0.1, sustain: 0.2, release: 0.3, transientEmphasis: 0.8 },
+                    { name: 'Cowbell 2', freqRange: [800, 3500], attack: 0.001, decay: 0.08, sustain: 0.25, release: 0.35, transientEmphasis: 0.85 }
+                ],
+                
+                // Initialize the application
+                init: function() {
+                    try {
+                        // Initialize Web Audio API
+                        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                        this.audioContext = new AudioContext();
+                        
+                        // Setup event listeners
+                        this.setupEventListeners();
+                        
+                        // Show message if Web Audio API is not supported
+                        if (!this.audioContext) {
+                            this.showStatus('Your browser does not support the Web Audio API. Please use a modern browser.', 'error');
+                        } else {
+                            this.showStatus('Ready to process audio files.', 'info');
+                        }
+                    } catch (e) {
+                        console.error('Error initializing application:', e);
+                        this.showStatus('Error initializing application: ' + e.message, 'error');
+                    }
+                },
+                
+                // Setup event listeners
+                setupEventListeners: function() {
+                    // File drop area events
+                    this.fileDropArea.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        this.fileDropArea.classList.add('highlight');
+                    });
+                    
+                    this.fileDropArea.addEventListener('dragleave', () => {
+                        this.fileDropArea.classList.remove('highlight');
+                    });
+                    
+                    this.fileDropArea.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        this.fileDropArea.classList.remove('highlight');
+                        const files = e.dataTransfer.files;
+                        if (files.length > 0) {
+                            this.handleFiles(files);
+                        }
+                    });
+                    
+                    // File select button
+                    this.fileSelectButton.addEventListener('click', () => {
+                        this.fileInput.click();
+                    });
+                    
+                    // File input change
+                    this.fileInput.addEventListener('change', (e) => {
+                        if (e.target.files.length > 0) {
+                            this.handleFiles(e.target.files);
+                        }
+                    });
+                    
+                    // Process button
+                    this.processButton.addEventListener('click', () => {
+                        this.processAudioFiles();
+                    });
+                    
+                    // Regenerate all button
+                    this.regenerateAllButton.addEventListener('click', () => {
+                        this.regenerateAllSamples();
+                    });
+                    
+                    // Download all button
+                    this.downloadAllButton = document.getElementById('download-all-button');
+                    this.downloadAllButton.addEventListener('click', () => {
+                        this.downloadAllSamples();
+                    });
+                    
+                    // Parameter sliders
+                    this.chunkSizeSlider.addEventListener('input', () => {
+                        this.chunkSizeValue.textContent = this.chunkSizeSlider.value;
+                    });
+                    
+                    this.spectralVarietySlider.addEventListener('input', () => {
+                        this.spectralVarietyValue.textContent = this.spectralVarietySlider.value;
+                    });
+                    
+                    this.transientEmphasisSlider.addEventListener('input', () => {
+                        this.transientEmphasisValue.textContent = this.transientEmphasisSlider.value;
+                    });
+                    
+                    this.lowEndBoostSlider.addEventListener('input', () => {
+                        this.lowEndBoostValue.textContent = this.lowEndBoostSlider.value;
+                    });
+                },
+                
+                // Handle file uploads
+                handleFiles: function(files) {
+                    const supportedTypes = ['audio/wav', 'audio/mpeg', 'audio/ogg', 'audio/aiff', 'audio/x-aiff'];
+                    let validFiles = [];
+                    
+                    for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        // Check if the file is an audio file
+                        if (supportedTypes.includes(file.type) || 
+                            file.name.endsWith('.wav') || 
+                            file.name.endsWith('.mp3') || 
+                            file.name.endsWith('.ogg') || 
+                            file.name.endsWith('.aiff')) {
+                            validFiles.push(file);
+                        }
+                    }
+                    
+                    if (validFiles.length === 0) {
+                        this.showStatus('No valid audio files selected. Please upload WAV, MP3, OGG, or AIFF files.', 'error');
+                        return;
+                    }
+                    
+                    // Add valid files to file list
+                    this.fileList = [...this.fileList, ...validFiles];
+                    this.updateFileList();
+                    
+                    // Enable process button if there are files
+                    this.processButton.disabled = this.fileList.length === 0;
+                    
+                    this.showStatus(`${validFiles.length} audio file(s) added.`, 'success');
+                },
+                
+                // Update the file list in the UI
+                updateFileList: function() {
+                    if (this.fileList.length === 0) {
+                        this.fileListElement.innerHTML = '<p>No files uploaded</p>';
+                        return;
+                    }
+                    
+                    let html = '';
+                    for (let i = 0; i < this.fileList.length; i++) {
+                        const file = this.fileList[i];
+                        html += `
+                            <div class="file-item">
+                                <span>${file.name}</span>
+                                <span class="file-remove" data-index="${i}">×</span>
+                            </div>
+                        `;
+                    }
+                    
+                    this.fileListElement.innerHTML = html;
+                    
+                    // Add event listeners for remove buttons
+                    const removeButtons = document.querySelectorAll('.file-remove');
+                    removeButtons.forEach(button => {
+                        button.addEventListener('click', (e) => {
+                            const index = parseInt(e.target.getAttribute('data-index'));
+                            this.removeFile(index);
+                        });
+                    });
+                },
+                
+                // Remove a file from the list
+                removeFile: function(index) {
+                    if (index >= 0 && index < this.fileList.length) {
+                        this.fileList.splice(index, 1);
+                        this.updateFileList();
+                        
+                        // Disable process button if there are no files
+                        this.processButton.disabled = this.fileList.length === 0;
+                        
+                        this.showStatus('File removed.', 'info');
+                    }
+                },
+                
+                // Show a status message
+                showStatus: function(message, type = 'info') {
+                    const statusElement = document.createElement('div');
+                    statusElement.className = 'status-message';
+                    
+                    if (type === 'error') {
+                        statusElement.classList.add('status-error');
+                    } else if (type === 'success') {
+                        statusElement.classList.add('status-success');
+                    }
+                    
+                    statusElement.textContent = message;
+                    
+                    // Add the status message to the container
+                    this.statusContainer.prepend(statusElement);
+                    
+                    // Remove the status message after a delay
+                    setTimeout(() => {
+                        statusElement.style.opacity = '0';
+                        setTimeout(() => {
+                            if (statusElement.parentNode) {
+                                statusElement.parentNode.removeChild(statusElement);
+                            }
+                        }, 500);
+                    }, 5000);
+                },
+                
+                // Show loading overlay
+                showLoading: function() {
+                    this.loadingOverlay.style.display = 'flex';
+                },
+                
+                // Hide loading overlay
+                hideLoading: function() {
+                    this.loadingOverlay.style.display = 'none';
+                },
+                
+                // Process audio files
+                processAudioFiles: async function() {
+                    try {
+                        this.showLoading();
+                        this.showStatus('Processing audio files...', 'info');
+                        
+                        // Reset buffers and chunks
+                        this.audioBuffers = [];
+                        this.audioChunks = [];
+                        
+                        // Load all audio files
+                        for (const file of this.fileList) {
+                            const buffer = await this.loadAudioFile(file);
+                            if (buffer) {
+                                this.audioBuffers.push(buffer);
+                            }
+                        }
+                        
+                        if (this.audioBuffers.length === 0) {
+                            throw new Error('No valid audio buffers were loaded.');
+                        }
+                        
+                        // Get parameters
+                        const chunkSize = parseInt(this.chunkSizeSlider.value) / 1000; // Convert to seconds
+                        
+                        // Split audio into chunks
+                        this.audioChunks = this.splitAudioIntoChunks(this.audioBuffers, chunkSize);
+                        
+                        if (this.audioChunks.length === 0) {
+                            throw new Error('No audio chunks were created.');
+                        }
+                        
+                        // Generate drum samples
+                        await this.generateDrumSamples();
+                        
+                        // Enable regenerate button
+                        this.regenerateAllButton.disabled = false;
+                        
+                        this.showStatus('Audio processing complete. Drum samples generated.', 'success');
+                    } catch (e) {
+                        console.error('Error processing audio files:', e);
+                        this.showStatus('Error processing audio files: ' + e.message, 'error');
+                    } finally {
+                        this.hideLoading();
+                    }
+                },
+                
+                // Load an audio file and decode it
+                loadAudioFile: function(file) {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        
+                        reader.onload = async (e) => {
+                            try {
+                                const arrayBuffer = e.target.result;
+                                const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+                                resolve(audioBuffer);
+                            } catch (err) {
+                                console.error('Error decoding audio data:', err);
+                                this.showStatus(`Error decoding ${file.name}: ${err.message}`, 'error');
+                                resolve(null); // Resolve with null to continue processing other files
+                            }
+                        };
+                        
+                        reader.onerror = (err) => {
+                            console.error('Error reading file:', err);
+                            this.showStatus(`Error reading ${file.name}`, 'error');
+                            resolve(null); // Resolve with null to continue processing other files
+                        };
+                        
+                        reader.readAsArrayBuffer(file);
+                    });
+                },
+                
+                // Split audio buffers into chunks
+                splitAudioIntoChunks: function(audioBuffers, chunkSizeInSeconds) {
+                    const chunks = [];
+                    
+                    for (const buffer of audioBuffers) {
+                        const sampleRate = buffer.sampleRate;
+                        const numChannels = buffer.numberOfChannels;
+                        const chunkSizeInSamples = Math.floor(chunkSizeInSeconds * sampleRate);
+                        
+                        // Calculate the number of chunks
+                        const numChunks = Math.floor(buffer.length / chunkSizeInSamples);
+                        
+                        // Create chunks
+                        for (let i = 0; i < numChunks; i++) {
+                            const startSample = i * chunkSizeInSamples;
+                            const chunkBuffer = this.audioContext.createBuffer(
+                                numChannels,
+                                chunkSizeInSamples,
+                                sampleRate
+                            );
+                            
+                            // Copy data from the original buffer to the chunk buffer
+                            for (let channel = 0; channel < numChannels; channel++) {
+                                const originalData = buffer.getChannelData(channel);
+                                const chunkData = chunkBuffer.getChannelData(channel);
+                                
+                                for (let j = 0; j < chunkSizeInSamples; j++) {
+                                    chunkData[j] = originalData[startSample + j];
+                                }
+                            }
+                            
+                            // Add the chunk to the list
+                            chunks.push({
+                                buffer: chunkBuffer,
+                                startTime: startSample / sampleRate,
+                                duration: chunkSizeInSamples / sampleRate,
+                                energy: this.calculateEnergy(chunkBuffer),
+                                spectralCentroid: this.calculateSpectralCentroid(chunkBuffer)
+                            });
+                        }
+                    }
+                    
+                    // Sort chunks by energy and spectral centroid to help with sample selection
+                    chunks.sort((a, b) => b.energy - a.energy);
+                    
+                    return chunks;
+                },
+                
+                // Calculate the energy of an audio buffer (for sorting chunks)
+                calculateEnergy: function(buffer) {
+                    const channelData = buffer.getChannelData(0); // Use first channel
+                    let energy = 0;
+                    
+                    for (let i = 0; i < channelData.length; i++) {
+                        energy += channelData[i] * channelData[i];
+                    }
+                    
+                    return energy / channelData.length;
+                },
+                
+                // Calculate the spectral centroid of an audio buffer (for characterizing chunks)
+                calculateSpectralCentroid: function(buffer) {
+                    // This is a simplified calculation for quick characterization
+                    const channelData = buffer.getChannelData(0); // Use first channel
+                    const fftSize = 2048;
+                    const analyser = this.audioContext.createAnalyser();
+                    analyser.fftSize = fftSize;
+                    
+                    const bufferSource = this.audioContext.createBufferSource();
+                    bufferSource.buffer = buffer;
+                    bufferSource.connect(analyser);
+                    
+                    const frequencyData = new Uint8Array(analyser.frequencyBinCount);
+                    analyser.getByteFrequencyData(frequencyData);
+                    
+                    let totalWeightedFreq = 0;
+                    let totalMagnitude = 0;
+                    
+                    for (let i = 0; i < frequencyData.length; i++) {
+                        const frequency = i * this.audioContext.sampleRate / fftSize;
+                        const magnitude = frequencyData[i];
+                        
+                        totalWeightedFreq += frequency * magnitude;
+                        totalMagnitude += magnitude;
+                    }
+                    
+                    bufferSource.disconnect();
+                    analyser.disconnect();
+                    
+                    return totalMagnitude === 0 ? 0 : totalWeightedFreq / totalMagnitude;
+                },
+                
+                // Find appropriate chunks for a drum type
+                findChunksForDrumType: function(drumType) {
+                    // Calculate spectral variety and transient emphasis parameters
+                    const spectralVariety = parseInt(this.spectralVarietySlider.value) / 100;
+                    const transientEmphasis = parseInt(this.transientEmphasisSlider.value) / 100;
+                    const lowEndBoost = parseInt(this.lowEndBoostSlider.value) / 100;
+                    
+                    // Filter chunks based on drum type characteristics
+                    const minFreq = drumType.freqRange[0];
+                    const maxFreq = drumType.freqRange[1];
+                    
+                    // Find chunks with spectral content in the desired range
+                    const suitableChunks = this.audioChunks.filter(chunk => {
+                        // This is a simplified matching algorithm
+                        const spectralCentroid = chunk.spectralCentroid;
+                        const energy = chunk.energy;
+                        
+                        // Check if spectral centroid is in the range (simplified)
+                        const inFrequencyRange = spectralCentroid > minFreq && spectralCentroid < maxFreq;
+                        
+                        // For high transient drums, prioritize high energy chunks
+                        const hasGoodTransient = drumType.transientEmphasis <= transientEmphasis ? 
+                                               energy > 0.5 : true;
+                        
+                        return inFrequencyRange && hasGoodTransient;
+                    });
+                    
+                    // Sort chunks by suitability
+                    suitableChunks.sort((a, b) => {
+                        // For low end drums, prioritize chunks with more energy
+                        if (minFreq < 200 && lowEndBoost > 0.5) {
+                            return b.energy - a.energy;
+                        }
+                        
+                        // For mid and high frequency drums, balance energy and spectral characteristics
+                        return (b.energy * transientEmphasis) - (a.energy * transientEmphasis);
+                    });
+                    
+                    // Return the best chunk, or a random one if none are suitable
+                    return suitableChunks.length > 0 ? 
+                           suitableChunks[0] : 
+                           this.audioChunks[Math.floor(Math.random() * this.audioChunks.length)];
+                },
+                
+                // Generate drum samples based on audio chunks
+                generateDrumSamples: async function() {
+                    try {
+                        this.showStatus('Generating drum samples...', 'info');
+                        
+                        // Clear current samples
+                        this.drumSamples = [];
+                        
+                        // Generate a sample for each drum type
+                        for (const drumType of this.drumTypes) {
+                            // Find a suitable chunk
+                            const chunk = this.findChunksForDrumType(drumType);
+                            
+                            // Process the chunk to match the drum characteristics
+                            const processedBuffer = await this.processDrumSample(chunk.buffer, drumType);
+                            
+                            // Add the processed sample to the samples list
+                            this.drumSamples.push({
+                                name: drumType.name,
+                                type: drumType,
+                                buffer: processedBuffer,
+                                originalChunk: chunk
+                            });
+                        }
+                        
+                        // Update the UI with the generated samples
+                        this.updateDrumSamplesUI();
+                        
+                        // Enable the download all button
+                        this.downloadAllButton.disabled = false;
+                        
+                    } catch (e) {
+                        console.error('Error generating drum samples:', e);
+                        this.showStatus('Error generating drum samples: ' + e.message, 'error');
+                    }
+                },
+                
+                // Process an audio chunk to match drum characteristics
+                processDrumSample: async function(buffer, drumType) {
+                    return new Promise(async (resolve) => {
+                        try {
+                            // Create a new audio context for processing
+                            const offlineContext = new OfflineAudioContext(
+                                buffer.numberOfChannels,
+                                buffer.length,
+                                buffer.sampleRate
+                            );
+                            
+                            // Create source node
+                            const sourceNode = offlineContext.createBufferSource();
+                            sourceNode.buffer = buffer;
+                            
+                            // Create gain node for envelope
+                            const gainNode = offlineContext.createGain();
+                            
+                            // Apply envelope (ADSR)
+                            const now = offlineContext.currentTime;
+                            gainNode.gain.setValueAtTime(0, now);
+                            gainNode.gain.linearRampToValueAtTime(1, now + drumType.attack);
+                            gainNode.gain.linearRampToValueAtTime(drumType.sustain, now + drumType.attack + drumType.decay);
+                            gainNode.gain.linearRampToValueAtTime(0, now + drumType.attack + drumType.decay + drumType.release);
+                            
+                            // Create filter for frequency shaping
+                            const filterLow = offlineContext.createBiquadFilter();
+                            filterLow.type = 'lowshelf';
+                            filterLow.frequency.value = drumType.freqRange[0];
+                            filterLow.gain.value = drumType.freqRange[0] < 200 ? 6 : -3; // Boost lows for kicks
+                            
+                            const filterHigh = offlineContext.createBiquadFilter();
+                            filterHigh.type = 'highshelf';
+                            filterHigh.frequency.value = drumType.freqRange[1];
+                            filterHigh.gain.value = drumType.freqRange[1] > 3000 ? 3 : -6; // Boost highs for cymbals/hats
+                            
+                            // Create compressor for transients
+                            const compressor = offlineContext.createDynamicsCompressor();
+                            compressor.threshold.value = -24;
+                            compressor.knee.value = 10;
+                            compressor.ratio.value = 12;
+                            compressor.attack.value = drumType.transientEmphasis > 0.7 ? 0.001 : 0.01;
+                            compressor.release.value = 0.25;
+                            
+                            // Connect nodes
+                            sourceNode.connect(filterLow);
+                            filterLow.connect(filterHigh);
+                            filterHigh.connect(compressor);
+                            compressor.connect(gainNode);
+                            gainNode.connect(offlineContext.destination);
+                            
+                            // Start source
+                            sourceNode.start(now);
+                            
+                            // Render audio
+                            const renderedBuffer = await offlineContext.startRendering();
+                            resolve(renderedBuffer);
+                        } catch (e) {
+                            console.error('Error processing drum sample:', e);
+                            resolve(buffer); // Return original buffer on error
+                        }
+                    });
+                },
+                
+                // Update the UI with the generated drum samples
+                updateDrumSamplesUI: function() {
+                    // Clear the container
+                    this.drumSamplesContainer.innerHTML = '';
+                    
+                    // Add each drum sample to the UI
+                    for (let i = 0; i < this.drumSamples.length; i++) {
+                        const sample = this.drumSamples[i];
+                        
+                        // Create a container for the drum sample
+                        const drumItem = document.createElement('div');
+                        drumItem.className = 'drum-item';
+                        
+                        // Create a title for the drum sample
+                        const title = document.createElement('h3');
+                        title.textContent = sample.name;
+                        drumItem.appendChild(title);
+                        
+                        // Create a canvas for the waveform
+                        const canvas = document.createElement('canvas');
+                        canvas.className = 'drum-canvas';
+                        canvas.width = 200;
+                        canvas.height = 60;
+                        drumItem.appendChild(canvas);
+                        
+                        // Draw the waveform
+                        this.drawWaveform(canvas, sample.buffer);
+                        
+                        // Create controls for the drum sample
+                        const controls = document.createElement('div');
+                        controls.className = 'drum-controls';
+                        
+                        // Create play button
+                        const playButton = document.createElement('button');
+                        playButton.textContent = '▶️ Play';
+                        playButton.addEventListener('click', () => {
+                            this.playDrumSample(sample);
+                        });
+                        controls.appendChild(playButton);
+                        
+                        // Create regenerate button
+                        const regenerateButton = document.createElement('button');
+                        regenerateButton.textContent = '🔄 Regenerate';
+                        regenerateButton.addEventListener('click', () => {
+                            this.regenerateSample(i);
+                        });
+                        controls.appendChild(regenerateButton);
+                        
+                        // Create download button
+                        const downloadButton = document.createElement('button');
+                        downloadButton.textContent = '💾 Save';
+                        downloadButton.addEventListener('click', () => {
+                            this.exportSample(sample);
+                        });
+                        controls.appendChild(downloadButton);
+                        
+                        drumItem.appendChild(controls);
+                        
+                        // Add the drum item to the container
+                        this.drumSamplesContainer.appendChild(drumItem);
+                    }
+                },
+                
+                // Draw a waveform on a canvas
+                drawWaveform: function(canvas, buffer) {
+                    const ctx = canvas.getContext('2d');
+                    const width = canvas.width;
+                    const height = canvas.height;
+                    
+                    // Clear the canvas
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, width, height);
+                    
+                    // Get the audio data
+                    const data = buffer.getChannelData(0);
+                    const step = Math.ceil(data.length / width);
+                    const amp = height / 2;
+                    
+                    // Draw the waveform
+                    ctx.beginPath();
+                    ctx.moveTo(0, amp);
+                    
+                    for (let i = 0; i < width; i++) {
+                        let min = 1.0;
+                        let max = -1.0;
+                        
+                        for (let j = 0; j < step; j++) {
+                            const datum = data[(i * step) + j];
+                            if (datum < min) min = datum;
+                            if (datum > max) max = datum;
+                        }
+                        
+                        ctx.lineTo(i, (1 + min) * amp);
+                    }
+                    
+                    for (let i = width - 1; i >= 0; i--) {
+                        let min = 1.0;
+                        let max = -1.0;
+                        
+                        for (let j = 0; j < step; j++) {
+                            const datum = data[(i * step) + j];
+                            if (datum < min) min = datum;
+                            if (datum > max) max = datum;
+                        }
+                        
+                        ctx.lineTo(i, (1 + max) * amp);
+                    }
+                    
+                    ctx.closePath();
+                    ctx.fillStyle = 'rgba(52, 152, 219, 0.5)';
+                    ctx.fill();
+                    
+                    // Draw the zero line
+                    ctx.beginPath();
+                    ctx.moveTo(0, amp);
+                    ctx.lineTo(width, amp);
+                    ctx.strokeStyle = 'rgba(52, 152, 219, 0.8)';
+                    ctx.stroke();
+                },
+                
+                // Play a drum sample
+                playDrumSample: function(sample) {
+                    // Create source node
+                    const source = this.audioContext.createBufferSource();
+                    source.buffer = sample.buffer;
+                    
+                    // Create gain node
+                    const gainNode = this.audioContext.createGain();
+                    gainNode.gain.value = 0.8; // Prevent clipping
+                    
+                    // Connect nodes
+                    source.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    // Start playback
+                    source.start();
+                },
+                
+                // Regenerate a specific sample
+                regenerateSample: async function(index) {
+                    try {
+                        const sample = this.drumSamples[index];
+                        const drumType = sample.type;
+                        
+                        // Find a new chunk
+                        const newChunk = this.findChunksForDrumType(drumType);
+                        
+                        // Process the new chunk
+                        const processedBuffer = await this.processDrumSample(newChunk.buffer, drumType);
+                        
+                        // Update the sample
+                        this.drumSamples[index].buffer = processedBuffer;
+                        this.drumSamples[index].originalChunk = newChunk;
+                        
+                        // Update the UI
+                        this.updateDrumSamplesUI();
+                        
+                        this.showStatus(`Regenerated ${drumType.name} sample.`, 'success');
+                    } catch (e) {
+                        console.error('Error regenerating sample:', e);
+                        this.showStatus('Error regenerating sample: ' + e.message, 'error');
+                    }
+                },
+                
+                // Regenerate all samples
+                regenerateAllSamples: async function() {
+                    try {
+                        this.showLoading();
+                        this.showStatus('Regenerating all drum samples...', 'info');
+                        
+                        // Regenerate each sample
+                        await this.generateDrumSamples();
+                        
+                        this.showStatus('All drum samples regenerated.', 'success');
+                    } catch (e) {
+                        console.error('Error regenerating samples:', e);
+                        this.showStatus('Error regenerating samples: ' + e.message, 'error');
+                    } finally {
+                        this.hideLoading();
+                    }
+                },
+                
+                // Export a sample as a WAV file
+                exportSample: function(sample) {
+                    // Create an offline context to render the sample
+                    const offlineContext = new OfflineAudioContext(
+                        sample.buffer.numberOfChannels,
+                        sample.buffer.length,
+                        sample.buffer.sampleRate
+                    );
+                    
+                    // Create source node
+                    const source = offlineContext.createBufferSource();
+                    source.buffer = sample.buffer;
+                    source.connect(offlineContext.destination);
+                    source.start();
+                    
+                    // Render the audio
+                    offlineContext.startRendering().then(renderedBuffer => {
+                        // Create WAV file
+                        const wavFile = this.bufferToWave(renderedBuffer);
+                        
+                        // Create download link
+                        const url = URL.createObjectURL(wavFile);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `${sample.name.replace(/\s+/g, '_').toLowerCase()}.wav`;
+                        link.click();
+                        
+                        // Clean up
+                        URL.revokeObjectURL(url);
+                        
+                        this.showStatus(`Exported ${sample.name} as WAV file.`, 'success');
+                    }).catch(err => {
+                        console.error('Error exporting sample:', err);
+                        this.showStatus('Error exporting sample: ' + err.message, 'error');
+                    });
+                },
+                
+                // Convert an AudioBuffer to a WAV file
+                bufferToWave: function(buffer) {
+                    const numOfChannels = buffer.numberOfChannels;
+                    const length = buffer.length * numOfChannels * 2;
+                    const sampleRate = buffer.sampleRate;
+                    
+                    // Create the buffer
+                    const arrayBuffer = new ArrayBuffer(44 + length);
+                    const view = new DataView(arrayBuffer);
+                    
+                    // Write RIFF header
+                    this.writeString(view, 0, 'RIFF');
+                    view.setUint32(4, 36 + length, true);
+                    this.writeString(view, 8, 'WAVE');
+                    
+                    // Write fmt chunk
+                    this.writeString(view, 12, 'fmt ');
+                    view.setUint32(16, 16, true);
+                    view.setUint16(20, 1, true); // PCM format
+                    view.setUint16(22, numOfChannels, true);
+                    view.setUint32(24, sampleRate, true);
+                    view.setUint32(28, sampleRate * numOfChannels * 2, true); // Byte rate
+                    view.setUint16(32, numOfChannels * 2, true); // Block align
+                    view.setUint16(34, 16, true); // Bits per sample
+                    
+                    // Write data chunk
+                    this.writeString(view, 36, 'data');
+                    view.setUint32(40, length, true);
+                    
+                    // Write interleaved audio data
+                    const channelData = [];
+                    for (let i = 0; i < numOfChannels; i++) {
+                        channelData.push(buffer.getChannelData(i));
+                    }
+                    
+                    let offset = 44;
+                    for (let i = 0; i < buffer.length; i++) {
+                        for (let channel = 0; channel < numOfChannels; channel++) {
+                            const sample = Math.max(-1, Math.min(1, channelData[channel][i]));
+                            view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                            offset += 2;
+                        }
+                    }
+                    
+                    return new Blob([view], { type: 'audio/wav' });
+                },
+                
+                // Helper to write strings to DataView
+                writeString: function(view, offset, string) {
+                    for (let i = 0; i < string.length; i++) {
+                        view.setUint8(offset + i, string.charCodeAt(i));
+                    }
+                },
+                
+                // Download all samples as a ZIP file
+                downloadAllSamples: async function() {
+                    try {
+                        if (!this.drumSamples || this.drumSamples.length === 0) {
+                            this.showStatus('No drum samples to download.', 'error');
+                            return;
+                        }
+                        
+                        this.showLoading();
+                        this.showStatus('Preparing samples for download...', 'info');
+                        
+                        // Check if JSZip is available, if not, load it dynamically
+                        if (typeof JSZip === 'undefined') {
+                            // Create script element to load JSZip
+                            const script = document.createElement('script');
+                            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                            script.async = true;
+                            
+                            // Wait for script to load
+                            await new Promise((resolve, reject) => {
+                                script.onload = resolve;
+                                script.onerror = () => reject(new Error('Failed to load JSZip library'));
+                                document.head.appendChild(script);
+                            });
+                            
+                            // Check if JSZip is now available
+                            if (typeof JSZip === 'undefined') {
+                                throw new Error('JSZip library could not be loaded');
+                            }
+                        }
+                        
+                        // Create a new ZIP file
+                        const zip = new JSZip();
+                        
+                        // Add readme.txt with information about the samples
+                        const readmeContent = `Audio Chunk Drum Sampler - Generated Samples
+Created: ${new Date().toLocaleString()}
+
+This ZIP file contains ${this.drumSamples.length} drum samples generated from audio chunks.
+Each sample has been processed to match the characteristics of the specified drum type.
+
+Parameters used:
+- Chunk Size: ${this.chunkSizeSlider.value} ms
+- Spectral Variety: ${this.spectralVarietySlider.value}%
+- Transient Emphasis: ${this.transientEmphasisSlider.value}%
+- Low-end Boost: ${this.lowEndBoostSlider.value}%
+
+File naming convention: drumtype.wav
+Example: kick_1.wav, snare_2.wav
+
+Enjoy using these samples in your music production!
+`;
+                        zip.file('readme.txt', readmeContent);
+                        
+                        // Create a folder for the samples
+                        const samplesFolder = zip.folder('samples');
+                        
+                        // Process each sample and add it to the ZIP
+                        for (const sample of this.drumSamples) {
+                            // Convert the sample to WAV
+                            const wavBlob = this.bufferToWave(sample.buffer);
+                            
+                            // Convert the blob to an array buffer
+                            const arrayBuffer = await wavBlob.arrayBuffer();
+                            
+                            // Add the WAV file to the ZIP
+                            const fileName = `${sample.name.replace(/\s+/g, '_').toLowerCase()}.wav`;
+                            samplesFolder.file(fileName, arrayBuffer);
+                        }
+                        
+                        // Generate the ZIP file
+                        const zipBlob = await zip.generateAsync({ type: 'blob' });
+                        
+                        // Create a download link
+                        const url = URL.createObjectURL(zipBlob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = 'drum_samples.zip';
+                        link.click();
+                        
+                        // Clean up
+                        URL.revokeObjectURL(url);
+                        
+                        this.showStatus('All samples downloaded as ZIP file.', 'success');
+                    } catch (e) {
+                        console.error('Error downloading all samples:', e);
+                        this.showStatus('Error downloading all samples: ' + e.message, 'error');
+                    } finally {
+                        this.hideLoading();
+                    }
+                }
+            };
+            
+            // Initialize the application
+            AudioApp.init();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Degradation Filter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        input[type="number"], input[type="range"] {
+            width: 100px;
+            padding: 5px;
+        }
+        .range-container {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .range-value {
+            margin-left: 10px;
+            width: 40px;
+        }
+        #fileInfo {
+            margin-top: 10px;
+            font-style: italic;
+        }
+        progress {
+            width: 100%;
+            margin-top: 10px;
+        }
+        canvas {
+            width: 100%;
+            height: 150px;
+            background-color: #f5f5f5;
+            margin-top: 10px;
+        }
+        select {
+            padding: 5px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Audio Degradation Filter</h1>
+    
+    <div class="section">
+        <h2>1. Upload Audio File</h2>
+        <p>Select an audio file (supports WAV, MP3, OGG, AIFF/AIF)</p>
+        <input type="file" id="audioFile" accept=".wav,.mp3,.ogg,.aiff,.aif">
+        <div id="fileInfo"></div>
+    </div>
+    
+    <div class="section">
+        <h2>2. Degradation Parameters</h2>
+        <div class="range-container">
+            <label for="degradationAmount">Degradation Amount (%):</label>
+            <input type="range" id="degradationAmount" min="0" max="100" value="50">
+            <span id="degradationAmountValue" class="range-value">50%</span>
+        </div>
+        
+        <div class="range-container">
+            <label for="degradationRamp">Degradation Ramp:</label>
+            <input type="range" id="degradationRamp" min="0" max="100" value="0">
+            <span id="degradationRampValue" class="range-value">0</span>
+        </div>
+        
+        <div style="margin-top: 10px;">
+            <label for="degradationType">Degradation Type:</label>
+            <select id="degradationType">
+                <option value="noise">Random Noise</option>
+                <option value="tape">Tape Degradation</option>
+                <option value="clipping">Clipping Distortion</option>
+                <option value="speaker">Overblown Speaker</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>3. Output Options</h2>
+        <div>
+            <label>
+                <input type="radio" name="outputType" value="play" checked> 
+                Play directly
+            </label>
+            <label style="margin-left: 20px;">
+                <input type="radio" name="outputType" value="save"> 
+                Save as file
+            </label>
+        </div>
+    </div>
+
+    <div class="section">
+        <canvas id="visualizer"></canvas>
+        <div style="display: flex; margin-top: 10px;">
+            <div style="flex: 1;">
+                <button id="playOriginalButton" disabled>Play Original</button>
+            </div>
+            <div style="flex: 1;">
+                <button id="processButton" disabled>Apply Degradation</button>
+                <button id="stopButton" disabled>Stop Playback</button>
+                <button id="saveButton" disabled>Save Processed Audio</button>
+            </div>
+        </div>
+        <div id="status"></div>
+        <progress id="progressBar" value="0" max="100" style="display: none;"></progress>
+    </div>
+
+    <script>
+        // Audio Degradation Filter Implementation
+        const DegradationFilter = {
+            // Audio context and nodes
+            audioContext: null,
+            sourceBuffer: null,
+            processedBuffer: null,
+            activeSource: null,
+            
+            // Initialize audio context
+            init: function() {
+                if (!this.audioContext) {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            
+            // Load audio file
+            loadAudioFile: async function(file) {
+                updateStatus(`Loading: ${file.name}...`);
+                
+                try {
+                    this.init();
+                    
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+                    
+                    this.sourceBuffer = audioBuffer;
+                    updateStatus(`Loaded: ${file.name}, Duration: ${audioBuffer.duration.toFixed(2)}s`);
+                    
+                    // Draw original waveform
+                    this.drawWaveform(this.sourceBuffer);
+                    
+                    return true;
+                } catch (error) {
+                    updateStatus(`Error: Failed to load ${file.name}: ${error.message}`, true);
+                    return false;
+                }
+            },
+            
+            // Process audio with degradation filter
+            processAudio: function(degradationAmount, degradationRamp, degradationType) {
+                return new Promise((resolve) => {
+                    updateStatus('Processing audio...');
+                    
+                    if (!this.sourceBuffer) {
+                        updateStatus('No audio file loaded', true);
+                        resolve(false);
+                        return;
+                    }
+                    
+                    // Create output buffer
+                    const outputBuffer = this.audioContext.createBuffer(
+                        this.sourceBuffer.numberOfChannels,
+                        this.sourceBuffer.length,
+                        this.sourceBuffer.sampleRate
+                    );
+                    
+                    // Calculate parameters
+                    const degradation = degradationAmount / 100; // Convert to 0-1 range
+                    
+                    // Process in chunks to allow UI updates
+                    const totalSamples = this.sourceBuffer.length;
+                    const chunkSize = 44100; // Process ~1 second at a time
+                    
+                    const processChunk = (startSample) => {
+                        const endSample = Math.min(startSample + chunkSize, totalSamples);
+                        
+                        for (let channel = 0; channel < this.sourceBuffer.numberOfChannels; channel++) {
+                            const inputData = this.sourceBuffer.getChannelData(channel);
+                            const outputData = outputBuffer.getChannelData(channel);
+                            
+                            for (let i = startSample; i < endSample; i++) {
+                                // Calculate position ratio (0 to 1) for ramping
+                                const positionRatio = i / totalSamples;
+                                
+                                // Calculate degradation intensity based on ramp
+                                let intensity = degradation;
+                                if (degradationRamp > 0) {
+                                    // Apply ramping effect - starts clean, gradually increases degradation
+                                    const rampFactor = degradationRamp / 100;
+                                    intensity = degradation * Math.min(1, positionRatio / rampFactor);
+                                }
+                                
+                                // Apply the selected degradation effect
+                                switch (degradationType) {
+                                    case 'noise':
+                                        // Add random noise
+                                        outputData[i] = this.applyNoiseEffect(inputData[i], intensity);
+                                        break;
+                                        
+                                    case 'tape':
+                                        // Simulate tape degradation
+                                        outputData[i] = this.applyTapeEffect(inputData[i], intensity, i, outputData, channel, inputData);
+                                        break;
+                                        
+                                    case 'clipping':
+                                        // Apply clipping distortion
+                                        outputData[i] = this.applyClippingEffect(inputData[i], intensity);
+                                        break;
+                                        
+                                    case 'speaker':
+                                        // Simulate overblown speaker
+                                        outputData[i] = this.applySpeakerEffect(inputData[i], intensity, i, outputData);
+                                        break;
+                                        
+                                    default:
+                                        outputData[i] = inputData[i];
+                                }
+                            }
+                        }
+                        
+                        // Calculate progress
+                        const progress = Math.min(100, Math.floor((endSample / totalSamples) * 100));
+                        document.getElementById('progressBar').value = progress;
+                        
+                        if (endSample < totalSamples) {
+                            // Schedule next chunk
+                            setTimeout(() => {
+                                processChunk(endSample);
+                            }, 0);
+                        } else {
+                            // Done
+                            this.processedBuffer = outputBuffer;
+                            updateStatus('Audio processing complete');
+                            
+                            // Draw processed waveform
+                            this.drawWaveform(this.processedBuffer);
+                            
+                            resolve(true);
+                        }
+                    };
+                    
+                    // Start processing
+                    processChunk(0);
+                });
+            },
+            
+            // Random noise effect
+            applyNoiseEffect: function(sample, intensity) {
+                // Generate random noise between -1 and 1
+                const noise = (Math.random() * 2 - 1);
+                
+                // Mix original sample with noise based on intensity
+                return sample * (1 - intensity) + noise * intensity;
+            },
+            
+            // Tape degradation effect - fixed the startSample reference issue
+            applyTapeEffect: function(sample, intensity, index, outputBuffer, channel, inputData) {
+                // Simulate frequency loss
+                let result = sample;
+                
+                // Apply low-pass filtering (simple moving average)
+                if (index > 10) {
+                    const windowSize = Math.floor(10 + intensity * 40); // More intensity = more low-pass filtering
+                    let sum = 0;
+                    let count = 0;
+                    
+                    // Simple moving average filter
+                    for (let j = 0; j < windowSize && (index - j) >= 0; j++) {
+                        sum += inputData[index - j];
+                        count++;
+                    }
+                    result = sum / count;
+                }
+                
+                // Add wow and flutter (subtle pitch/timing variations)
+                const wowFlutter = Math.sin(index * 0.0007) * 0.02 * intensity;
+                
+                // Add tape hiss noise (subtle high-frequency noise)
+                const hiss = (Math.random() * 2 - 1) * 0.03 * intensity;
+                
+                // Reduce dynamic range
+                result = result * (1 - intensity * 0.3);
+                
+                // Combine effects
+                return result + wowFlutter + hiss;
+            },
+            
+            // Clipping distortion effect
+            applyClippingEffect: function(sample, intensity) {
+                // Boost the signal first
+                const boostedSample = sample * (1 + intensity * 3);
+                
+                // Apply hard clipping
+                const threshold = 1 - intensity * 0.5; // Lower threshold = more clipping
+                
+                if (boostedSample > threshold) {
+                    return threshold + (boostedSample - threshold) / (1 + (boostedSample - threshold) * intensity * 10);
+                } else if (boostedSample < -threshold) {
+                    return -threshold + (boostedSample + threshold) / (1 - (boostedSample + threshold) * intensity * 10);
+                }
+                
+                return boostedSample;
+            },
+            
+            // Overblown speaker effect
+            applySpeakerEffect: function(sample, intensity, index, outputBuffer) {
+                // Boost bass frequencies (simple resonance simulation)
+                let bassBoost = 0;
+                if (index > 4) {
+                    // Simple bass boost using feedback
+                    for (let j = 1; j <= 4; j++) {
+                        if (index - j >= 0) {
+                            bassBoost += outputBuffer[index - j] * 0.15 * intensity;
+                        }
+                    }
+                }
+                
+                // Add speaker cone distortion (non-linear response)
+                const distortionAmount = intensity * 2;
+                const distortedSample = Math.tanh(sample * distortionAmount) / Math.tanh(1);
+                
+                // Add speaker cabinet resonance
+                const resonance = Math.sin(index * 0.01) * 0.05 * intensity;
+                
+                // Combine effects with appropriate weighting
+                return distortedSample + bassBoost + resonance;
+            },
+            
+            // Draw waveform visualization
+            drawWaveform: function(buffer) {
+                const canvas = document.getElementById('visualizer');
+                const ctx = canvas.getContext('2d');
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Get the first channel data
+                const data = buffer.getChannelData(0);
+                
+                // The width of each segment
+                const step = Math.ceil(data.length / canvas.width);
+                const amp = canvas.height / 2;
+                
+                // Draw the waveform
+                ctx.beginPath();
+                ctx.strokeStyle = '#3498db';
+                ctx.lineWidth = 1;
+                ctx.moveTo(0, amp);
+                
+                for (let i = 0; i < canvas.width; i++) {
+                    // For each pixel, find the peak sample
+                    let min = 1.0;
+                    let max = -1.0;
+                    
+                    for (let j = 0; j < step; j++) {
+                        const dataIndex = (i * step) + j;
+                        if (dataIndex < data.length) {
+                            const sample = data[dataIndex];
+                            if (sample < min) min = sample;
+                            if (sample > max) max = sample;
+                        }
+                    }
+                    
+                    // Draw min and max as a vertical line
+                    ctx.moveTo(i, amp * (1 + min));
+                    ctx.lineTo(i, amp * (1 + max));
+                }
+                
+                ctx.stroke();
+            },
+            
+            // Play the original audio
+            playOriginal: function() {
+                if (!this.sourceBuffer) {
+                    updateStatus('No audio file loaded', true);
+                    return null;
+                }
+                
+                // Stop any currently playing audio
+                this.stopPlayback();
+                
+                const source = this.audioContext.createBufferSource();
+                source.buffer = this.sourceBuffer;
+                source.connect(this.audioContext.destination);
+                source.start();
+                this.activeSource = source;
+                
+                updateStatus('Playing original audio...');
+                
+                source.onended = () => {
+                    this.activeSource = null;
+                    updateStatus('Playback finished');
+                    document.getElementById('stopButton').disabled = true;
+                };
+                
+                return source;
+            },
+            
+            // Play the processed audio
+            playProcessed: function() {
+                if (!this.processedBuffer) {
+                    updateStatus('No processed audio available', true);
+                    return null;
+                }
+                
+                // Stop any currently playing audio
+                this.stopPlayback();
+                
+                const source = this.audioContext.createBufferSource();
+                source.buffer = this.processedBuffer;
+                source.connect(this.audioContext.destination);
+                source.start();
+                this.activeSource = source;
+                
+                updateStatus('Playing processed audio...');
+                
+                source.onended = () => {
+                    this.activeSource = null;
+                    updateStatus('Playback finished');
+                    document.getElementById('stopButton').disabled = true;
+                };
+                
+                return source;
+            },
+            
+            // Stop playback
+            stopPlayback: function() {
+                if (this.activeSource) {
+                    this.activeSource.stop();
+                    this.activeSource = null;
+                    updateStatus('Playback stopped');
+                }
+            },
+            
+            // Export processed audio to file (WAV format)
+            exportAudio: function() {
+                if (!this.processedBuffer) {
+                    updateStatus('No processed audio available', true);
+                    return;
+                }
+                
+                // Create WAV file
+                const wavData = this.audioBufferToWav(this.processedBuffer);
+                const blob = new Blob([wavData], { type: 'audio/wav' });
+                
+                // Create download link
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'degraded_audio.wav';
+                document.body.appendChild(a);
+                a.click();
+                
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+                
+                updateStatus('Processed audio exported as WAV file');
+            },
+            
+            // Convert AudioBuffer to WAV format
+            audioBufferToWav: function(buffer) {
+                const numChannels = buffer.numberOfChannels;
+                const sampleRate = buffer.sampleRate;
+                const format = 1; // PCM
+                const bitDepth = 16;
+                
+                let result;
+                if (numChannels === 2) {
+                    result = this.interleave(buffer.getChannelData(0), buffer.getChannelData(1));
+                } else {
+                    result = buffer.getChannelData(0);
+                }
+                
+                const dataLength = result.length * (bitDepth / 8);
+                const buffer2 = new ArrayBuffer(44 + dataLength);
+                const view = new DataView(buffer2);
+                
+                // Write WAV header
+                // "RIFF" chunk descriptor
+                this.writeString(view, 0, 'RIFF');
+                view.setUint32(4, 36 + dataLength, true);
+                this.writeString(view, 8, 'WAVE');
+                
+                // "fmt " sub-chunk
+                this.writeString(view, 12, 'fmt ');
+                view.setUint32(16, 16, true); // fmt chunk size
+                view.setUint16(20, format, true);
+                view.setUint16(22, numChannels, true);
+                view.setUint32(24, sampleRate, true);
+                view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true); // byte rate
+                view.setUint16(32, numChannels * (bitDepth / 8), true); // block align
+                view.setUint16(34, bitDepth, true);
+                
+                // "data" sub-chunk
+                this.writeString(view, 36, 'data');
+                view.setUint32(40, dataLength, true);
+                
+                // Write PCM samples
+                const offset = 44;
+                this.floatTo16BitPCM(view, offset, result);
+                
+                return buffer2;
+            },
+            
+            // Helper for WAV creation
+            writeString: function(view, offset, string) {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            },
+            
+            // Helper for WAV creation
+            floatTo16BitPCM: function(output, offset, input) {
+                for (let i = 0; i < input.length; i++, offset += 2) {
+                    const s = Math.max(-1, Math.min(1, input[i]));
+                    output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                }
+            },
+            
+            // Helper for WAV creation
+            interleave: function(inputL, inputR) {
+                const length = inputL.length + inputR.length;
+                const result = new Float32Array(length);
+                
+                let index = 0;
+                let inputIndex = 0;
+                
+                while (index < length) {
+                    result[index++] = inputL[inputIndex];
+                    result[index++] = inputR[inputIndex];
+                    inputIndex++;
+                }
+                
+                return result;
+            }
+        };
+
+        // UI Control Functions
+        let selectedFile = null;
+        
+        function updateStatus(message, isError = false) {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = message;
+            statusElement.style.color = isError ? 'red' : 'black';
+            console.log(message);
+        }
+        
+        // Set up event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            const audioFileInput = document.getElementById('audioFile');
+            const playOriginalButton = document.getElementById('playOriginalButton');
+            const processButton = document.getElementById('processButton');
+            const stopButton = document.getElementById('stopButton');
+            const saveButton = document.getElementById('saveButton');
+            const progressBar = document.getElementById('progressBar');
+            const fileInfo = document.getElementById('fileInfo');
+            const visualizer = document.getElementById('visualizer');
+            
+            // Set canvas size to match display size
+            visualizer.width = visualizer.clientWidth;
+            visualizer.height = visualizer.clientHeight;
+            
+            // Parameter sliders
+            const degradationAmountSlider = document.getElementById('degradationAmount');
+            const degradationAmountValue = document.getElementById('degradationAmountValue');
+            const degradationRampSlider = document.getElementById('degradationRamp');
+            const degradationRampValue = document.getElementById('degradationRampValue');
+            
+            // Update slider value displays
+            degradationAmountSlider.addEventListener('input', function() {
+                degradationAmountValue.textContent = `${this.value}%`;
+            });
+            
+            degradationRampSlider.addEventListener('input', function() {
+                degradationRampValue.textContent = this.value;
+            });
+            
+            // File selection
+            audioFileInput.addEventListener('change', async function(e) {
+                if (e.target.files.length === 0) {
+                    fileInfo.textContent = 'No file selected';
+                    playOriginalButton.disabled = true;
+                    processButton.disabled = true;
+                    return;
+                }
+                
+                selectedFile = e.target.files[0];
+                fileInfo.textContent = `Selected: ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)`;
+                
+                // Load the file
+                const success = await DegradationFilter.loadAudioFile(selectedFile);
+                playOriginalButton.disabled = !success;
+                processButton.disabled = !success;
+            });
+            
+            // Play original audio
+            playOriginalButton.addEventListener('click', function() {
+                DegradationFilter.playOriginal();
+                stopButton.disabled = false;
+            });
+            
+            // Process audio
+            processButton.addEventListener('click', async function() {
+                if (!selectedFile) {
+                    updateStatus('Please select an audio file', true);
+                    return;
+                }
+                
+                // Disable buttons during processing
+                playOriginalButton.disabled = true;
+                processButton.disabled = true;
+                stopButton.disabled = true;
+                saveButton.disabled = true;
+                
+                // Show progress bar
+                progressBar.style.display = 'block';
+                progressBar.value = 0;
+                
+                try {
+                    // Get parameters
+                    const degradationAmount = parseInt(degradationAmountSlider.value);
+                    const degradationRamp = parseInt(degradationRampSlider.value);
+                    const degradationType = document.getElementById('degradationType').value;
+                    
+                    // Process audio
+                    const success = await DegradationFilter.processAudio(
+                        degradationAmount, degradationRamp, degradationType
+                    );
+                    
+                    // Re-enable buttons
+                    playOriginalButton.disabled = false;
+                    processButton.disabled = false;
+                    stopButton.disabled = false;
+                    saveButton.disabled = !success;
+                    
+                    // Play if selected
+                    if (success && document.querySelector('input[name="outputType"]:checked').value === 'play') {
+                        DegradationFilter.playProcessed();
+                    }
+                    
+                } catch (error) {
+                    updateStatus(`Error: ${error.message}`, true);
+                    playOriginalButton.disabled = false;
+                    processButton.disabled = false;
+                }
+                
+                // Hide progress bar
+                progressBar.style.display = 'none';
+            });
+            
+            // Stop playback
+            stopButton.addEventListener('click', function() {
+                DegradationFilter.stopPlayback();
+                stopButton.disabled = true;
+            });
+            
+            // Save processed audio
+            saveButton.addEventListener('click', function() {
+                DegradationFilter.exportAudio();
+            });
+        });
+    </script>
+</body>
+</html>

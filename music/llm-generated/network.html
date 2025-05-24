@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Sample Masher</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #3498db;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        button {
+            padding: 10px 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        input[type="number"], input[type="range"] {
+            width: 100px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .file-list {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+        }
+        .file-item {
+            margin-bottom: 5px;
+            padding: 6px;
+            background-color: #e9f7fe;
+            border-radius: 4px;
+        }
+        progress {
+            width: 100%;
+            height: 20px;
+            margin-top: 10px;
+            border-radius: 10px;
+        }
+        .range-container {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .range-value {
+            margin-left: 10px;
+            width: 40px;
+        }
+        #networkCanvas {
+            width: 100%;
+            height: 300px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+        #waveformCanvas {
+            width: 100%;
+            height: 150px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+        .status {
+            margin-top: 10px;
+            font-style: italic;
+        }
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .info-box {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #e9f7fe;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Neural Sample Masher</h1>
+    
+    <div class="section">
+        <h2>1. Source Files</h2>
+        <p>Select one or more audio files to create the sample network (supports WAV, MP3, OGG, AIFF/AIF)</p>
+        <input type="file" id="sourceFiles" multiple accept=".wav,.mp3,.ogg,.aiff,.aif">
+        <div id="sourceFileList" class="file-list"></div>
+    </div>
+    
+    <div class="section">
+        <h2>2. Reference File</h2>
+        <p>Select a reference file that will guide the reconstruction (supports WAV, MP3, OGG, AIFF/AIF)</p>
+        <input type="file" id="referenceFile" accept=".wav,.mp3,.ogg,.aiff,.aif">
+        <div id="referenceFileInfo" class="file-list"></div>
+    </div>
+    
+    <div class="section">
+        <h2>3. Parameters</h2>
+        <div class="settings-grid">
+            <div>
+                <h3>Chunking</h3>
+                <div class="range-container">
+                    <label for="minChunk">Min Chunk Size (ms):</label>
+                    <input type="number" id="minChunk" value="100" min="10" max="1000">
+                </div>
+                <div class="range-container">
+                    <label for="maxChunk">Max Chunk Size (ms):</label>
+                    <input type="number" id="maxChunk" value="500" min="50" max="2000">
+                </div>
+                <div class="range-container">
+                    <label for="overlap">Chunk Overlap (%):</label>
+                    <input type="range" id="overlap" min="0" max="75" value="50">
+                    <span id="overlapValue" class="range-value">50%</span>
+                </div>
+            </div>
+            <div>
+                <h3>Matching</h3>
+                <div class="range-container">
+                    <label for="strictness">Match Strictness:</label>
+                    <input type="range" id="strictness" min="0" max="100" value="70">
+                    <span id="strictnessValue" class="range-value">70%</span>
+                </div>
+                <div class="range-container">
+                    <label for="creativity">Creativity:</label>
+                    <input type="range" id="creativity" min="0" max="100" value="30">
+                    <span id="creativityValue" class="range-value">30%</span>
+                </div>
+                <div class="range-container">
+                    <label for="connections">Network Connections:</label>
+                    <input type="range" id="connections" min="1" max="10" value="5">
+                    <span id="connectionsValue" class="range-value">5</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>4. Sample Network</h2>
+        <canvas id="networkCanvas"></canvas>
+        <div class="info-box">
+            Each node represents an audio chunk. Connected nodes have similar audio characteristics.
+            <span id="networkStats"></span>
+        </div>
+        <div class="controls">
+            <button id="createNetworkButton" disabled>Create Sample Network</button>
+            <button id="analyzeButton" disabled>Analyze Reference</button>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>5. Output</h2>
+        <canvas id="waveformCanvas"></canvas>
+        <div class="controls">
+            <button id="generateButton" disabled>Generate Output</button>
+            <button id="playButton" disabled>Play</button>
+            <button id="stopButton" disabled>Stop</button>
+            <button id="saveButton" disabled>Save Output</button>
+        </div>
+        <div id="status" class="status"></div>
+        <progress id="progressBar" value="0" max="100" style="display: none;"></progress>
+    </div>
+
+    <script>
+        // Neural Sample Masher Implementation
+        const NeuralSampleMasher = {
+            // Audio contexts and buffers
+            audioContext: null,
+            sourceBuffers: [],
+            referenceBuffer: null,
+            outputBuffer: null,
+            activeSource: null,
+            
+            // Chunk and network data
+            sampleChunks: [],
+            chunkFeatures: [],
+            networkConnections: [],
+            referenceChunks: [],
+            referenceFeatures: [],
+            matchedChunks: [],
+            
+            // Initialize audio context
+            init: function() {
+                if (!this.audioContext) {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            
+            // Load source audio files
+            loadSourceFiles: async function(fileList) {
+                this.init();
+                this.sourceBuffers = [];
+                updateStatus("Loading source files...");
+                
+                for (const file of fileList) {
+                    try {
+                        updateStatus(`Loading: ${file.name}...`);
+                        const arrayBuffer = await file.arrayBuffer();
+                        const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+                        this.sourceBuffers.push(audioBuffer);
+                        updateStatus(`Loaded: ${file.name}, Duration: ${audioBuffer.duration.toFixed(2)}s`);
+                    } catch (error) {
+                        updateStatus(`Error: Failed to load ${file.name}: ${error.message}`, true);
+                    }
+                }
+                
+                return this.sourceBuffers.length > 0;
+            },
+            
+            // Load reference file
+            loadReferenceFile: async function(file) {
+                this.init();
+                updateStatus(`Loading reference: ${file.name}...`);
+                
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+                    
+                    this.referenceBuffer = audioBuffer;
+                    updateStatus(`Loaded reference: ${file.name}, Duration: ${audioBuffer.duration.toFixed(2)}s`);
+                    
+                    return true;
+                } catch (error) {
+                    updateStatus(`Error: Failed to load ${file.name}: ${error.message}`, true);
+                    return false;
+                }
+            },
+            
+            // Create chunks from source files
+            createSampleChunks: function(minChunkMs, maxChunkMs, overlapPercent) {
+                if (this.sourceBuffers.length === 0) {
+                    updateStatus("No source files loaded", true);
+                    return false;
+                }
+                
+                this.sampleChunks = [];
+                this.chunkFeatures = [];
+                
+                updateStatus("Creating sample chunks...");
+                
+                // Convert percentage to overlap factor (0-1)
+                const overlapFactor = overlapPercent / 100;
+                
+                // Process each source buffer
+                for (let sourceIndex = 0; sourceIndex < this.sourceBuffers.length; sourceIndex++) {
+                    const buffer = this.sourceBuffers[sourceIndex];
+                    const sampleRate = buffer.sampleRate;
+                    
+                    // Convert ms to samples
+                    const minChunkSamples = Math.floor(minChunkMs * sampleRate / 1000);
+                    const maxChunkSamples = Math.floor(maxChunkMs * sampleRate / 1000);
+                    
+                    // Calculate hop size based on overlap
+                    const avgChunkSize = (minChunkSamples + maxChunkSamples) / 2;
+                    const hopSize = Math.floor(avgChunkSize * (1 - overlapFactor));
+                    
+                    // Create chunks
+                    for (let position = 0; position < buffer.length - minChunkSamples; position += hopSize) {
+                        // Randomly vary chunk size between min and max
+                        const chunkSize = Math.floor(minChunkSamples + 
+                                                    Math.random() * (maxChunkSamples - minChunkSamples));
+                        
+                        // Ensure we don't exceed buffer length
+                        if (position + chunkSize > buffer.length) break;
+                        
+                        // Create chunk data
+                        const chunk = {
+                            sourceIndex: sourceIndex,
+                            startSample: position,
+                            endSample: position + chunkSize,
+                            length: chunkSize,
+                            sampleRate: sampleRate
+                        };
+                        
+                        // Extract channel data for feature analysis
+                        const channelData = buffer.getChannelData(0).slice(position, position + chunkSize);
+                        
+                        // Extract features
+                        const features = this.extractFeatures(channelData, sampleRate);
+                        
+                        // Store chunk and features
+                        this.sampleChunks.push(chunk);
+                        this.chunkFeatures.push(features);
+                    }
+                }
+                
+                updateStatus(`Created ${this.sampleChunks.length} sample chunks`);
+                return this.sampleChunks.length > 0;
+            },
+            
+            // Extract audio features from a chunk
+            extractFeatures: function(samples, sampleRate) {
+                // Simple feature set for audio comparison
+                const features = {
+                    rms: 0,            // Root Mean Square (energy)
+                    zeroCrossings: 0,  // Zero crossing rate
+                    spectralCentroid: 0, // Spectral centroid (brightness)
+                    lowEnergy: 0,      // Energy in low frequencies
+                    highEnergy: 0,     // Energy in high frequencies
+                };
+                
+                // Calculate RMS (energy)
+                let sumSquares = 0;
+                for (let i = 0; i < samples.length; i++) {
+                    sumSquares += samples[i] * samples[i];
+                }
+                features.rms = Math.sqrt(sumSquares / samples.length);
+                
+                // Calculate zero crossing rate
+                let zeroCrossings = 0;
+                for (let i = 1; i < samples.length; i++) {
+                    if ((samples[i] >= 0 && samples[i - 1] < 0) || 
+                        (samples[i] < 0 && samples[i - 1] >= 0)) {
+                        zeroCrossings++;
+                    }
+                }
+                features.zeroCrossings = zeroCrossings / samples.length;
+                
+                // Simple frequency analysis
+                // For a real app, we would use FFT here
+                // This is a simplified approach
+                let lowSum = 0;
+                let highSum = 0;
+                
+                // Use a crude method to separate low and high frequencies
+                // by looking at alternating samples
+                for (let i = 0; i < samples.length - 1; i++) {
+                    // Difference between adjacent samples (higher = more high frequency content)
+                    const diff = Math.abs(samples[i] - samples[i + 1]);
+                    highSum += diff;
+                    lowSum += Math.abs(samples[i]) - diff;
+                }
+                
+                features.lowEnergy = Math.max(0, lowSum / samples.length);
+                features.highEnergy = highSum / samples.length;
+                
+                // Crude spectral centroid approximation
+                const totalEnergy = features.lowEnergy + features.highEnergy;
+                if (totalEnergy > 0) {
+                    features.spectralCentroid = features.highEnergy / totalEnergy;
+                }
+                
+                return features;
+            },
+            
+            // Create network connections between similar chunks
+            createNetwork: function(connectionsPerNode) {
+                if (this.sampleChunks.length === 0 || this.chunkFeatures.length === 0) {
+                    updateStatus("No sample chunks available", true);
+                    return false;
+                }
+                
+                this.networkConnections = [];
+                updateStatus("Creating network connections...");
+                
+                // For each chunk, find the most similar chunks
+                for (let i = 0; i < this.sampleChunks.length; i++) {
+                    const similarities = [];
+                    
+                    // Calculate similarity to all other chunks
+                    for (let j = 0; j < this.sampleChunks.length; j++) {
+                        if (i === j) continue; // Skip self
+                        
+                        const similarity = this.calculateSimilarity(
+                            this.chunkFeatures[i], this.chunkFeatures[j]
+                        );
+                        
+                        similarities.push({index: j, similarity: similarity});
+                    }
+                    
+                    // Sort by similarity (descending)
+                    similarities.sort((a, b) => b.similarity - a.similarity);
+                    
+                    // Connect to the most similar chunks
+                    const connections = Math.min(connectionsPerNode, similarities.length);
+                    for (let k = 0; k < connections; k++) {
+                        this.networkConnections.push({
+                            from: i,
+                            to: similarities[k].index,
+                            weight: similarities[k].similarity
+                        });
+                    }
+                }
+                
+                updateStatus(`Created ${this.networkConnections.length} network connections`);
+                
+                // Draw the network visualization
+                this.drawNetwork();
+                
+                return true;
+            },
+            
+            // Calculate similarity between two feature vectors
+            calculateSimilarity: function(features1, features2) {
+                // Normalize and weight features
+                const weights = {
+                    rms: 0.15,
+                    zeroCrossings: 0.25,
+                    spectralCentroid: 0.3,
+                    lowEnergy: 0.15,
+                    highEnergy: 0.15
+                };
+                
+                let similarity = 0;
+                let totalWeight = 0;
+                
+                // Calculate weighted Euclidean distance for each feature
+                for (const feature in weights) {
+                    if (feature in features1 && feature in features2) {
+                        const diff = features1[feature] - features2[feature];
+                        similarity += weights[feature] * (1 - Math.min(1, Math.abs(diff)));
+                        totalWeight += weights[feature];
+                    }
+                }
+                
+                // Normalize to 0-1 range
+                if (totalWeight > 0) {
+                    similarity /= totalWeight;
+                }
+                
+                return similarity;
+            },
+            
+            // Analyze reference file and chunk it
+            analyzeReference: function(minChunkMs, maxChunkMs) {
+                if (!this.referenceBuffer) {
+                    updateStatus("No reference file loaded", true);
+                    return false;
+                }
+                
+                this.referenceChunks = [];
+                this.referenceFeatures = [];
+                
+                updateStatus("Analyzing reference file...");
+                
+                const buffer = this.referenceBuffer;
+                const sampleRate = buffer.sampleRate;
+                
+                // Convert ms to samples
+                const minChunkSamples = Math.floor(minChunkMs * sampleRate / 1000);
+                const maxChunkSamples = Math.floor(maxChunkMs * sampleRate / 1000);
+                
+                // Use constant chunk size for reference (average of min and max)
+                const chunkSize = Math.floor((minChunkSamples + maxChunkSamples) / 2);
+                
+                // Create reference chunks with no overlap
+                for (let position = 0; position < buffer.length - chunkSize; position += chunkSize) {
+                    // Create chunk data
+                    const chunk = {
+                        startSample: position,
+                        endSample: position + chunkSize,
+                        length: chunkSize,
+                        sampleRate: sampleRate
+                    };
+                    
+                    // Extract channel data for feature analysis
+                    const channelData = buffer.getChannelData(0).slice(position, position + chunkSize);
+                    
+                    // Extract features
+                    const features = this.extractFeatures(channelData, sampleRate);
+                    
+                    // Store chunk and features
+                    this.referenceChunks.push(chunk);
+                    this.referenceFeatures.push(features);
+                }
+                
+                updateStatus(`Analyzed reference into ${this.referenceChunks.length} chunks`);
+                return this.referenceChunks.length > 0;
+            },
+            
+            // Generate output by matching reference chunks to network chunks
+            generateOutput: function(strictness, creativity) {
+                if (this.referenceChunks.length === 0 || this.sampleChunks.length === 0) {
+                    updateStatus("Reference analysis or sample network not available", true);
+                    return false;
+                }
+                
+                this.matchedChunks = [];
+                updateStatus("Generating output...");
+                
+                // Convert parameters to 0-1 range
+                const strictnessFactor = strictness / 100;
+                const creativityFactor = creativity / 100;
+                
+                // For each reference chunk, find the best matching sample chunk
+                for (let i = 0; i < this.referenceChunks.length; i++) {
+                    const refFeatures = this.referenceFeatures[i];
+                    
+                    // Calculate similarity to all sample chunks
+                    const matches = [];
+                    for (let j = 0; j < this.sampleChunks.length; j++) {
+                        const similarity = this.calculateSimilarity(refFeatures, this.chunkFeatures[j]);
+                        matches.push({index: j, similarity: similarity});
+                    }
+                    
+                    // Sort by similarity (descending)
+                    matches.sort((a, b) => b.similarity - a.similarity);
+                    
+                    // Determine how many top matches to consider based on strictness
+                    const poolSize = Math.max(1, Math.floor((1 - strictnessFactor) * 20) + 1);
+                    
+                    // Introduce creativity by sometimes choosing from neighbors in the network
+                    let selectedIndex;
+                    
+                    if (Math.random() < creativityFactor && i > 0 && this.matchedChunks.length > 0) {
+                        // Find connected chunks from the last matched chunk
+                        const lastMatchedIndex = this.matchedChunks[this.matchedChunks.length - 1];
+                        const connections = this.networkConnections.filter(conn => conn.from === lastMatchedIndex);
+                        
+                        if (connections.length > 0) {
+                            // Sort connections by weight (similarity)
+                            connections.sort((a, b) => b.weight - a.weight);
+                            
+                            // Choose from connected chunks, weighted by similarity
+                            const connPool = Math.min(connections.length, poolSize);
+                            selectedIndex = connections[Math.floor(Math.random() * connPool)].to;
+                        } else {
+                            // If no connections, use similarity matching
+                            selectedIndex = matches[Math.floor(Math.random() * poolSize)].index;
+                        }
+                    } else {
+                        // Choose from top matches based on similarity
+                        selectedIndex = matches[Math.floor(Math.random() * poolSize)].index;
+                    }
+                    
+                    // Store the matched chunk index
+                    this.matchedChunks.push(selectedIndex);
+                }
+                
+                // Create the output buffer
+                this.createOutputBuffer();
+                
+                updateStatus("Output generation complete!");
+                return true;
+            },
+            
+            // Create output buffer from matched chunks
+            createOutputBuffer: function() {
+                if (this.matchedChunks.length === 0) {
+                    return false;
+                }
+                
+                // Calculate total length (in samples)
+                let totalSamples = 0;
+                for (let i = 0; i < this.matchedChunks.length; i++) {
+                    const chunkIndex = this.matchedChunks[i];
+                    const chunk = this.sampleChunks[chunkIndex];
+                    totalSamples += chunk.length;
+                }
+                
+                // Create output buffer
+                const sampleRate = this.audioContext.sampleRate;
+                const outputBuffer = this.audioContext.createBuffer(
+                    2, // Stereo output
+                    totalSamples,
+                    sampleRate
+                );
+                
+                // Fill output buffer with matched chunks
+                let outputPosition = 0;
+                const fadeLength = Math.floor(sampleRate * 0.01); // 10ms crossfade
+                
+                for (let i = 0; i < this.matchedChunks.length; i++) {
+                    const chunkIndex = this.matchedChunks[i];
+                    const chunk = this.sampleChunks[chunkIndex];
+                    const sourceBuffer = this.sourceBuffers[chunk.sourceIndex];
+                    
+                    // Copy chunk data to output
+                    for (let channel = 0; channel < Math.min(outputBuffer.numberOfChannels, sourceBuffer.numberOfChannels); channel++) {
+                        const outputData = outputBuffer.getChannelData(channel);
+                        const sourceData = sourceBuffer.getChannelData(channel);
+                        
+                        for (let j = 0; j < chunk.length; j++) {
+                            if (outputPosition + j >= outputBuffer.length) break;
+                            
+                            // Get source sample
+                            const sourceSample = sourceData[chunk.startSample + j];
+                            
+                            // Apply fade-in at beginning of chunk
+                            let gain = 1.0;
+                            if (j < fadeLength) {
+                                gain = j / fadeLength;
+                            }
+                            
+                            // Apply fade-out at end of chunk
+                            if (j >= chunk.length - fadeLength) {
+                                gain = (chunk.length - j) / fadeLength;
+                            }
+                            
+                            // Apply gain and add to output
+                            outputData[outputPosition + j] = sourceSample * gain;
+                        }
+                    }
+                    
+                    // Move output position
+                    outputPosition += chunk.length;
+                }
+                
+                // Store output buffer
+                this.outputBuffer = outputBuffer;
+                
+                // Draw output waveform
+                this.drawWaveform(outputBuffer);
+                
+                return true;
+            },
+            
+            // Draw network visualization
+            drawNetwork: function() {
+                const canvas = document.getElementById('networkCanvas');
+                if (!canvas) return;
+                
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas dimensions
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw background
+                ctx.fillStyle = '#f8f9fa';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Node positions (use a simple force-directed layout)
+                const nodePositions = [];
+                
+                // Max nodes to display (for performance)
+                const maxNodesToDisplay = Math.min(100, this.sampleChunks.length);
+                
+                // Initialize positions
+                for (let i = 0; i < maxNodesToDisplay; i++) {
+                    // Distributed in a grid pattern
+                    const cols = Math.ceil(Math.sqrt(maxNodesToDisplay));
+                    const rows = Math.ceil(maxNodesToDisplay / cols);
+                    
+                    const col = i % cols;
+                    const row = Math.floor(i / cols);
+                    
+                    // Add some randomness to positions
+                    const x = (col + 0.5) * (canvas.width / cols) + (Math.random() * 20 - 10);
+                    const y = (row + 0.5) * (canvas.height / rows) + (Math.random() * 20 - 10);
+                    
+                    nodePositions.push({x, y});
+                }
+                
+                // Draw connections
+                ctx.strokeStyle = 'rgba(52, 152, 219, 0.2)';
+                ctx.lineWidth = 1;
+                
+                for (let i = 0; i < this.networkConnections.length; i++) {
+                    const conn = this.networkConnections[i];
+                    
+                    // Skip if either node isn't in our display set
+                    if (conn.from >= maxNodesToDisplay || conn.to >= maxNodesToDisplay) continue;
+                    
+                    const fromPos = nodePositions[conn.from];
+                    const toPos = nodePositions[conn.to];
+                    
+                    // Adjust line width based on connection weight
+                    ctx.lineWidth = conn.weight * 3;
+                    
+                    // Draw connection line
+                    ctx.beginPath();
+                    ctx.moveTo(fromPos.x, fromPos.y);
+                    ctx.lineTo(toPos.x, toPos.y);
+                    ctx.stroke();
+                }
+                
+                // Draw nodes
+                for (let i = 0; i < maxNodesToDisplay; i++) {
+                    const pos = nodePositions[i];
+                    const chunk = this.sampleChunks[i];
+                    
+                    // Node size based on chunk length
+                    const size = 4 + (chunk.length / chunk.sampleRate) * 50; // Size by duration
+                    
+                    // Node color based on source file
+                    const colors = [
+                        '#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', 
+                        '#1abc9c', '#d35400', '#34495e', '#7f8c8d', '#16a085'
+                    ];
+                    const color = colors[chunk.sourceIndex % colors.length];
+                    
+                    // Draw node
+                    ctx.beginPath();
+                    ctx.fillStyle = color;
+                    ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Update network stats
+                document.getElementById('networkStats').textContent = 
+                    ` Network contains ${this.sampleChunks.length} nodes and ${this.networkConnections.length} connections.`;
+            },
+            
+            // Draw waveform visualization
+            drawWaveform: function(buffer) {
+                const canvas = document.getElementById('waveformCanvas');
+                if (!canvas || !buffer) return;
+                
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas dimensions
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw background
+                ctx.fillStyle = '#f8f9fa';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Get audio data
+                const data = buffer.getChannelData(0);
+                const step = Math.ceil(data.length / canvas.width);
+                const amp = canvas.height / 2;
+                
+                // Draw center line
+                ctx.beginPath();
+                ctx.strokeStyle = '#cccccc';
+                ctx.moveTo(0, amp);
+                ctx.lineTo(canvas.width, amp);
+                ctx.stroke();
+                
+                // Draw waveform
+                ctx.beginPath();
+                ctx.strokeStyle = '#3498db';
+                ctx.lineWidth = 1;
+                
+                for (let i = 0; i < canvas.width; i++) {
+                    // For each pixel, find the peak samples
+                    let min = 1.0;
+                    let max = -1.0;
+                    
+                    for (let j = 0; j < step; j++) {
+                        const idx = (i * step) + j;
+                        if (idx < data.length) {
+                            const sample = data[idx];
+                            if (sample < min) min = sample;
+                            if (sample > max) max = sample;
+                        }
+                    }
+                    
+                    // Draw min and max as a vertical line
+                    ctx.moveTo(i, amp * (1 + min * 0.9));
+                    ctx.lineTo(i, amp * (1 + max * 0.9));
+                }
+                
+                ctx.stroke();
+                
+                // Draw chunk boundaries
+                if (this.matchedChunks && this.matchedChunks.length > 0) {
+                    let positionSamples = 0;
+                    
+                    for (let i = 0; i < this.matchedChunks.length; i++) {
+                        const chunkIndex = this.matchedChunks[i];
+                        const chunk = this.sampleChunks[chunkIndex];
+                        
+                        // Calculate x position
+                        const x = Math.floor((positionSamples / data.length) * canvas.width);
+                        
+                        // Draw boundary line
+                        ctx.beginPath();
+                        ctx.strokeStyle = 'rgba(231, 76, 60, 0.5)';
+                        ctx.lineWidth = 1;
+                        ctx.setLineDash([5, 3]);
+                        ctx.moveTo(x, 0);
+                        ctx.lineTo(x, canvas.height);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                        
+                        // Move position
+                        positionSamples += chunk.length;
+                    }
+                }
+            },
+            
+            // Play the generated output
+            playOutput: function() {
+                if (!this.outputBuffer) {
+                    updateStatus('No output available to play', true);
+                    return null;
+                }
+                
+                // Stop any currently playing audio
+                this.stopPlayback();
+                
+                const source = this.audioContext.createBufferSource();
+                source.buffer = this.outputBuffer;
+                source.connect(this.audioContext.destination);
+                source.start();
+                this.activeSource = source;
+                
+                updateStatus('Playing output...');
+                
+                source.onended = () => {
+                    this.activeSource = null;
+                    updateStatus('Playback finished');
+                    document.getElementById('stopButton').disabled = true;
+                };
+                
+                return source;
+            },
+            
+            // Stop playback
+            stopPlayback: function() {
+                if (this.activeSource) {
+                    this.activeSource.stop();
+                    this.activeSource = null;
+                    updateStatus('Playback stopped');
+                }
+            },
+            
+            // Export output to file (WAV format)
+            exportOutput: function() {
+                if (!this.outputBuffer) {
+                    updateStatus('No output available to export', true);
+                    return;
+                }
+                
+                // Create WAV file
+                const wavData = this.audioBufferToWav(this.outputBuffer);
+                const blob = new Blob([wavData], { type: 'audio/wav' });
+                
+                // Create download link
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'neural_mashed_output.wav';
+                document.body.appendChild(a);
+                a.click();
+                
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+                
+                updateStatus('Output exported as WAV file');
+            },
+            
+            // Convert AudioBuffer to WAV format
+            audioBufferToWav: function(buffer) {
+                const numChannels = buffer.numberOfChannels;
+                const sampleRate = buffer.sampleRate;
+                const format = 1; // PCM
+                const bitDepth = 16;
+                
+                let result;
+                if (numChannels === 2) {
+                    result = this.interleave(buffer.getChannelData(0), buffer.getChannelData(1));
+                } else {
+                    result = buffer.getChannelData(0);
+                }
+                
+                const dataLength = result.length * (bitDepth / 8);
+                const buffer2 = new ArrayBuffer(44 + dataLength);
+                const view = new DataView(buffer2);
+                
+                // Write WAV header
+                // "RIFF" chunk descriptor
+                this.writeString(view, 0, 'RIFF');
+                view.setUint32(4, 36 + dataLength, true);
+                this.writeString(view, 8, 'WAVE');
+                
+                // "fmt " sub-chunk
+                this.writeString(view, 12, 'fmt ');
+                view.setUint32(16, 16, true); // fmt chunk size
+                view.setUint16(20, format, true);
+                view.setUint16(22, numChannels, true);
+                view.setUint32(24, sampleRate, true);
+                view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true); // byte rate
+                view.setUint16(32, numChannels * (bitDepth / 8), true); // block align
+                view.setUint16(34, bitDepth, true);
+                
+                // "data" sub-chunk
+                this.writeString(view, 36, 'data');
+                view.setUint32(40, dataLength, true);
+                
+                // Write PCM samples
+                const offset = 44;
+                this.floatTo16BitPCM(view, offset, result);
+                
+                return buffer2;
+            },
+            
+            // Helper for WAV creation
+            writeString: function(view, offset, string) {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            },
+            
+            // Helper for WAV creation
+            floatTo16BitPCM: function(output, offset, input) {
+                for (let i = 0; i < input.length; i++, offset += 2) {
+                    const s = Math.max(-1, Math.min(1, input[i]));
+                    output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                }
+            },
+            
+            // Helper for WAV creation
+            interleave: function(inputL, inputR) {
+                const length = inputL.length + inputR.length;
+                const result = new Float32Array(length);
+                
+                let index = 0;
+                let inputIndex = 0;
+                
+                while (index < length) {
+                    result[index++] = inputL[inputIndex];
+                    result[index++] = inputR[inputIndex];
+                    inputIndex++;
+                }
+                
+                return result;
+            }
+        };
+
+        // UI Control Functions
+        let sourceFiles = [];
+        let referenceFile = null;
+        
+        function updateStatus(message, isError = false) {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = message;
+            statusElement.style.color = isError ? 'red' : 'black';
+            console.log(message);
+        }
+        
+        function updateSourceFileList() {
+            const fileListElement = document.getElementById('sourceFileList');
+            fileListElement.innerHTML = '';
+            
+            if (sourceFiles.length === 0) {
+                fileListElement.innerHTML = '<p>No source files selected</p>';
+                return;
+            }
+            
+            let html = '';
+            for (let i = 0; i < sourceFiles.length; i++) {
+                const file = sourceFiles[i];
+                html += `<div class="file-item">${i+1}. ${file.name} (${(file.size / 1024).toFixed(1)} KB)</div>`;
+            }
+            
+            fileListElement.innerHTML = html;
+        }
+        
+        function updateReferenceFileInfo() {
+            const fileInfoElement = document.getElementById('referenceFileInfo');
+            
+            if (!referenceFile) {
+                fileInfoElement.innerHTML = '<p>No reference file selected</p>';
+                return;
+            }
+            
+            fileInfoElement.innerHTML = `<div class="file-item">Reference: ${referenceFile.name} (${(referenceFile.size / 1024).toFixed(1)} KB)</div>`;
+        }
+        
+        // Set up event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            const sourceFilesInput = document.getElementById('sourceFiles');
+            const referenceFileInput = document.getElementById('referenceFile');
+            const createNetworkButton = document.getElementById('createNetworkButton');
+            const analyzeButton = document.getElementById('analyzeButton');
+            const generateButton = document.getElementById('generateButton');
+            const playButton = document.getElementById('playButton');
+            const stopButton = document.getElementById('stopButton');
+            const saveButton = document.getElementById('saveButton');
+            const progressBar = document.getElementById('progressBar');
+            
+            // Parameter sliders
+            const overlapSlider = document.getElementById('overlap');
+            const overlapValue = document.getElementById('overlapValue');
+            const strictnessSlider = document.getElementById('strictness');
+            const strictnessValue = document.getElementById('strictnessValue');
+            const creativitySlider = document.getElementById('creativity');
+            const creativityValue = document.getElementById('creativityValue');
+            const connectionsSlider = document.getElementById('connections');
+            const connectionsValue = document.getElementById('connectionsValue');
+            
+            // Update slider value displays
+            overlapSlider.addEventListener('input', function() {
+                overlapValue.textContent = `${this.value}%`;
+            });
+            
+            strictnessSlider.addEventListener('input', function() {
+                strictnessValue.textContent = `${this.value}%`;
+            });
+            
+            creativitySlider.addEventListener('input', function() {
+                creativityValue.textContent = `${this.value}%`;
+            });
+            
+            connectionsSlider.addEventListener('input', function() {
+                connectionsValue.textContent = this.value;
+            });
+            
+            // Source files selection
+            sourceFilesInput.addEventListener('change', function(e) {
+                sourceFiles = Array.from(e.target.files);
+                updateSourceFileList();
+                
+                // Enable/disable buttons
+                createNetworkButton.disabled = sourceFiles.length === 0;
+            });
+            
+            // Reference file selection
+            referenceFileInput.addEventListener('change', function(e) {
+                if (e.target.files.length === 0) {
+                    referenceFile = null;
+                } else {
+                    referenceFile = e.target.files[0];
+                }
+                
+                updateReferenceFileInfo();
+                
+                // Enable/disable buttons
+                analyzeButton.disabled = !referenceFile;
+            });
+            
+            // Min/max validation
+            document.getElementById('minChunk').addEventListener('change', function() {
+                const min = parseInt(this.value);
+                const max = parseInt(document.getElementById('maxChunk').value);
+                if (min > max) {
+                    document.getElementById('maxChunk').value = min;
+                }
+            });
+            
+            document.getElementById('maxChunk').addEventListener('change', function() {
+                const min = parseInt(document.getElementById('minChunk').value);
+                const max = parseInt(this.value);
+                if (max < min) {
+                    document.getElementById('minChunk').value = max;
+                }
+            });
+            
+            // Create sample network
+            createNetworkButton.addEventListener('click', async function() {
+                if (sourceFiles.length === 0) {
+                    updateStatus('Please select at least one source file', true);
+                    return;
+                }
+                
+                // Disable buttons
+                createNetworkButton.disabled = true;
+                analyzeButton.disabled = true;
+                generateButton.disabled = true;
+                
+                // Show progress bar
+                progressBar.style.display = 'block';
+                progressBar.value = 10;
+                
+                try {
+                    // Load source files
+                    const success = await NeuralSampleMasher.loadSourceFiles(sourceFiles);
+                    if (!success) {
+                        throw new Error('Failed to load source files');
+                    }
+                    
+                    progressBar.value = 40;
+                    
+                    // Get parameters
+                    const minChunk = parseInt(document.getElementById('minChunk').value);
+                    const maxChunk = parseInt(document.getElementById('maxChunk').value);
+                    const overlap = parseInt(overlapSlider.value);
+                    const connections = parseInt(connectionsSlider.value);
+                    
+                    // Create sample chunks
+                    if (!NeuralSampleMasher.createSampleChunks(minChunk, maxChunk, overlap)) {
+                        throw new Error('Failed to create sample chunks');
+                    }
+                    
+                    progressBar.value = 70;
+                    
+                    // Create network
+                    if (!NeuralSampleMasher.createNetwork(connections)) {
+                        throw new Error('Failed to create network');
+                    }
+                    
+                    progressBar.value = 100;
+                    
+                    // Re-enable buttons
+                    createNetworkButton.disabled = false;
+                    analyzeButton.disabled = !referenceFile;
+                    
+                } catch (error) {
+                    updateStatus(`Error: ${error.message}`, true);
+                    createNetworkButton.disabled = false;
+                    analyzeButton.disabled = !referenceFile;
+                }
+                
+                // Hide progress bar
+                progressBar.style.display = 'none';
+            });
+            
+            // Analyze reference
+            analyzeButton.addEventListener('click', async function() {
+                if (!referenceFile) {
+                    updateStatus('Please select a reference file', true);
+                    return;
+                }
+                
+                if (NeuralSampleMasher.sampleChunks.length === 0) {
+                    updateStatus('Please create a sample network first', true);
+                    return;
+                }
+                
+                // Disable buttons
+                createNetworkButton.disabled = true;
+                analyzeButton.disabled = true;
+                generateButton.disabled = true;
+                
+                // Show progress bar
+                progressBar.style.display = 'block';
+                progressBar.value = 10;
+                
+                try {
+                    // Load reference file
+                    const success = await NeuralSampleMasher.loadReferenceFile(referenceFile);
+                    if (!success) {
+                        throw new Error('Failed to load reference file');
+                    }
+                    
+                    progressBar.value = 50;
+                    
+                    // Get parameters
+                    const minChunk = parseInt(document.getElementById('minChunk').value);
+                    const maxChunk = parseInt(document.getElementById('maxChunk').value);
+                    
+                    // Analyze reference
+                    if (!NeuralSampleMasher.analyzeReference(minChunk, maxChunk)) {
+                        throw new Error('Failed to analyze reference');
+                    }
+                    
+                    progressBar.value = 100;
+                    
+                    // Re-enable buttons
+                    createNetworkButton.disabled = false;
+                    analyzeButton.disabled = false;
+                    generateButton.disabled = false;
+                    
+                } catch (error) {
+                    updateStatus(`Error: ${error.message}`, true);
+                    createNetworkButton.disabled = false;
+                    analyzeButton.disabled = false;
+                }
+                
+                // Hide progress bar
+                progressBar.style.display = 'none';
+            });
+            
+            // Generate output
+            generateButton.addEventListener('click', function() {
+                if (NeuralSampleMasher.referenceChunks.length === 0) {
+                    updateStatus('Please analyze a reference file first', true);
+                    return;
+                }
+                
+                // Disable buttons
+                generateButton.disabled = true;
+                playButton.disabled = true;
+                stopButton.disabled = true;
+                saveButton.disabled = true;
+                
+                // Show progress bar
+                progressBar.style.display = 'block';
+                progressBar.value = 10;
+                
+                try {
+                    // Get parameters
+                    const strictness = parseInt(strictnessSlider.value);
+                    const creativity = parseInt(creativitySlider.value);
+                    
+                    // Generate output
+                    const success = NeuralSampleMasher.generateOutput(strictness, creativity);
+                    
+                    progressBar.value = 100;
+                    
+                    // Re-enable buttons
+                    generateButton.disabled = false;
+                    playButton.disabled = !success;
+                    saveButton.disabled = !success;
+                    
+                } catch (error) {
+                    updateStatus(`Error: ${error.message}`, true);
+                    generateButton.disabled = false;
+                }
+                
+                // Hide progress bar
+                progressBar.style.display = 'none';
+            });
+            
+            // Play button
+            playButton.addEventListener('click', function() {
+                NeuralSampleMasher.playOutput();
+                playButton.disabled = true;
+                stopButton.disabled = false;
+            });
+            
+            // Stop button
+            stopButton.addEventListener('click', function() {
+                NeuralSampleMasher.stopPlayback();
+                playButton.disabled = false;
+                stopButton.disabled = true;
+            });
+            
+            // Save button
+            saveButton.addEventListener('click', function() {
+                NeuralSampleMasher.exportOutput();
+            });
+            
+            // Initialize canvases
+            const canvas1 = document.getElementById('networkCanvas');
+            canvas1.width = canvas1.clientWidth;
+            canvas1.height = canvas1.clientHeight;
+            
+            const canvas2 = document.getElementById('waveformCanvas');
+            canvas2.width = canvas2.clientWidth;
+            canvas2.height = canvas2.clientHeight;
+        });
+    </script>
+</body>
+</html>
