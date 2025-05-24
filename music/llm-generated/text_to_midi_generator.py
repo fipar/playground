@@ -23,24 +23,44 @@ PITCH_CLASSES = {
 
 def note_name_to_midi(note_name_str):
     """Converts a note name (e.g., "C4", "F#3", "Db5") to a MIDI note number."""
-    note_name_upper = note_name_str.upper()
-    
+    note_name_upper = note_name_str.upper() # e.g., "C2B", "D4S" (for sharp), "E3"
+
+    accidental_offset = 0
+    # The part of the string that will be processed for pitch letter and octave
+    # after potentially stripping a 'b' or 's' suffix.
+    core_note_part = note_name_upper
+
+    # Check for trailing 'B' (flat) or 'S' (sharp) as per new syntax
+    if note_name_upper.endswith('B'):
+        accidental_offset = -1
+        core_note_part = note_name_upper[:-1] # Remove 'B'
+    elif note_name_upper.endswith('S'): # Added 'S' for sharp suffix for consistency
+        accidental_offset = 1
+        core_note_part = note_name_upper[:-1] # Remove 'S'
+
+    # At this point, core_note_part should be like "C2", "DB3", "F#4" (standard forms)
+    if not core_note_part: # Handles cases like input being just "b" or "s"
+        raise ValueError(f"Invalid note format: '{note_name_str}'. Note part is empty after processing suffix.")
+
     try:
-        octave = int(note_name_upper[-1])
-    except ValueError:
-        raise ValueError(f"Invalid octave in note: {note_name_str}. Last character must be a digit.")
-        
-    pitch_part = note_name_upper[:-1]
+        # Octave is the last char of core_note_part
+        octave = int(core_note_part[-1])
+    except (ValueError, IndexError): # IndexError if core_note_part is too short (e.g. just "C" after stripping suffix from "Cb")
+        raise ValueError(f"Invalid note format or missing octave in: '{note_name_str}'. Expected format like 'C4', 'Db3', 'E2b', 'F3s'.")
+
+    # Pitch part is everything before the octave in core_note_part
+    pitch_part = core_note_part[:-1]
 
     if not pitch_part:
-        raise ValueError(f"Missing pitch class in note: {note_name_str}.")
+        raise ValueError(f"Missing pitch class in note: '{note_name_str}'.")
 
     if pitch_part not in PITCH_CLASSES:
-        raise ValueError(f"Unknown pitch class: '{pitch_part}' in note '{note_name_str}'")
+        raise ValueError(f"Unknown pitch class: '{pitch_part}' (from '{core_note_part}') in note '{note_name_str}'")
 
-    pitch_class_val = PITCH_CLASSES[pitch_part]
-    
-    midi_note = pitch_class_val + (octave + 1) * 12
+    base_pitch_class_val = PITCH_CLASSES[pitch_part]
+    final_pitch_class_val = (base_pitch_class_val + accidental_offset + 12) % 12 # Apply suffix offset and normalize
+
+    midi_note = final_pitch_class_val + (octave + 1) * 12
     if not (0 <= midi_note <= 127):
         raise ValueError(f"MIDI note {midi_note} for '{note_name_str}' is out of range (0-127).")
     return midi_note
