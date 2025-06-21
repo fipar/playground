@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UPIC-style Sound Sketcher</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>UPIC-style Sound Sketcher</h1>
+
+    <div class="controls">
+        <label for="audioFile">Upload Audio Sample:</label>
+        <input type="file" id="audioFile" accept="audio/*">
+
+        <label for="bpm">BPM:</label>
+        <input type="number" id="bpm" value="120" min="30" max="300">
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="soundCanvas"></canvas>
+    </div>
+
+    <div class="actions">
+        <button id="playButton" disabled>Play</button>
+        <button id="clearButton">Clear Drawing</button>
+        <button id="saveButton" disabled>Save Audio</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
