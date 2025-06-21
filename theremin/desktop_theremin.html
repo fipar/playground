@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desktop Theremin</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100vh;
+            background: linear-gradient(to bottom, #2c3e50, #4ca1af);
+            color: white;
+            user-select: none;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        h1 {
+            margin-bottom: 10px;
+            font-size: 24px;
+            text-align: center;
+        }
+        
+        .theremin-pad {
+            width: 100%;
+            max-width: 700px;
+            height: 60vh;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        
+        .visualizer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 700px;
+            margin-top: 20px;
+        }
+        
+        .display {
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 10px 15px;
+            width: 100%;
+            max-width: 700px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .value {
+            font-size: 16px;
+            font-family: monospace;
+            margin: 5px 0;
+        }
+        
+        button {
+            background-color: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+        
+        button:active {
+            background-color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .settings {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        
+        .settings-panel {
+            background: linear-gradient(to bottom, #2c3e50, #4ca1af);
+            border-radius: 10px;
+            padding: 20px;
+            width: 80%;
+            max-width: 400px;
+        }
+        
+        .setting-item {
+            margin-bottom: 20px;
+        }
+        
+        .setting-item label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .setting-item select, .setting-item input {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border-radius: 4px;
+            border: 1px solid #4ca1af;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .status {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 5;
+        }
+        
+        .startup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            flex-direction: column;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .startup button {
+            margin-top: 20px;
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: #4ca1af;
+        }
+        
+        .note {
+            font-size: 14px;
+            margin-top: 20px;
+            max-width: 500px;
+            opacity: 0.8;
+            text-align: center;
+        }
+        
+        .position-indicator {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.7);
+        }
+        
+        .guide-label {
+            display: flex;
+            width: 100%;
+            max-width: 700px;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 12px;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="startup" id="startup">
+        <h1>Desktop Theremin</h1>
+        <p>Control sound with your mouse or trackpad</p>
+        <button id="startButton">Start Playing</button>
+        <p class="note">This app uses your audio capabilities. Please ensure your volume is turned up. Move your cursor over the pad: horizontal position controls pitch, vertical position controls volume.</p>
+    </div>
+    
+    <div class="container">
+        <h1>Desktop Theremin</h1>
+        
+        <div class="display">
+            <div class="value">Frequency: <span id="freqDisplay">440</span> Hz</div>
+            <div class="value">Volume: <span id="volDisplay">0</span>%</div>
+            <div class="value">Vibrato: <span id="vibratoDisplay">0</span>%</div>
+        </div>
+        
+        <div class="theremin-pad" id="thereminPad">
+            <div class="visualizer">
+                <canvas id="canvas"></canvas>
+            </div>
+            <div class="position-indicator" id="positionIndicator" style="display: none;"></div>
+        </div>
+        
+        <div class="guide-label">
+            <span>Low Pitch</span>
+            <span>High Pitch</span>
+        </div>
+        
+        <div class="controls">
+            <button id="settingsButton">Settings</button>
+            <button id="muteButton">Mute</button>
+            <button id="resetButton">Reset</button>
+        </div>
+        
+        <p class="note" id="controlNote">Move pointer over pad: Horizontal position for pitch, vertical position for volume. Hover near the top for more vibrato.</p>
+    </div>
+    
+    <div class="status" id="status">Ready</div>
+    
+    <div class="settings" id="settingsPanel">
+        <div class="settings-panel">
+            <h2>Settings</h2>
+            
+            <div class="setting-item">
+                <label for="waveType">Waveform Type</label>
+                <select id="waveType">
+                    <option value="sine">Sine Wave</option>
+                    <option value="triangle">Triangle Wave</option>
+                    <option value="sawtooth">Sawtooth Wave</option>
+                    <option value="square">Square Wave</option>
+                </select>
+            </div>
+            
+            <div class="setting-item">
+                <label for="minFreq">Minimum Frequency: <span id="minFreqVal">100</span> Hz</label>
+                <input type="range" id="minFreq" min="50" max="500" value="100">
+            </div>
+            
+            <div class="setting-item">
+                <label for="maxFreq">Maximum Frequency: <span id="maxFreqVal">1500</span> Hz</label>
+                <input type="range" id="maxFreq" min="500" max="2000" value="1500">
+            </div>
+            
+            <div class="setting-item">
+                <label for="vibratoSpeed">Vibrato Speed: <span id="vibratoSpeedVal">5</span> Hz</label>
+                <input type="range" id="vibratoSpeed" min="1" max="10" value="5">
+            </div>
+            
+            <div class="setting-item">
+                <label for="vibratoDepth">Vibrato Depth: <span id="vibratoDepthVal">5</span>%</label>
+                <input type="range" id="vibratoDepth" min="1" max="20" value="5">
+            </div>
+            
+            <div class="setting-item">
+                <label for="vibratoThreshold">Vibrato Threshold: <span id="vibratoThresholdVal">70</span>%</label>
+                <input type="range" id="vibratoThreshold" min="10" max="90" value="70">
+            </div>
+            
+            <button id="closeSettings">Close</button>
+        </div>
+    </div>
+    
+    <script>
+        // Elements
+        const startup = document.getElementById('startup');
+        const startButton = document.getElementById('startButton');
+        const thereminPad = document.getElementById('thereminPad');
+        const freqDisplay = document.getElementById('freqDisplay');
+        const volDisplay = document.getElementById('volDisplay');
+        const vibratoDisplay = document.getElementById('vibratoDisplay');
+        const settingsButton = document.getElementById('settingsButton');
+        const muteButton = document.getElementById('muteButton');
+        const resetButton = document.getElementById('resetButton');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const closeSettings = document.getElementById('closeSettings');
+        const waveType = document.getElementById('waveType');
+        const minFreq = document.getElementById('minFreq');
+        const maxFreq = document.getElementById('maxFreq');
+        const minFreqVal = document.getElementById('minFreqVal');
+        const maxFreqVal = document.getElementById('maxFreqVal');
+        const vibratoSpeed = document.getElementById('vibratoSpeed');
+        const vibratoDepth = document.getElementById('vibratoDepth');
+        const vibratoThreshold = document.getElementById('vibratoThreshold');
+        const vibratoSpeedVal = document.getElementById('vibratoSpeedVal');
+        const vibratoDepthVal = document.getElementById('vibratoDepthVal');
+        const vibratoThresholdVal = document.getElementById('vibratoThresholdVal');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const positionIndicator = document.getElementById('positionIndicator');
+        
+        // Audio variables
+        let audioContext;
+        let oscillator;
+        let gainNode;
+        let analyser;
+        let lfoNode; // For vibrato
+        let lfoGain; // For vibrato depth
+        
+        // Settings
+        let settings = {
+            waveform: 'sine',
+            minFrequency: 100,
+            maxFrequency: 1500,
+            muted: false,
+            vibratoSpeed: 5,
+            vibratoDepth: 5,
+            vibratoThreshold: 70 // Above this % vertical position, vibrato activates
+        };
+        
+        // Current state
+        let isPlaying = false;
+        let currentFreq = 440;
+        let currentVol = 0;
+        let vibratoAmount = 0; // 0-100%
+        let isPointerActive = false;
+        
+        // Init function
+        function init() {
+            // Set up canvas
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Attach event listeners
+            startButton.addEventListener('click', startApp);
+            
+            // Mouse event listeners
+            thereminPad.addEventListener('mouseenter', handleMouseEnter);
+            thereminPad.addEventListener('mousemove', handleMouseMove);
+            thereminPad.addEventListener('mouseleave', handleMouseLeave);
+            
+            // Settings and control buttons
+            settingsButton.addEventListener('click', showSettings);
+            closeSettings.addEventListener('click', hideSettings);
+            muteButton.addEventListener('click', toggleMute);
+            resetButton.addEventListener('click', resetTone);
+            
+            // Settings change listeners
+            waveType.addEventListener('change', updateSettings);
+            minFreq.addEventListener('input', updateMinFreq);
+            maxFreq.addEventListener('input', updateMaxFreq);
+            vibratoSpeed.addEventListener('input', updateVibratoSpeed);
+            vibratoDepth.addEventListener('input', updateVibratoDepth);
+            vibratoThreshold.addEventListener('input', updateVibratoThreshold);
+            
+            // Start animation loop
+            requestAnimationFrame(draw);
+        }
+        
+        // Start app - triggered by the button click
+        function startApp() {
+            // Start audio
+            startAudio();
+            
+            // Hide startup screen
+            startup.style.display = 'none';
+            
+            showStatus('Theremin ready - move mouse over pad to play');
+        }
+        
+        // Start audio
+        function startAudio() {
+            try {
+                // Create audio context
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create nodes
+                oscillator = audioContext.createOscillator();
+                gainNode = audioContext.createGain();
+                analyser = audioContext.createAnalyser();
+                
+                // Create LFO for vibrato
+                lfoNode = audioContext.createOscillator();
+                lfoGain = audioContext.createGain();
+                
+                // Configure analyser
+                analyser.fftSize = 2048;
+                
+                // Configure oscillator
+                oscillator.type = settings.waveform;
+                oscillator.frequency.value = currentFreq;
+                
+                // Configure LFO
+                lfoNode.type = 'sine';
+                lfoNode.frequency.value = settings.vibratoSpeed;
+                lfoGain.gain.value = 0; // Start with no vibrato
+                
+                // Configure gain
+                gainNode.gain.value = 0;
+                
+                // Connect the LFO to the oscillator's frequency
+                lfoNode.connect(lfoGain);
+                lfoGain.connect(oscillator.frequency);
+                
+                // Connect the main signal path
+                oscillator.connect(gainNode);
+                gainNode.connect(analyser);
+                analyser.connect(audioContext.destination);
+                
+                // Start oscillators
+                oscillator.start();
+                lfoNode.start();
+                isPlaying = true;
+                
+                showStatus('Audio started');
+            } catch (error) {
+                console.error('Audio error:', error);
+                showStatus('Audio error: ' + error.message);
+            }
+        }
+        
+        // Mouse interaction handlers
+        function handleMouseEnter(event) {
+            if (!isPlaying) return;
+            
+            isPointerActive = true;
+            positionIndicator.style.display = 'block';
+            handlePointerInteraction(event);
+        }
+        
+        function handleMouseMove(event) {
+            if (!isPlaying || !isPointerActive) return;
+            
+            handlePointerInteraction(event);
+        }
+        
+        function handleMouseLeave() {
+            if (!isPlaying) return;
+            
+            isPointerActive = false;
+            positionIndicator.style.display = 'none';
+            endSound();
+        }
+        
+        function handlePointerInteraction(event) {
+            const rect = thereminPad.getBoundingClientRect();
+            
+            // Calculate horizontal position (for frequency)
+            // Normalize to 0-1 range
+            const xPos = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+            
+            // Map horizontal position to frequency range
+            const freqRange = settings.maxFrequency - settings.minFrequency;
+            currentFreq = settings.minFrequency + (xPos * freqRange);
+            
+            // Calculate vertical position (for volume)
+            // Normalize to 0-1 range, invert so bottom is 0, top is 1
+            const yPos = Math.max(0, Math.min(1, 1 - ((event.clientY - rect.top) / rect.height)));
+            currentVol = yPos;
+            
+            // Calculate vibrato amount based on vertical position
+            // Only apply vibrato when above the threshold
+            if (yPos * 100 >= settings.vibratoThreshold) {
+                // Map position above threshold to 0-100% vibrato
+                const vibratoRange = 100 - settings.vibratoThreshold;
+                const positionAboveThreshold = yPos * 100 - settings.vibratoThreshold;
+                vibratoAmount = (positionAboveThreshold / vibratoRange) * 100;
+            } else {
+                vibratoAmount = 0;
+            }
+            
+            // Apply frequency changes
+            if (oscillator) {
+                oscillator.frequency.value = currentFreq;
+            }
+            
+            // Apply volume changes
+            if (gainNode && !settings.muted) {
+                gainNode.gain.value = currentVol;
+            }
+            
+            // Apply vibrato
+            if (lfoNode && lfoGain) {
+                const scaledDepth = (vibratoAmount / 100) * (settings.vibratoDepth / 100);
+                lfoGain.gain.value = currentFreq * scaledDepth;
+            }
+            
+            // Update displays
+            freqDisplay.textContent = Math.round(currentFreq);
+            volDisplay.textContent = Math.round(currentVol * 100);
+            vibratoDisplay.textContent = Math.round(vibratoAmount);
+            
+            // Update position indicator
+            updatePositionIndicator(event.clientX - rect.left, event.clientY - rect.top);
+        }
+        
+        function updatePositionIndicator(x, y) {
+            positionIndicator.style.left = `${x}px`;
+            positionIndicator.style.top = `${y}px`;
+        }
+        
+        function endSound() {
+            if (gainNode) {
+                gainNode.gain.value = 0;
+                currentVol = 0;
+                volDisplay.textContent = '0';
+                vibratoDisplay.textContent = '0';
+            }
+        }
+        
+        function resetTone() {
+            currentFreq = 440;
+            if (oscillator) {
+                oscillator.frequency.value = currentFreq;
+            }
+            freqDisplay.textContent = Math.round(currentFreq);
+            showStatus('Tone reset to A440');
+        }
+        
+        // Resize canvas
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+        
+        // Show status message
+        function showStatus(message) {
+            status.textContent = message;
+            console.log(message);
+            
+            // Auto-hide status after 3 seconds
+            setTimeout(() => {
+                if (status.textContent === message) {
+                    status.textContent = '';
+                }
+            }, 3000);
+        }
+        
+        // Show settings panel
+        function showSettings() {
+            settingsPanel.style.display = 'flex';
+        }
+        
+        // Hide settings panel
+        function hideSettings() {
+            settingsPanel.style.display = 'none';
+        }
+        
+        // Toggle mute
+        function toggleMute() {
+            settings.muted = !settings.muted;
+            
+            if (gainNode) {
+                gainNode.gain.value = settings.muted ? 0 : currentVol;
+            }
+            
+            muteButton.textContent = settings.muted ? 'Unmute' : 'Mute';
+            showStatus(settings.muted ? 'Muted' : 'Unmuted');
+        }
+        
+        // Update settings
+        function updateSettings() {
+            settings.waveform = waveType.value;
+            
+            if (oscillator) {
+                oscillator.type = settings.waveform;
+            }
+            
+            showStatus('Waveform changed to ' + settings.waveform);
+        }
+        
+        // Update minimum frequency
+        function updateMinFreq() {
+            settings.minFrequency = parseInt(minFreq.value);
+            minFreqVal.textContent = settings.minFrequency;
+            
+            // Ensure max is always greater than min
+            if (settings.maxFrequency <= settings.minFrequency) {
+                settings.maxFrequency = settings.minFrequency + 100;
+                maxFreq.value = settings.maxFrequency;
+                maxFreqVal.textContent = settings.maxFrequency;
+            }
+        }
+        
+        // Update maximum frequency
+        function updateMaxFreq() {
+            settings.maxFrequency = parseInt(maxFreq.value);
+            maxFreqVal.textContent = settings.maxFrequency;
+            
+            // Ensure min is always less than max
+            if (settings.minFrequency >= settings.maxFrequency) {
+                settings.minFrequency = settings.maxFrequency - 100;
+                minFreq.value = settings.minFrequency;
+                minFreqVal.textContent = settings.minFrequency;
+            }
+        }
+        
+        // Update vibrato speed
+        function updateVibratoSpeed() {
+            settings.vibratoSpeed = parseInt(vibratoSpeed.value);
+            vibratoSpeedVal.textContent = settings.vibratoSpeed;
+            
+            if (lfoNode) {
+                lfoNode.frequency.value = settings.vibratoSpeed;
+            }
+        }
+        
+        // Update vibrato depth
+        function updateVibratoDepth() {
+            settings.vibratoDepth = parseInt(vibratoDepth.value);
+            vibratoDepthVal.textContent = settings.vibratoDepth;
+        }
+        
+        // Update vibrato threshold
+        function updateVibratoThreshold() {
+            settings.vibratoThreshold = parseInt(vibratoThreshold.value);
+            vibratoThresholdVal.textContent = settings.vibratoThreshold;
+        }
+        
+        // Draw visualization
+        function draw() {
+            if (analyser && isPlaying) {
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                analyser.getByteTimeDomainData(dataArray);
+                
+                const width = canvas.width;
+                const height = canvas.height;
+                
+                // Clear canvas
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+                ctx.fillRect(0, 0, width, height);
+                
+                // Draw waveform
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = `rgba(0, 255, 255, ${0.5 + currentVol * 0.5})`;
+                ctx.beginPath();
+                
+                const sliceWidth = width / bufferLength;
+                let x = 0;
+                
+                for (let i = 0; i < bufferLength; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * height / 2;
+                    
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                    
+                    x += sliceWidth;
+                }
+                
+                ctx.lineTo(width, height / 2);
+                ctx.stroke();
+                
+                // Draw frequency and vibrato guides
+                if (currentVol > 0) {
+                    // Draw horizontal line for current frequency
+                    const freqRange = settings.maxFrequency - settings.minFrequency;
+                    const freqPos = height - ((currentFreq - settings.minFrequency) / freqRange * height);
+                    
+                    ctx.beginPath();
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.setLineDash([5, 5]);
+                    ctx.moveTo(0, freqPos);
+                    ctx.lineTo(width, freqPos);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    // Draw vibrato threshold line
+                    const thresholdPos = height * (1 - settings.vibratoThreshold / 100);
+                    
+                    ctx.beginPath();
+                    ctx.strokeStyle = 'rgba(255, 100, 255, 0.3)';
+                    ctx.setLineDash([5, 5]);
+                    ctx.moveTo(0, thresholdPos);
+                    ctx.lineTo(width, thresholdPos);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    // Draw vibrato text if active
+                    if (vibratoAmount > 0) {
+                        ctx.fillStyle = 'rgba(255, 100, 255, 0.7)';
+                        ctx.font = '12px monospace';
+                        ctx.fillText('Vibrato Active', 10, thresholdPos - 10);
+                    }
+                }
+                
+                // Draw note labels at frequency points
+                const noteFrequencies = {
+                    'C': 261.63,
+                    'E': 329.63,
+                    'G': 392.00,
+                    'A': 440.00,
+                    'C5': 523.25
+                };
+                
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.font = '10px monospace';
+                
+                for (const [note, freq] of Object.entries(noteFrequencies)) {
+                    if (freq >= settings.minFrequency && freq <= settings.maxFrequency) {
+                        const yPos = height - ((freq - settings.minFrequency) / freqRange * height);
+                        ctx.fillText(note, 5, yPos);
+                    }
+                }
+            }
+            
+            requestAnimationFrame(draw);
+        }
+        
+        // Initialize
+        init();
+    </script>
+</body>
+</html>

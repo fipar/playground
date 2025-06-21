@@ -160,13 +160,12 @@ def main():
             continue
         
         try:
-            position = int(parts[0])
+            position_str = parts[0]
+            position = float(position_str) # Parse position as a float
             note_name = parts[1]
             duration_multiplier = int(parts[2])
             note_specific_volume = volume # Start with default volume
 
-            if position <= 0:
-                raise ValueError("Position must be positive and 1-indexed.")
             if duration_multiplier <= 0:
                 raise ValueError("Duration multiplier must be positive.")
 
@@ -179,6 +178,10 @@ def main():
                     note_specific_volume = max(0, min(127, note_specific_volume))
                 except ValueError:
                     raise ValueError(f"Invalid volume offset '{volume_offset_str}'. Must be an integer.")
+            
+            # Position validation (can be done after parsing as float)
+            if position <= 0:
+                raise ValueError("Position must be positive and 1-indexed (can be fractional e.g., 1.0, 2.5).")
                 
             midi_pitch = note_name_to_midi(note_name)
             

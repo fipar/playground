@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Self-Contained MIDI Generator</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); max-width: 600px; margin: auto; }
+        h1 { color: #333; text-align: center; }
+        label { display: block; margin-top: 15px; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], input[type="number"], select {
+            width: calc(100% - 22px); padding: 10px; margin-bottom: 10px;
+            border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;
+        }
+        .radio-group label { display: inline-block; margin-right: 15px; font-weight: normal;}
+        button {
+            background-color: #5cb85c; color: white; padding: 12px 18px;
+            border: none; border-radius: 4px; cursor: pointer; font-size: 16px;
+            margin-top: 10px; margin-right: 10px;
+        }
+        button:hover { background-color: #4cae4c; }
+        #midiPlayerContainer, #downloadLinkContainer {
+            margin-top: 20px; padding: 15px; border: 1px solid #eee;
+            background-color: #f9f9f9; border-radius: 4px;
+        }
+        #downloadLinkContainer a {
+            display: inline-block; padding: 10px 15px; background-color: #337ab7;
+            color: white; text-decoration: none; border-radius: 4px;
+        }
+        #downloadLinkContainer a:hover { background-color: #286090; }
+        .hidden { display: none; }
+        #errorMessages { color: red; margin-top: 10px; font-weight: bold; }
+        .info { font-size: 0.9em; color: #555; margin-bottom: 15px;}
+    </style>
+
+    <!-- MIDI.js and its dependencies (ensure paths are correct or use CDNs) -->
+    <!-- These are for PREVIEW only. Generation and Download are self-contained. -->
+    <!-- Using CDN for MIDI.js -->
+     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/midi.js@latest/inc/shim/Base64.js"></script>
+     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/midi.js@latest/inc/shim/Base64binary.js"></script>
+     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/midi.js@latest/inc/shim/WebAudioAPI.js"></script>
+     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/midi.js@latest/MIDI.js"></script>
+     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/webmidi@latest/dist/iife/webmidi.iife.js"></script>
+
+    <!-- midi-writer-js for MIDI file construction -->
+    <script src="https://cdn.jsdelivr.net/npm/midi-writer-js@3.1.1/browser/midiwriter.min.js"></script>
+
+</head>
+<body>
+    <div class="container">
+        <h1>Self-Contained MIDI Generator</h1>
+
+        <div id="controls">
+            <div>
+                <label for="scaleSelect">Select Scale/Mode:</label>
+                <select id="scaleSelect">
+                    <option value="">-- Select a Predefined Scale --</option>
+                    <!-- Options will be populated by JavaScript -->
+                    <option value="custom">Custom Scale (Enter Below)</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="customScaleInput">Custom Scale (MIDI notes, e.g., 60,62,64,65,67,69,71):</label>
+                <input type="text" id="customScaleInput" placeholder="e.g., 60,62,64,65,67,69,71" disabled>
+            </div>
+
+            <div>
+                <label for="tempoInput">Tempo (BPM):</label>
+                <input type="number" id="tempoInput" value="120" min="30" max="300">
+            </div>
+
+            <div class="radio-group">
+                <label>Instrument:</label>
+                <input type="radio" id="instrumentPiano" name="instrument" value="piano" checked>
+                <label for="instrumentPiano">Piano</label>
+                <input type="radio" id="instrumentDrums" name="instrument" value="drums">
+                <label for="instrumentDrums">Drums</label>
+            </div>
+
+            <button id="generateBtn">Generate & Preview MIDI</button>
+        </div>
+
+        <div id="errorMessages"></div>
+
+        <div id="midiPlayerContainer" class="hidden">
+            <p>Loading soundfont for preview...</p>
+        </div>
+
+        <div id="downloadLinkContainer" class="hidden">
+            <a href="#" id="downloadLink" download="generated.mid">Download MIDI</a>
+        </div>
+        <p class="info">
+            <strong>Important for Preview:</strong> For MIDI preview to work, you need soundfont files (e.g., <code>acoustic_grand_piano-ogg.js</code>, <code>percussion-ogg.js</code>).
+            Place these in a <code>soundfont/</code> directory in the same location as this HTML file.
+            You can find soundfonts at: <code>https://github.com/gleitz/midi-js-soundfonts</code>.
+            The <code>soundfontUrl</code> in the script is set to <code>'./soundfont/'</code>.
+        </p>
+    </div>
+
+    <script>
+        // --- Musical Data Definitions ---
+        const SCALES_AND_MODES = {
+            "Major (Ionian)": { notes: [60, 62, 64, 65, 67, 69, 71], type: "Major" },
+            "Natural Minor (Aeolian)": { notes: [60, 62, 63, 65, 67, 68, 70], type: "Natural Minor" },
+            "Dorian": { notes: [60, 62, 63, 65, 67, 69, 70], type: "Minor" },
+            "Phrygian": { notes: [60, 61, 63, 65, 67, 68, 70], type: "Minor" },
+            "Lydian": { notes: [60, 62, 64, 66, 67, 69, 71], type: "Major" },
+            "Mixolydian": { notes: [60, 62, 64, 65, 67, 69, 70], type: "Dominant" },
+            "Locrian": { notes: [60, 61, 63, 65, 66, 68, 70], type: "Diminished" },
+            "Chromatic": { notes: [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71], type: "Chromatic" },
+            "Whole Tone": { notes: [60, 62, 64, 66, 68, 70], type: "Whole Tone" },
+            "Major Pentatonic": { notes: [60, 62, 64, 67, 69], type: "Major Pentatonic" },
+            "Minor Pentatonic": { notes: [60, 63, 65, 67, 70], type: "Minor Pentatonic" },
+            "Blues": { notes: [60, 63, 65, 66, 67, 70], type: "Blues" }
+        };
+
+        const DRUM_MAP = {
+            'kick': 36,       // Acoustic Bass Drum (C1 in General MIDI)
+            'snare': 38,      // Acoustic Snare (D1)
+            'closed_hat': 42, // Closed Hi-Hat (F#1)
+            'open_hat': 46,   // Open Hi-Hat (A#1)
+            'crash': 49,      // Crash Cymbal 1 (C#2)
+            'ride': 51,       // Ride Cymbal 1 (D#2)
+        };
+
+        // --- UI Elements ---
+        const scaleSelect = document.getElementById('scaleSelect');
+        const customScaleInput = document.getElementById('customScaleInput');
+        const tempoInput = document.getElementById('tempoInput');
+        const instrumentPianoRadio = document.getElementById('instrumentPiano');
+        const generateBtn = document.getElementById('generateBtn');
+        const midiPlayerContainer = document.getElementById('midiPlayerContainer');
+        const downloadLinkContainer = document.getElementById('downloadLinkContainer');
+        const downloadLink = document.getElementById('downloadLink');
+        const errorMessagesDiv = document.getElementById('errorMessages');
+
+        // --- Populate Scale Dropdown ---
+        function populateScaleDropdown() {
+            const customOption = scaleSelect.querySelector('option[value="custom"]');
+            Object.keys(SCALES_AND_MODES).sort().forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                scaleSelect.insertBefore(option, customOption);
+            });
+        }
+
+        // --- Event Listeners ---
+        scaleSelect.addEventListener('change', function() {
+            customScaleInput.disabled = (this.value !== "custom");
+            if (this.value !== "custom") customScaleInput.value = "";
+        });
+
+        generateBtn.addEventListener('click', handleGenerateMidi);
+
+        // --- MIDI Generation Logic ---
+
+        function generatePianoMidi(scaleNotes, tempo) {
+            const track = new MidiWriter.Track();
+            track.setTempo(tempo);
+            track.addEvent(new MidiWriter.ProgramChangeEvent({ instrument: 0 })); // 0: Acoustic Grand Piano
+
+            const numNotes = 24; // Generate more notes for a slightly longer piece
+            let currentTick = 0;
+
+            for (let i = 0; i < numNotes; i++) {
+                const noteIndex = Math.floor(Math.random() * scaleNotes.length);
+                const pitch = scaleNotes[noteIndex];
+                
+                const durationOptions = ['4', '8', '8', '16', 'd8', '2']; // quarter, eighth, sixteenth, dotted eighth, half
+                const duration = durationOptions[Math.floor(Math.random() * durationOptions.length)];
+                
+                const velocity = Math.floor(Math.random() * 50) + 70; // Velocity 70-119
+
+                track.addEvent(new MidiWriter.NoteEvent({
+                    pitch: [pitch],
+                    duration: duration,
+                    // startTick: currentTick, // midi-writer-js handles sequential notes
+                    velocity: velocity
+                }));
+                // currentTick += MidiWriter.Utils.getTickDuration(duration); // If managing time manually
+            }
+
+            if (scaleNotes.length >= 3) {
+                 track.addEvent(new MidiWriter.NoteEvent({
+                    pitch: [scaleNotes[0], scaleNotes[2 % scaleNotes.length], scaleNotes[4 % scaleNotes.length]],
+                    duration: '1',
+                    velocity: 80
+                }));
+            }
+
+            const writer = new MidiWriter.Writer([track]);
+            return writer.dataUri();
+        }
+
+        function generateDrumsMidi(tempo) {
+            const track = new MidiWriter.Track();
+            track.setTempo(tempo);
+            // Channel 9 (0-indexed) is for percussion in General MIDI. midi-writer-js handles this.
+            // Program change for drums is often not strictly necessary if using channel 9/10.
+
+            const numBars = 4;
+            const beatsPerBar = 4; // Assuming 4/4 time for simplicity here
+
+            for (let bar = 0; bar < numBars; bar++) {
+                for (let beat = 0; beat < beatsPerBar; beat++) {
+                    const barStartTick = bar * beatsPerBar * MidiWriter.Utils.getTickDuration('4');
+
+                    // Kick on 1 and 3 (more or less)
+                    if (beat === 0 || (beat === 2 && Math.random() < 0.8)) {
+                        track.addEvent(new MidiWriter.NoteEvent({
+                            pitch: [DRUM_MAP.kick], duration: '4',
+                            startTick: barStartTick + beat * MidiWriter.Utils.getTickDuration('4'),
+                            velocity: Math.random() < 0.2 ? 90 : 110 // Occasional softer kick
+                        }));
+                    }
+                    // Snare on 2 and 4
+                    if (beat === 1 || beat === 3) {
+                        track.addEvent(new MidiWriter.NoteEvent({
+                            pitch: [DRUM_MAP.snare], duration: '4',
+                            startTick: barStartTick + beat * MidiWriter.Utils.getTickDuration('4'),
+                            velocity: Math.random() < 0.1 ? 85 : 105
+                        }));
+                    }
+
+                    // Hi-hats (8th notes)
+                    for (let subBeat = 0; subBeat < 2; subBeat++) { // Two 8th notes per beat
+                        const hatTime = barStartTick + (beat * MidiWriter.Utils.getTickDuration('4')) + (subBeat * MidiWriter.Utils.getTickDuration('8'));
+                        let hatType = DRUM_MAP.closed_hat;
+                        let hatVelocity = Math.floor(Math.random() * 30) + 60; // 60-89
+                        let hatDuration = '8';
+
+                        // Open hat sometimes on the '+' of 2 or 4, or end of bar
+                        if (subBeat === 1 && (beat === 1 || beat === 3) && Math.random() < 0.4) {
+                            hatType = DRUM_MAP.open_hat;
+                            hatVelocity += 10;
+                            hatDuration = '4'; // Rings longer
+                        }
+                         if (beat === (beatsPerBar -1) && subBeat === 1 && Math.random() < 0.6) { // Last 8th of bar
+                            hatType = DRUM_MAP.open_hat;
+                            hatVelocity += 5;
+                            hatDuration = '4';
+                        }
+
+                        track.addEvent(new MidiWriter.NoteEvent({
+                            pitch: [hatType], duration: hatDuration,
+                            startTick: hatTime,
+                            velocity: hatVelocity
+                        }));
+                    }
+                }
+                 // Crash cymbal at the beginning of some bars (e.g., first bar)
+                if (bar === 0 && Math.random() < 0.7) {
+                     track.addEvent(new MidiWriter.NoteEvent({
+                        pitch: [DRUM_MAP.crash], duration: '2', // Rings for a half note
+                        startTick: barStartTick,
+                        velocity: 100
+                    }));
+                }
+            }
+            const writer = new MidiWriter.Writer([track]);
+            return writer.dataUri();
+        }
+
+
+        // --- Main Handler ---
+        function handleGenerateMidi() {
+            errorMessagesDiv.textContent = "";
+            midiPlayerContainer.classList.add('hidden');
+            downloadLinkContainer.classList.add('hidden');
+
+            const scaleChoice = scaleSelect.value;
+            const customScaleValue = customScaleInput.value.trim();
+            const tempo = parseInt(tempoInput.value, 10);
+            const instrument = instrumentPianoRadio.checked ? 'piano' : 'drums';
+
+            let baseScaleMidi = [];
+
+            if (customScaleValue) {
+                try {
+                    baseScaleMidi = customScaleValue.split(',')
+                        .map(n => parseInt(n.trim()))
+                        .filter(n => !isNaN(n) && n >= 0 && n <= 127);
+                    if (baseScaleMidi.length === 0) throw new Error("Custom scale input is invalid or empty.");
+                } catch (e) {
+                    errorMessagesDiv.textContent = "Error: Invalid custom scale. Use comma-separated MIDI numbers (0-127).";
+                    return;
+                }
+            } else if (scaleChoice && SCALES_AND_MODES[scaleChoice]) {
+                baseScaleMidi = SCALES_AND_MODES[scaleChoice].notes;
+            } else {
+                errorMessagesDiv.textContent = "Error: Please select a scale or provide a custom one.";
+                return;
+            }
+
+            if (isNaN(tempo) || tempo < 20 || tempo > 350) { // Wider tempo range
+                errorMessagesDiv.textContent = "Error: Tempo must be between 20 and 350 BPM.";
+                return;
+            }
+
+            let midiDataUri = "";
+            let soundfontInstrument = 'acoustic_grand_piano';
+
+            try {
+                if (instrument === 'piano') {
+                    if (baseScaleMidi.length === 0) {
+                        errorMessagesDiv.textContent = "Error: Piano generation requires a scale.";
+                        return;
+                    }
+                    midiDataUri = generatePianoMidi(baseScaleMidi, tempo);
+                    soundfontInstrument = 'acoustic_grand_piano';
+                } else { // drums
+                    midiDataUri = generateDrumsMidi(tempo);
+                    soundfontInstrument = 'percussion';
+                }
+            } catch (e) {
+                console.error("MIDI Generation Error:", e);
+                errorMessagesDiv.textContent = "Error during MIDI generation: " + e.message;
+                return;
+            }
+
+            if (!midiDataUri) {
+                errorMessagesDiv.textContent = "Error: MIDI data URI could not be generated.";
+                return;
+            }
+
+            downloadLink.href = midiDataUri;
+            downloadLink.download = `${instrument}_${(scaleChoice || 'custom').replace(/\s+/g, '_')}_${tempo}bpm.mid`;
+            downloadLinkContainer.classList.remove('hidden');
+
+            previewMidi(midiDataUri, soundfontInstrument);
+        }
+
+        // --- MIDI Preview with MIDI.js ---
+        function previewMidi(dataUri, instrumentName) {
+            if (!window.MIDI) {
+                midiPlayerContainer.innerHTML = "<p>MIDI.js library not loaded. Preview unavailable. Check browser console.</p>";
+                midiPlayerContainer.classList.remove('hidden');
+                console.error("MIDI.js is not available on the window object.");
+                return;
+            }
+             if (typeof MidiWriter === 'undefined') {
+                 console.warn("MidiWriter.js seems not loaded, but it's only for generation, not preview. This shouldn't happen if generation worked.");
+            }
+
+
+            midiPlayerContainer.innerHTML = "<p>Loading soundfont for preview...</p>";
+            midiPlayerContainer.classList.remove('hidden');
+
+            const soundfontUrl = './soundfont/'; // Relative path to soundfont directory
+
+            MIDI.loadPlugin({
+                soundfontUrl: soundfontUrl,
+                instrument: instrumentName,
+                onprogress: function(state, progress) {
+                    midiPlayerContainer.innerHTML = `<p>Loading soundfont: ${state} (${(progress * 100).toFixed(0)}%)</p>`;
+                },
+                onsuccess: function() {
+                    midiPlayerContainer.innerHTML = '<p>Soundfont loaded! <button id="playBtn">Play Preview</button> <button id="stopBtn">Stop</button></p>';
+                    
+                    const playBtn = document.getElementById('playBtn');
+                    const stopBtn = document.getElementById('stopBtn');
+
+                    MIDI.Player.stop(); 
+                    MIDI.Player.loadFile(dataUri, function(){
+                        playBtn.disabled = false;
+                        playBtn.textContent = "Play Preview";
+                    });
+
+                    playBtn.onclick = function() {
+                        MIDI.Player.start();
+                        playBtn.textContent = "Playing...";
+                        playBtn.disabled = true;
+                        stopBtn.disabled = false;
+                    };
+                    stopBtn.onclick = function() {
+                        MIDI.Player.stop();
+                        playBtn.textContent = "Play Preview";
+                        playBtn.disabled = false;
+                        stopBtn.disabled = true;
+                    };
+                    stopBtn.disabled = true; // Initially disabled until playing
+
+                    MIDI.Player.addListener(function(data) {
+                        if (MIDI.Player.playing && data.now >= MIDI.Player.endTime) {
+                             MIDI.Player.stop(); // Ensure it stops if it reaches the end
+                             playBtn.textContent = "Play Preview";
+                             playBtn.disabled = false;
+                             stopBtn.disabled = true;
+                             midiPlayerContainer.innerHTML += '<p>Preview finished.</p>';
+                        }
+                    });
+                },
+                onerror: function(e) {
+                    console.error("MIDI.js Error:", e);
+                    midiPlayerContainer.innerHTML = `<p style="color:red;"><strong>Error loading MIDI player or soundfont.</strong> Preview not available.
+                        <br>1. Check browser console for errors.
+                        <br>2. Ensure soundfont files (e.g., <code>acoustic_grand_piano-ogg.js</code>) are in a <code>soundfont/</code> directory next to this HTML file.
+                        <br>3. Verify the <code>soundfontUrl</code> path in the script.
+                        <br>Error details: ${e}</p>`;
+                }
+            });
+        }
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            populateScaleDropdown();
+            customScaleInput.disabled = (scaleSelect.value !== "custom");
+
+            if (typeof MidiWriter === 'undefined') {
+                errorMessagesDiv.textContent = "CRITICAL ERROR: MidiWriter.js library not loaded. MIDI generation will fail. Check browser's developer console for network errors related to the CDN link for 'midi-writer.min.js'.";
+                generateBtn.disabled = true;
+                generateBtn.style.backgroundColor = "grey";
+            }
+             if (typeof MIDI === 'undefined') {
+                // This check is more for developer awareness, previewMidi handles user feedback
+                console.warn("MIDI.js library not loaded at DOMContentLoaded. Preview might fail if it doesn't load later.");
+            }
+        });
+
+    </script>
+</body>
+</html>

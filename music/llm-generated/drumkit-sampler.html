@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Chunker and Processor</title>
+    <style>
+        :root {
+            --primary-color: #2a6dd0;
+            --secondary-color: #4c8bf5;
+            --tertiary-color: #83b0f9;
+            --background-color: #f5f5f7;
+            --text-color: #333;
+            --border-color: #ddd;
+            --success-color: #4caf50;
+            --warning-color: #ff9800;
+            --error-color: #f44336;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--background-color);
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .app-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .app-container {
+                grid-template-columns: 300px 1fr;
+            }
+        }
+
+        .panel {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .control-section {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        .control-section:last-child {
+            border-bottom: none;
+        }
+
+        .control-section h3 {
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        input[type="file"],
+        input[type="number"],
+        input[type="range"],
+        select,
+        button {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+
+        input[type="file"] {
+            padding: 8px 0;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            border: none;
+        }
+
+        button:hover {
+            background-color: var(--secondary-color);
+        }
+
+        button:disabled {
+            background-color: var(--border-color);
+            cursor: not-allowed;
+        }
+
+        .range-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .visualizer-section {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 992px) {
+            .visualizer-section {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .visualizer-container {
+            position: relative;
+            width: 100%;
+            height: 150px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .drum-pads {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .drum-pad {
+            background-color: var(--tertiary-color);
+            border-radius: 4px;
+            padding: 15px 10px;
+            text-align: center;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.1s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .drum-pad:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .drum-pad:active {
+            transform: scale(0.95);
+            background-color: var(--primary-color);
+        }
+
+        .drum-pad-tools {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+        }
+
+        .drum-pad-tools button {
+            flex: 1;
+            padding: 3px;
+            font-size: 12px;
+            margin: 0 2px;
+        }
+
+        .status-message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background-color: #e8f4fd;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .status-message.success {
+            background-color: #e8f8e8;
+            border-left: 4px solid var(--success-color);
+        }
+
+        .status-message.warning {
+            background-color: #fff8e8;
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .status-message.error {
+            background-color: #fde8e8;
+            border-left: 4px solid var(--error-color);
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+            margin-left: 5px;
+        }
+
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 4px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+        }
+
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .waveform-container {
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .export-section {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .export-section button {
+            max-width: 300px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Audio Chunker and Processor</h1>
+        <p>Split audio files, combine chunks, and create drum samples</p>
+    </header>
+
+    <div class="app-container">
+        <div class="panel control-panel">
+            <div class="control-section">
+                <h3>Input Audio</h3>
+                <div class="form-group">
+                    <label for="audio-files">Upload Audio Files (WAV, MP3, OGG, AIFF)</label>
+                    <input type="file" id="audio-files" accept=".wav,.mp3,.ogg,.aiff" multiple>
+                </div>
+                <div id="file-list"></div>
+            </div>
+
+            <div class="control-section">
+                <h3>Chunk Settings</h3>
+                <div class="form-group">
+                    <label for="min-chunk-size">Minimum Chunk Size (ms)</label>
+                    <input type="range" id="min-chunk-size" min="10" max="1000" value="50">
+                    <div class="range-labels">
+                        <span>10ms</span>
+                        <span>1000ms</span>
+                    </div>
+                    <div id="min-chunk-size-value">50ms</div>
+                </div>
+                <div class="form-group">
+                    <label for="max-chunk-size">Maximum Chunk Size (ms)</label>
+                    <input type="range" id="max-chunk-size" min="20" max="2000" value="300">
+                    <div class="range-labels">
+                        <span>20ms</span>
+                        <span>2000ms</span>
+                    </div>
+                    <div id="max-chunk-size-value">300ms</div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Processing Method</h3>
+                <div class="form-group">
+                    <label for="processing-method">Chunk Combination Mechanism</label>
+                    <select id="processing-method">
+                        <option value="vocoder">Vocoder</option>
+                        <option value="tape-splice">Tape Splice</option>
+                        <option value="mixing">Mixing</option>
+                        <option value="convolution">Convolution</option>
+                        <option value="frequency-modulation">Frequency Modulation</option>
+                        <option value="ring-modulation">Ring Modulation</option>
+                        <option value="amplitude-modulation">Amplitude Modulation</option>
+                        <option value="granular-synthesis">Granular Synthesis</option>
+                        <option value="cross-synthesis">Cross-synthesis</option>
+                        <option value="additive-synthesis">Additive Synthesis</option>
+                        <option value="subtractive-synthesis">Subtractive Synthesis</option>
+                        <option value="layering">Layering</option>
+                        <option value="phase-vocoding">Phase Vocoding</option>
+                    </select>
+                    <div class="tooltip">?
+                        <span class="tooltip-text" id="method-tooltip">Vocoder: Analyzes one sound's spectral characteristics to filter another sound</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Generation</h3>
+                <button id="process-button">Generate Drum Samples</button>
+                <div class="loader" id="loader"></div>
+            </div>
+        </div>
+
+        <div class="panel main-panel">
+            <div id="status-message" class="status-message">
+                Upload audio files to begin processing
+            </div>
+
+            <div class="visualizer-section">
+                <div>
+                    <h3>Input Audio Visualization</h3>
+                    <div class="visualizer-container">
+                        <canvas id="input-canvas"></canvas>
+                    </div>
+                </div>
+                <div>
+                    <h3>Output Audio Visualization</h3>
+                    <div class="visualizer-container">
+                        <canvas id="output-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Generated Drum Samples</h3>
+            <div id="drum-pads" class="drum-pads">
+                <!-- Drum pads will be dynamically added here -->
+            </div>
+
+            <div class="export-section">
+                <button id="export-button" disabled>Export All Samples as ZIP</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Audio Chunker and Processor
+         * 
+         * This application allows users to:
+         * 1. Upload audio files
+         * 2. Split them into chunks
+         * 3. Combine chunks using various audio processing techniques
+         * 4. Generate and preview drum samples
+         * 5. Export processed samples
+         * 
+         * All processing is done client-side using the Web Audio API
+         */
+
+        // Main application object
+        const AudioChunkerApp = {
+            // Configuration
+            config: {
+                supportedFormats: ['.wav', '.mp3', '.ogg', '.aiff'],
+                maxFileSize: 100 * 1024 * 1024, // 100MB
+                drumTypes: [
+                    { type: 'kick', count: 2, freqRange: [40, 150], attackTime: 0.01, releaseTime: 0.5 },
+                    { type: 'snare', count: 2, freqRange: [100, 500], attackTime: 0.01, releaseTime: 0.3 },
+                    { type: 'hihat-closed', count: 2, freqRange: [800, 12000], attackTime: 0.001, releaseTime: 0.1 },
+                    { type: 'hihat-open', count: 2, freqRange: [800, 12000], attackTime: 0.001, releaseTime: 0.5 },
+                    { type: 'tom-high', count: 2, freqRange: [200, 350], attackTime: 0.01, releaseTime: 0.3 },
+                    { type: 'tom-mid', count: 2, freqRange: [150, 250], attackTime: 0.01, releaseTime: 0.4 },
+                    { type: 'tom-low', count: 2, freqRange: [80, 180], attackTime: 0.01, releaseTime: 0.5 },
+                    { type: 'crash', count: 2, freqRange: [300, 15000], attackTime: 0.001, releaseTime: 1.0 },
+                    { type: 'ride', count: 2, freqRange: [400, 10000], attackTime: 0.001, releaseTime: 0.8 },
+                    { type: 'rimshot', count: 2, freqRange: [500, 2000], attackTime: 0.001, releaseTime: 0.2 },
+                ]
+            },
+
+            // State
+            state: {
+                audioContext: null,
+                uploadedFiles: [],
+                audioBuffers: [],
+                chunks: [],
+                generatedSamples: [],
+                isProcessing: false,
+                initialized: false
+            },
+
+            // DOM Elements cache
+            elements: {},
+
+            // Initialization
+            init() {
+                this.cacheElements();
+                this.setupEventListeners();
+                this.updateMethodTooltip('vocoder');
+                this.updateUI();
+                this.drawEmptyCanvas();
+                this.state.initialized = true;
+            },
+
+            // Cache DOM elements for better performance
+            cacheElements() {
+                this.elements = {
+                    audioFilesInput: document.getElementById('audio-files'),
+                    fileList: document.getElementById('file-list'),
+                    minChunkSize: document.getElementById('min-chunk-size'),
+                    maxChunkSize: document.getElementById('max-chunk-size'),
+                    minChunkSizeValue: document.getElementById('min-chunk-size-value'),
+                    maxChunkSizeValue: document.getElementById('max-chunk-size-value'),
+                    processingMethod: document.getElementById('processing-method'),
+                    methodTooltip: document.getElementById('method-tooltip'),
+                    processButton: document.getElementById('process-button'),
+                    loader: document.getElementById('loader'),
+                    statusMessage: document.getElementById('status-message'),
+                    inputCanvas: document.getElementById('input-canvas'),
+                    outputCanvas: document.getElementById('output-canvas'),
+                    drumPads: document.getElementById('drum-pads'),
+                    exportButton: document.getElementById('export-button')
+                };
+            },
+
+            // Setup event listeners
+            setupEventListeners() {
+                // File upload
+                this.elements.audioFilesInput.addEventListener('change', (e) => this.handleFileUpload(e));
+
+                // Range sliders
+                this.elements.minChunkSize.addEventListener('input', (e) => {
+                    const value = e.target.value;
+                    this.elements.minChunkSizeValue.textContent = `${value}ms`;
+                    
+                    // Ensure min doesn't exceed max
+                    if (parseInt(value) > parseInt(this.elements.maxChunkSize.value)) {
+                        this.elements.maxChunkSize.value = value;
+                        this.elements.maxChunkSizeValue.textContent = `${value}ms`;
+                    }
+                });
+
+                this.elements.maxChunkSize.addEventListener('input', (e) => {
+                    const value = e.target.value;
+                    this.elements.maxChunkSizeValue.textContent = `${value}ms`;
+                    
+                    // Ensure max doesn't go below min
+                    if (parseInt(value) < parseInt(this.elements.minChunkSize.value)) {
+                        this.elements.minChunkSize.value = value;
+                        this.elements.minChunkSizeValue.textContent = `${value}ms`;
+                    }
+                });
+
+                // Processing method change
+                this.elements.processingMethod.addEventListener('change', (e) => {
+                    this.updateMethodTooltip(e.target.value);
+                });
+
+                // Process button
+                this.elements.processButton.addEventListener('click', () => this.processAudio());
+
+                // Export button
+                this.elements.exportButton.addEventListener('click', () => this.exportSamples());
+            },
+
+            // Update the tooltip text based on the selected processing method
+            updateMethodTooltip(method) {
+                const tooltips = {
+                    'vocoder': 'Analyzes one sound\'s spectral characteristics to filter another sound',
+                    'tape-splice': 'Combines audio as if cutting tapes at random angles and joining them',
+                    'mixing': 'Regular audio mixing with random panning and volume settings',
+                    'convolution': 'Applies the sonic characteristics of one sound to another',
+                    'frequency-modulation': 'Uses one signal to modulate the frequency of another',
+                    'ring-modulation': 'Multiplies two signals together without the carrier',
+                    'amplitude-modulation': 'Multiplies two signals, creating sum and difference sidebands',
+                    'granular-synthesis': 'Breaks sounds into tiny "grains" and recombines them',
+                    'cross-synthesis': 'Extracts features from one sound and applies them to another',
+                    'additive-synthesis': 'Combines multiple sine waves to create complex timbres',
+                    'subtractive-synthesis': 'Filters a complex waveform to accentuate certain frequencies',
+                    'layering': 'Combines multiple sounds by playing them simultaneously',
+                    'phase-vocoding': 'Manipulates phase relationships for time-stretching and pitch-shifting'
+                };
+
+                this.elements.methodTooltip.textContent = tooltips[method] || 'No description available';
+            },
+
+            // Handle file upload
+            async handleFileUpload(event) {
+                const files = Array.from(event.target.files);
+                
+                if (files.length === 0) {
+                    return;
+                }
+
+                this.showStatus('Loading audio files...', 'info');
+                this.elements.fileList.innerHTML = '';
+                this.state.uploadedFiles = [];
+                this.state.audioBuffers = [];
+
+                // Check file format and size
+                for (const file of files) {
+                    const extension = '.' + file.name.split('.').pop().toLowerCase();
+                    
+                    if (!this.config.supportedFormats.includes(extension)) {
+                        this.showStatus(`File format ${extension} is not supported.`, 'error');
+                        continue;
+                    }
+
+                    if (file.size > this.config.maxFileSize) {
+                        this.showStatus(`File ${file.name} exceeds the maximum size limit of 100MB.`, 'error');
+                        continue;
+                    }
+
+                    this.state.uploadedFiles.push(file);
+                    
+                    // Create file entry in the list
+                    const fileEntry = document.createElement('div');
+                    fileEntry.textContent = file.name;
+                    this.elements.fileList.appendChild(fileEntry);
+                }
+
+                if (this.state.uploadedFiles.length === 0) {
+                    this.showStatus('No valid audio files were selected.', 'error');
+                    return;
+                }
+
+                // Initialize AudioContext on first user interaction
+                if (!this.state.audioContext) {
+                    try {
+                        this.state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    } catch (error) {
+                        this.showStatus('Web Audio API is not supported in your browser.', 'error');
+                        return;
+                    }
+                }
+
+                // Load audio files
+                try {
+                    await this.loadAudioFiles();
+                    this.showStatus(`${this.state.audioBuffers.length} audio files loaded successfully.`, 'success');
+                    this.visualizeInputAudio();
+                    this.updateUI();
+                } catch (error) {
+                    this.showStatus(`Error loading audio files: ${error.message}`, 'error');
+                }
+            },
+
+            // Load audio files into AudioBuffers
+            async loadAudioFiles() {
+                const loadPromises = this.state.uploadedFiles.map(file => {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        
+                        reader.onload = async (event) => {
+                            try {
+                                const arrayBuffer = event.target.result;
+                                const audioBuffer = await this.decodeAudioData(arrayBuffer);
+                                resolve(audioBuffer);
+                            } catch (error) {
+                                reject(error);
+                            }
+                        };
+                        
+                        reader.onerror = () => {
+                            reject(new Error(`Error reading file: ${file.name}`));
+                        };
+                        
+                        reader.readAsArrayBuffer(file);
+                    });
+                });
+
+                this.state.audioBuffers = await Promise.all(loadPromises);
+            },
+
+            // Decode audio data
+            async decodeAudioData(arrayBuffer) {
+                return new Promise((resolve, reject) => {
+                    this.state.audioContext.decodeAudioData(arrayBuffer, 
+                        (buffer) => resolve(buffer),
+                        (error) => reject(error || new Error('Error decoding audio data'))
+                    );
+                });
+            },
+
+            // Process audio to generate drum samples
+            async processAudio() {
+                if (this.state.audioBuffers.length === 0) {
+                    this.showStatus('Please upload audio files first.', 'warning');
+                    return;
+                }
+
+                if (this.state.isProcessing) {
+                    return;
+                }
+
+                this.state.isProcessing = true;
+                this.elements.loader.style.display = 'block';
+                this.elements.processButton.disabled = true;
+                this.showStatus('Processing audio and generating samples...', 'info');
+
+                try {
+                    // Get chunk settings
+                    const minChunkSize = parseInt(this.elements.minChunkSize.value);
+                    const maxChunkSize = parseInt(this.elements.maxChunkSize.value);
+                    const processingMethod = this.elements.processingMethod.value;
+
+                    // Clear previous results
+                    this.state.chunks = [];
+                    this.state.generatedSamples = [];
+                    
+                    // Step 1: Split audio into chunks
+                    await this.splitAudioIntoChunks(minChunkSize, maxChunkSize);
+                    
+                    // Step 2: Generate drum samples
+                    await this.generateDrumSamples(processingMethod);
+                    
+                    // Step 3: Create drum pads
+                    this.createDrumPads();
+                    
+                    // Step 4: Visualize output
+                    this.visualizeOutputAudio();
+                    
+                    this.showStatus('Drum samples generated successfully!', 'success');
+                    this.elements.exportButton.disabled = false;
+                } catch (error) {
+                    this.showStatus(`Error processing audio: ${error.message}`, 'error');
+                }
+
+                this.state.isProcessing = false;
+                this.elements.loader.style.display = 'none';
+                this.elements.processButton.disabled = false;
+            },
+
+            // Split audio files into chunks
+            async splitAudioIntoChunks(minChunkSizeMs, maxChunkSizeMs) {
+                this.showStatus('Splitting audio into chunks...', 'info');
+                
+                for (const buffer of this.state.audioBuffers) {
+                    const sampleRate = buffer.sampleRate;
+                    const minChunkSizeSamples = Math.floor((minChunkSizeMs / 1000) * sampleRate);
+                    const maxChunkSizeSamples = Math.floor((maxChunkSizeMs / 1000) * sampleRate);
+                    
+                    let position = 0;
+                    
+                    while (position < buffer.length) {
+                        // Determine random chunk size between min and max
+                        const chunkSize = Math.floor(
+                            minChunkSizeSamples + 
+                            Math.random() * (maxChunkSizeSamples - minChunkSizeSamples)
+                        );
+                        
+                        // Ensure we don't go beyond the buffer length
+                        const endPosition = Math.min(position + chunkSize, buffer.length);
+                        const actualChunkSize = endPosition - position;
+                        
+                        // Skip chunks that are too small
+                        if (actualChunkSize < minChunkSizeSamples / 2) {
+                            position = endPosition;
+                            continue;
+                        }
+                        
+                        // Create a new buffer for the chunk
+                        const chunkBuffer = this.state.audioContext.createBuffer(
+                            buffer.numberOfChannels,
+                            actualChunkSize,
+                            sampleRate
+                        );
+                        
+                        // Copy data from the original buffer to the chunk buffer
+                        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                            const originalData = buffer.getChannelData(channel);
+                            const chunkData = chunkBuffer.getChannelData(channel);
+                            
+                            for (let i = 0; i < actualChunkSize; i++) {
+                                chunkData[i] = originalData[position + i];
+                            }
+                        }
+                        
+                        // Add chunk to the collection
+                        this.state.chunks.push(chunkBuffer);
+                        
+                        // Move to the next position
+                        position = endPosition;
+                    }
+                }
+                
+                this.showStatus(`Created ${this.state.chunks.length} audio chunks.`, 'info');
+            },
+
+            // Generate drum samples using the specified processing method
+            async generateDrumSamples(processingMethod) {
+                if (this.state.chunks.length < 2) {
+                    throw new Error('Not enough audio chunks to process.');
+                }
+
+                this.showStatus(`Generating drum samples using ${processingMethod}...`, 'info');
+                
+                // Create samples for each drum type
+                for (const drumType of this.config.drumTypes) {
+                    for (let i = 0; i < drumType.count; i++) {
+                        const sampleBuffer = await this.createDrumSample(
+                            processingMethod, 
+                            drumType.type, 
+                            drumType.freqRange,
+                            drumType.attackTime,
+                            drumType.releaseTime,
+                            i + 1
+                        );
+                        
+                        this.state.generatedSamples.push({
+                            type: drumType.type,
+                            index: i + 1,
+                            buffer: sampleBuffer
+                        });
+                    }
+                }
+                
+                this.showStatus(`Generated ${this.state.generatedSamples.length} drum samples.`, 'info');
+            },
+
+            // Create a single drum sample using the specified processing method
+            async createDrumSample(method, type, freqRange, attackTime, releaseTime, index) {
+                // Randomly select chunks
+                const getRandomChunk = () => {
+                    const randomIndex = Math.floor(Math.random() * this.state.chunks.length);
+                    return this.state.chunks[randomIndex];
+                };
+                
+                const chunk1 = getRandomChunk();
+                const chunk2 = getRandomChunk();
+                
+                // Create a new buffer for the processed sample
+                const sampleRate = this.state.audioContext.sampleRate;
+                let outputLength = Math.max(chunk1.length, chunk2.length);
+                
+                // Extend length for some effects that need more tail
+                if (['convolution', 'granular-synthesis', 'phase-vocoding'].includes(method)) {
+                    outputLength = Math.ceil(outputLength * 1.5);
+                }
+                
+                const outputBuffer = this.state.audioContext.createBuffer(
+                    2, // Always create stereo output
+                    outputLength,
+                    sampleRate
+                );
+                
+                // Process the chunks based on the selected method
+                switch (method) {
+                    case 'vocoder':
+                        await this.processVocoder(chunk1, chunk2, outputBuffer, freqRange);
+                        break;
+                    case 'tape-splice':
+                        await this.processTapeSplice(chunk1, chunk2, outputBuffer);
+                        break;
+                    case 'mixing':
+                        await this.processMixing(outputBuffer, freqRange);
+                        break;
+                    case 'convolution':
+                        await this.processConvolution(chunk1, chunk2, outputBuffer, freqRange);
+                        break;
+                    case 'frequency-modulation':
+                        await this.processFrequencyModulation(chunk1, chunk2, outputBuffer, freqRange);
+                        break;
+                    case 'ring-modulation':
+                        await this.processRingModulation(chunk1, chunk2, outputBuffer, freqRange);
+                        break;
+                    case 'amplitude-modulation':
+                        await this.processAmplitudeModulation(chunk1, chunk2, outputBuffer, freqRange);
+                        break;
+                    case 'granular-synthesis':
+                        await this.processGranularSynthesis(chunk1, outputBuffer, freqRange);
+                        break;
+                    case 'cross-synthesis':
+                        await this.processCrossSynthesis(chunk1, chunk2, outputBuffer, freqRange);
+                        break;
+                    case 'additive-synthesis':
+                        await this.processAdditiveSynthesis(outputBuffer,

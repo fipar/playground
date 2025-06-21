@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Envelope-Guided Audio Chunker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        input[type="number"], input[type="range"] {
+            width: 100px;
+            padding: 5px;
+        }
+        #fileList, #referenceFileInfo {
+            margin-top: 10px;
+        }
+        .file-item {
+            margin-bottom: 5px;
+        }
+        progress {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .waveform-container {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        canvas {
+            width: 100%;
+            height: 80px;
+            background-color: #f5f5f5;
+        }
+        .canvas-label {
+            font-size: 12px;
+            color: #666;
+        }
+        .range-container {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .range-value {
+            margin-left: 10px;
+            width: 40px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Envelope-Guided Audio Chunker</h1>
+    
+    <div class="section">
+        <h2>1. Reference File</h2>
+        <p>Select the reference file that will provide the amplitude envelope (supports WAV, MP3, OGG, AIFF/AIF)</p>
+        <input type="file" id="referenceFile" accept=".wav,.mp3,.ogg,.aiff,.aif">
+        <div id="referenceFileInfo"></div>
+        <div class="waveform-container">
+            <div class="canvas-label">Reference Audio Waveform:</div>
+            <canvas id="referenceWaveform"></canvas>
+            <div class="canvas-label">Reference Envelope:</div>
+            <canvas id="envelopeWaveform"></canvas>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>2. Source Files</h2>
+        <p>Select source files to be chunked and modulated (supports WAV, MP3, OGG, AIFF/AIF)</p>
+        <input type="file" id="sourceFiles" multiple accept=".wav,.mp3,.ogg,.aiff,.aif">
+        <div id="fileList"></div>
+    </div>
+    
+    <div class="section">
+        <h2>3. Chunking Parameters</h2>
+        <div>
+            <label for="minChunk">Minimum Chunk Size (ms):</label>
+            <input type="number" id="minChunk" value="500" min="10" max="10000">
+        </div>
+        <div style="margin-top: 10px;">
+            <label for="maxChunk">Maximum Chunk Size (ms):</label>
+            <input type="number" id="maxChunk" value="2000" min="10" max="10000">
+        </div>
+        <div class="range-container">
+            <label for="envelopeStrength">Envelope Strength (%):</label>
+            <input type="range" id="envelopeStrength" min="0" max="100" value="75">
+            <span id="envelopeStrengthValue" class="range-value">75%</span>
+        </div>
+        <div class="range-container">
+            <label for="envelopeSmoothing">Envelope Smoothing (ms):</label>
+            <input type="range" id="envelopeSmoothing" min="0" max="500" value="50">
+            <span id="envelopeSmoothingValue" class="range-value">50ms</span>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>4. Output Options</h2>
+        <div>
+            <label>
+                <input type="radio" name="outputType" value="play" checked> 
+                Play directly
+            </label>
+            <label style="margin-left: 20px;">
+                <input type="radio" name="outputType" value="save"> 
+                Save as file
+            </label>
+        </div>
+        <div class="waveform-container">
+            <div class="canvas-label">Output Waveform:</div>
+            <canvas id="outputWaveform"></canvas>
+        </div>
+    </div>
+    
+    <div class="section">
+        <button id="mixButton" disabled>Generate Mix</button>
+        <button id="playRefButton" disabled>Play Reference</button>
+        <button id="stopButton" disabled>Stop Playback</button>
+        <button id="saveButton" disabled>Save Mix</button>
+        <div id="status"></div>
+        <progress id="progressBar" value="0" max="100" style="display: none;"></progress>
+    </div>
+
+    <script>
+        // Audio Mixer with Envelope Implementation
+        const EnvelopeGuidedMixer = {
+            // Store loaded audio buffers
+            referenceBuffer: null,
+            envelopeData: null,
+            sourceBuffers: [],
+            mixedBuffer: null,
+            activeSource: null,
+            
+            // Load reference file
+            loadReferenceFile: async function(file) {
+                updateStatus(`Loading reference: ${file.name}...`);
+                
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    
+                    this.referenceBuffer = audioBuffer;
+                    updateStatus(`Loaded reference: ${file.name}, Duration: ${audioBuffer.duration.toFixed(2)}s`);
+                    
+                    // Extract amplitude envelope
+                    this.extractEnvelope(audioBuffer, 50); // Default smoothing of 50ms
+                    
+                    // Draw waveforms
+                    this.drawWaveform(audioBuffer, 'referenceWaveform');
+                    this.drawEnvelope('envelopeWaveform');
+                    
+                    return true;
+                } catch (error) {
+                    updateStatus(`Error: Failed to load ${file.name}: ${error.message}`, true);
+                    return false;
+                }
+            },
+            
+            // Load source audio files
+            loadSourceFiles: async function(fileList) {
+                this.sourceBuffers = [];
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                for (const file of fileList) {
+                    try {
+                        updateStatus(`Loading source: ${file.name}...`);
+                        const arrayBuffer = await file.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        this.sourceBuffers.push(audioBuffer);
+                        updateStatus(`Loaded source: ${file.name}, Duration: ${audioBuffer.duration.toFixed(2)}s`);
+                    } catch (error) {
+                        updateStatus(`Error: Failed to load ${file.name}: ${error.message}`, true);
+                    }
+                }
+                
+                return this.sourceBuffers.length > 0;
+            },
+            
+            // Extract amplitude envelope from reference file
+            extractEnvelope: function(buffer, smoothingMs) {
+                const sampleRate = buffer.sampleRate;
+                const smoothingSamples = Math.ceil(smoothingMs * sampleRate / 1000);
+                
+                // Get the envelope from the first channel (mono or left channel)
+                const data = buffer.getChannelData(0);
+                const envelopeData = new Float32Array(data.length);
+                
+                // First pass: get absolute values (rectification)
+                for (let i = 0; i < data.length; i++) {
+                    envelopeData[i] = Math.abs(data[i]);
+                }
+                
+                // Second pass: apply smoothing if needed (low-pass filter)
+                if (smoothingSamples > 1) {
+                    const tempData = new Float32Array(envelopeData);
+                    for (let i = 0; i < data.length; i++) {
+                        let sum = 0;
+                        let count = 0;
+                        
+                        // Apply centered smoothing window
+                        for (let j = -smoothingSamples; j <= smoothingSamples; j++) {
+                            const index = i + j;
+                            if (index >= 0 && index < data.length) {
+                                sum += tempData[index];
+                                count++;
+                            }
+                        }
+                        
+                        envelopeData[i] = sum / count;
+                    }
+                }
+                
+                this.envelopeData = {
+                    data: envelopeData,
+                    sampleRate: sampleRate
+                };
+                
+                return envelopeData;
+            },
+            
+            // Update envelope with new smoothing setting
+            updateEnvelope: function(smoothingMs) {
+                if (this.referenceBuffer) {
+                    this.extractEnvelope(this.referenceBuffer, smoothingMs);
+                    this.drawEnvelope('envelopeWaveform');
+                }
+            },
+            
+            // Create random chunks mix with envelope modulation
+            createEnvelopeGuidedMix: function(minChunkMs, maxChunkMs, envelopeStrength) {
+                updateStatus('Generating mix...');
+                
+                return new Promise((resolve) => {
+                    if (!this.referenceBuffer || this.sourceBuffers.length === 0) {
+                        updateStatus('Reference file and at least one source file are required', true);
+                        resolve(null);
+                        return;
+                    }
+                    
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    
+                    // Create output buffer with same duration as reference
+                    const outputBuffer = audioContext.createBuffer(
+                        this.referenceBuffer.numberOfChannels,
+                        this.referenceBuffer.length,
+                        this.referenceBuffer.sampleRate
+                    );
+                    
+                    // Clear the output buffer
+                    for (let channel = 0; channel < outputBuffer.numberOfChannels; channel++) {
+                        const outputData = outputBuffer.getChannelData(channel);
+                        for (let i = 0; i < outputData.length; i++) {
+                            outputData[i] = 0;
+                        }
+                    }
+                    
+                    const sampleRate = this.referenceBuffer.sampleRate;
+                    let currentSample = 0;
+                    const totalSamples = this.referenceBuffer.length;
+                    
+                    // Calculate envelope strength (0-1)
+                    const envStrength = envelopeStrength / 100;
+                    
+                    // Process in chunks for UI responsiveness
+                    const processNextChunk = () => {
+                        const startTime = performance.now();
+                        
+                        while (currentSample < totalSamples && (performance.now() - startTime) < 50) {
+                            // Calculate minimum and maximum chunk sizes in samples
+                            const minChunkSamples = Math.floor(minChunkMs * sampleRate / 1000);
+                            const maxChunkSamples = Math.floor(maxChunkMs * sampleRate / 1000);
+                            
+                            // Calculate random chunk size
+                            const chunkSizeSamples = Math.floor(minChunkSamples + Math.random() * (maxChunkSamples - minChunkSamples));
+                            
+                            // Make sure we don't exceed buffer length
+                            const actualChunkSize = Math.min(chunkSizeSamples, totalSamples - currentSample);
+                            
+                            if (actualChunkSize <= 0) {
+                                break; // We've reached the end of the buffer
+                            }
+                            
+                            // Select random source buffer
+                            const sourceIdx = Math.floor(Math.random() * this.sourceBuffers.length);
+                            const sourceBuffer = this.sourceBuffers[sourceIdx];
+                            
+                            // Select random starting position in source buffer
+                            const maxStartPositionSamples = sourceBuffer.length - actualChunkSize;
+                            const startPositionSamples = Math.floor(Math.random() * (maxStartPositionSamples > 0 ? maxStartPositionSamples : 1));
+                            
+                            // Copy chunk to output buffer and apply envelope
+                            for (let channel = 0; channel < Math.min(outputBuffer.numberOfChannels, sourceBuffer.numberOfChannels); channel++) {
+                                const outputData = outputBuffer.getChannelData(channel);
+                                const sourceData = sourceBuffer.getChannelData(channel);
+                                
+                                for (let i = 0; i < actualChunkSize; i++) {
+                                    const outputIndex = currentSample + i;
+                                    const sourceIndex = startPositionSamples + i;
+                                    
+                                    // Get envelope value for this position
+                                    const envelopeValue = this.envelopeData.data[outputIndex];
+                                    
+                                    // Mix direct sound with envelope-modulated sound based on strength
+                                    outputData[outputIndex] = sourceData[sourceIndex] * 
+                                        ((1 - envStrength) + (envStrength * envelopeValue));
+                                }
+                            }
+                            
+                            // Move to next position
+                            currentSample += actualChunkSize;
+                            
+                            // Update progress
+                            const progress = Math.min(100, Math.floor((currentSample / totalSamples) * 100));
+                            document.getElementById('progressBar').value = progress;
+                        }
+                        
+                        if (currentSample < totalSamples) {
+                            // Continue processing
+                            setTimeout(processNextChunk, 0);
+                        } else {
+                            // Done
+                            updateStatus('Mix generated successfully!');
+                            this.mixedBuffer = outputBuffer;
+                            
+                            // Draw output waveform
+                            this.drawWaveform(outputBuffer, 'outputWaveform');
+                            
+                            resolve(outputBuffer);
+                        }
+                    };
+                    
+                    // Start processing
+                    processNextChunk();
+                });
+            },
+            
+            // Draw waveform visualization
+            drawWaveform: function(buffer, canvasId) {
+                const canvas = document.getElementById(canvasId);
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas size to match display size
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Get the first channel data
+                const data = buffer.getChannelData(0);
+                
+                // The width of each segment
+                const step = Math.ceil(data.length / canvas.width);
+                const amp = canvas.height / 2;
+                
+                // Draw the waveform
+                ctx.beginPath();
+                ctx.strokeStyle = '#3498db';
+                ctx.lineWidth = 1;
+                
+                for (let i = 0; i < canvas.width; i++) {
+                    // For each pixel, find the peak sample
+                    let min = 1.0;
+                    let max = -1.0;
+                    
+                    for (let j = 0; j < step; j++) {
+                        const sample = data[(i * step) + j];
+                        if (sample < min) min = sample;
+                        if (sample > max) max = sample;
+                    }
+                    
+                    // Draw min and max as a vertical line
+                    ctx.moveTo(i, amp * (1 + min));
+                    ctx.lineTo(i, amp * (1 + max));
+                }
+                
+                ctx.stroke();
+            },
+            
+            // Draw envelope visualization
+            drawEnvelope: function(canvasId) {
+                if (!this.envelopeData) return;
+                
+                const canvas = document.getElementById(canvasId);
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas size to match display size
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                const data = this.envelopeData.data;
+                
+                // The width of each segment
+                const step = Math.ceil(data.length / canvas.width);
+                const amp = canvas.height;
+                
+                // Draw the envelope
+                ctx.beginPath();
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 1;
+                
+                let lastY = amp - (data[0] * amp);
+                ctx.moveTo(0, lastY);
+                
+                for (let i = 1; i < canvas.width; i++) {
+                    // For each pixel, find the average value
+                    let sum = 0;
+                    let count = 0;
+                    
+                    for (let j = 0; j < step; j++) {
+                        const index = (i * step) + j;
+                        if (index < data.length) {
+                            sum += data[index];
+                            count++;
+                        }
+                    }
+                    
+                    const avg = count > 0 ? sum / count : 0;
+                    const y = amp - (avg * amp);
+                    
+                    ctx.lineTo(i, y);
+                    lastY = y;
+                }
+                
+                ctx.stroke();
+            },
+            
+            // Play the reference audio
+            playReference: function() {
+                if (!this.referenceBuffer) {
+                    updateStatus('No reference file loaded', true);
+                    return null;
+                }
+                
+                // Stop any currently playing audio
+                this.stopPlayback();
+                
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createBufferSource();
+                source.buffer = this.referenceBuffer;
+                source.connect(audioContext.destination);
+                source.start();
+                this.activeSource = source;
+                
+                updateStatus('Playing reference audio...');
+                
+                source.onended = () => {
+                    this.activeSource = null;
+                    updateStatus('Playback finished');
+                    document.getElementById('stopButton').disabled = true;
+                };
+                
+                return source;
+            },
+            
+            // Play the mixed audio
+            playMix: function() {
+                if (!this.mixedBuffer) {
+                    updateStatus('No mix available to play', true);
+                    return null;
+                }
+                
+                // Stop any currently playing audio
+                this.stopPlayback();
+                
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createBufferSource();
+                source.buffer = this.mixedBuffer;
+                source.connect(audioContext.destination);
+                source.start();
+                this.activeSource = source;
+                
+                updateStatus('Playing mix...');
+                
+                source.onended = () => {
+                    this.activeSource = null;
+                    updateStatus('Playback finished');
+                    document.getElementById('stopButton').disabled = true;
+                };
+                
+                return source;
+            },
+            
+            // Stop playback
+            stopPlayback: function() {
+                if (this.activeSource) {
+                    this.activeSource.stop();
+                    this.activeSource = null;
+                    updateStatus('Playback stopped');
+                }
+            },
+            
+            // Export mix to file (WAV format)
+            exportMix: function() {
+                if (!this.mixedBuffer) {
+                    updateStatus('No mix available to export', true);
+                    return;
+                }
+                
+                // Create WAV file
+                const wavData = this.audioBufferToWav(this.mixedBuffer);
+                const blob = new Blob([wavData], { type: 'audio/wav' });
+                
+                // Create download link
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'envelope_guided_mix.wav';
+                document.body.appendChild(a);
+                a.click();
+                
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+                
+                updateStatus('Mix exported as WAV file');
+            },
+            
+            // Convert AudioBuffer to WAV format
+            audioBufferToWav: function(buffer) {
+                const numChannels = buffer.numberOfChannels;
+                const sampleRate = buffer.sampleRate;
+                const format = 1; // PCM
+                const bitDepth = 16;
+                
+                let result;
+                if (numChannels === 2) {
+                    result = this.interleave(buffer.getChannelData(0), buffer.getChannelData(1));
+                } else {
+                    result = buffer.getChannelData(0);
+                }
+                
+                const dataLength = result.length * (bitDepth / 8);
+                const buffer2 = new ArrayBuffer(44 + dataLength);
+                const view = new DataView(buffer2);
+                
+                // Write WAV header
+                // "RIFF" chunk descriptor
+                this.writeString(view, 0, 'RIFF');
+                view.setUint32(4, 36 + dataLength, true);
+                this.writeString(view, 8, 'WAVE');
+                
+                // "fmt " sub-chunk
+                this.writeString(view, 12, 'fmt ');
+                view.setUint32(16, 16, true); // fmt chunk size
+                view.setUint16(20, format, true);
+                view.setUint16(22, numChannels, true);
+                view.setUint32(24, sampleRate, true);
+                view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true); // byte rate
+                view.setUint16(32, numChannels * (bitDepth / 8), true); // block align
+                view.setUint16(34, bitDepth, true);
+                
+                // "data" sub-chunk
+                this.writeString(view, 36, 'data');
+                view.setUint32(40, dataLength, true);
+                
+                // Write PCM samples
+                const offset = 44;
+                this.floatTo16BitPCM(view, offset, result);
+                
+                return buffer2;
+            },
+            
+            // Helper for WAV creation
+            writeString: function(view, offset, string) {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            },
+            
+            // Helper for WAV creation
+            floatTo16BitPCM: function(output, offset, input) {
+                for (let i = 0; i < input.length; i++, offset += 2) {
+                    const s = Math.max(-1, Math.min(1, input[i]));
+                    output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                }
+            },
+            
+            // Helper for WAV creation
+            interleave: function(inputL, inputR) {
+                const length = inputL.length + inputR.length;
+                const result = new Float32Array(length);
+                
+                let index = 0;
+                let inputIndex = 0;
+                
+                while (index < length) {
+                    result[index++] = inputL[inputIndex];
+                    result[index++] = inputR[inputIndex];
+                    inputIndex++;
+                }
+                
+                return result;
+            }
+        };
+
+        // UI Control Functions
+        let referenceFile = null;
+        let sourceFiles = [];
+        
+        function updateStatus(message, isError = false) {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = message;
+            statusElement.style.color = isError ? 'red' : 'black';
+            console.log(message);
+        }
+        
+        function updateReferenceFileInfo() {
+            const fileInfoElement = document.getElementById('referenceFileInfo');
+            
+            if (!referenceFile) {
+                fileInfoElement.innerHTML = '<p>No reference file selected</p>';
+                return;
+            }
+            
+            fileInfoElement.innerHTML = `<p>Reference: ${referenceFile.name} (${(referenceFile.size / 1024).toFixed(1)} KB)</p>`;
+        }
+        
+        function updateSourceFileList() {
+            const fileListElement = document.getElementById('fileList');
+            
+            if (sourceFiles.length === 0) {
+                fileListElement.innerHTML = '<p>No source files selected</p>';
+                return;
+            }
+            
+            let html = '';
+            for (let i = 0; i < sourceFiles.length; i++) {
+                const file = sourceFiles[i];
+                html += `<div class="file-item">${i+1}. ${file.name} (${(file.size / 1024).toFixed(1)} KB)</div>`;
+            }
+            
+            fileListElement.innerHTML = html;
+            
+            // Enable/disable mix button based on file selections
+            document.getElementById('mixButton').disabled = !(referenceFile && sourceFiles.length > 0);
+        }
+        
+        // Set up event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get UI elements
+            const referenceFileInput = document.getElementById('referenceFile');
+            const sourceFilesInput = document.getElementById('sourceFiles');
+            const mixButton = document.getElementById('mixButton');
+            const playRefButton = document.getElementById('playRefButton');
+            const stopButton = document.getElementById('stopButton');
+            const saveButton = document.getElementById('saveButton');
+            const progressBar = document.getElementById('progressBar');
+            
+            // Set canvas sizes
+            const canvases = document.querySelectorAll('canvas');
+            canvases.forEach(canvas => {
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+            });
+            
+            // Envelope parameters
+            const envelopeStrengthSlider = document.getElementById('envelopeStrength');
+            const envelopeStrengthValue = document.getElementById('envelopeStrengthValue');
+            const envelopeSmoothingSlider = document.getElementById('envelopeSmoothing');
+            const envelopeSmoothingValue = document.getElementById('envelopeSmoothingValue');
+            
+            // Update slider value displays
+            envelopeStrengthSlider.addEventListener('input', function() {
+                envelopeStrengthValue.textContent = `${this.value}%`;
+            });
+            
+            envelopeSmoothingSlider.addEventListener('input', function() {
+                envelopeSmoothingValue.textContent = `${this.value}ms`;
+                // Update envelope smoothing in real-time
+                if (referenceFile) {
+                    EnvelopeGuidedMixer.updateEnvelope(parseInt(this.value));
+                }
+            });
+            
+            // Reference file selection
+            referenceFileInput.addEventListener('change', async function(e) {
+                if (e.target.files.length === 0) {
+                    referenceFile = null;
+                    updateReferenceFileInfo();
+                    return;
+                }
+                
+                referenceFile = e.target.files[0];
+                updateReferenceFileInfo();
+                
+                // Load the reference file
+                const success = await EnvelopeGuidedMixer.loadReferenceFile(referenceFile);
+                playRefButton.disabled = !success;
+                
+                // Update mix button state
+                mixButton.disabled = !(success && sourceFiles.length > 0);
+            });
+            
+            // Source files selection
+            sourceFilesInput.addEventListener('change', function(e) {
+                sourceFiles = Array.from(e.target.files);
+                updateSourceFileList();
+                
+                // Update mix button state
+                mixButton.disabled = !(referenceFile && sourceFiles.length > 0);
+            });
+            
+            // Min/max validation
+            document.getElementById('minChunk').addEventListener('change', function() {
+                const min = parseInt(this.value);
+                const max = parseInt(document.getElementById('maxChunk').value);
+                if (min > max) {
+                    document.getElementById('maxChunk').value = min;
+                }
+            });
+            
+            document.getElementById('maxChunk').addEventListener('change', function() {
+                const min = parseInt(document.getElementById('minChunk').value);
+                const max = parseInt(this.value);
+                if (max < min) {
+                    document.getElementById('minChunk').value = max;
+                }
+            });
+            
+            // Play reference audio
+            playRefButton.addEventListener('click', function() {
+                EnvelopeGuidedMixer.playReference();
+                stopButton.disabled = false;
+            });
+            
+            // Generate mix
+            mixButton.addEventListener('click', async function() {
+                if (!referenceFile || sourceFiles.length === 0) {
+                    updateStatus('Please select a reference file and at least one source file', true);
+                    return;
+                }
+                
+                // Disable buttons during processing
+                mixButton.disabled = true;
+                playRefButton.disabled = true;
+                stopButton.disabled = true;
+                saveButton.disabled = true;
+                
+                // Show progress bar
+                progressBar.style.display = 'block';
+                progressBar.value = 0;
+                
+                try {
+                    // Load source files if not already loaded
+                    if (EnvelopeGuidedMixer.sourceBuffers.length === 0) {
+                        await EnvelopeGuidedMixer.loadSourceFiles(sourceFiles);
+                    }
+                    
+                    // Get parameters
+                    const minChunk = parseInt(document.getElementById('minChunk').value);
+                    const maxChunk = parseInt(document.getElementById('maxChunk').value);
+                    const envelopeStrength = parseInt(envelopeStrengthSlider.value);
+                    
+                    // Create mix
+                    const outputBuffer = await EnvelopeGuidedMixer.createEnvelopeGuidedMix(
+                        minChunk, maxChunk, envelopeStrength
+                    );
+                    
+                    // Re-enable buttons
+                    mixButton.disabled = false;
+                    playRefButton.disabled = false;
+                    stopButton.disabled = true;
+                    saveButton.disabled = !outputBuffer;
+                    
+                    // Play if selected
+                    if (outputBuffer && document.querySelector('input[name="outputType"]:checked').value === 'play') {
+                        EnvelopeGuidedMixer.playMix();
+                        stopButton.disabled = false;
+                    }
+                    
+                } catch (error) {
+                    updateStatus(`Error: ${error.message}`, true);
+                    mixButton.disabled = false;
+                    playRefButton.disabled = false;
+                }
+                
+                // Hide progress bar
+                progressBar.style.display = 'none';
+            });
+            
+            // Stop playback
+            stopButton.addEventListener('click', function() {
+                EnvelopeGuidedMixer.stopPlayback();
+                stopButton.disabled = true;
+            });
+            
+            // Save mix
+            saveButton.addEventListener('click', function() {
+                EnvelopeGuidedMixer.exportMix();
+            });
+        });
+    </script>
+</body>
+</html>

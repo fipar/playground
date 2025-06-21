@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Reconstructor - Advanced</title>
+    <script src="https://cdn.jsdelivr.net/npm/meyda@latest/dist/web/meyda.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 750px; /* Slightly wider for more controls */
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #1877f2;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        h2 {
+            color: #333;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 5px;
+        }
+        label {
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        input[type="file"], input[type="number"], select {
+            display: block;
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            width: calc(100% - 22px);
+            box-sizing: border-box;
+            font-size: 1em;
+            background-color: #f9f9f9;
+        }
+        .input-group {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            background-color: #fdfdfd;
+        }
+        .input-group label {
+            margin-top: 0;
+            font-size: 0.9em;
+        }
+        .input-group input[type="number"] {
+            width: calc(100% - 22px); /* Ensure consistent width */
+            margin-bottom: 5px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            margin-top: 10px;
+            margin-right: 10px;
+            transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        button:disabled {
+            background-color: #bcc0c4;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        audio {
+            width: 100%;
+            margin-top: 15px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+        #status {
+            margin-top: 25px;
+            padding: 12px;
+            background-color: #e9ecef;
+            border-left: 4px solid #007bff;
+            color: #495057;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-size: 0.95em;
+            line-height: 1.6;
+        }
+        .file-list-item {
+            background-color: #f8f9fa;
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            border: 1px solid #e0e0e0;
+        }
+         .file-list-item.error {
+            color: #dc3545;
+            border-left: 3px solid #dc3545;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Audio Reconstructor - Advanced</h1>
+
+        <section>
+            <h2>1. Upload Files</h2>
+            <label for="referenceFile">Reference Audio File:</label>
+            <input type="file" id="referenceFile" accept="audio/*">
+            <div id="referenceFileName" class="file-list-item" style="display:none;"></div>
+
+            <label for="sourceFiles">Source Audio File(s):</label>
+            <input type="file" id="sourceFiles" accept="audio/*" multiple>
+            <div id="sourceFileNamesContainer"></div>
+        </section>
+
+        <section>
+            <h2>2. Configure Settings</h2>
+            <label for="chunkingStrategy">Chunking Strategy:</label>
+            <select id="chunkingStrategy">
+                <option value="random">Random Duration</option>
+                <option value="silence">Silence-Based</option>
+                <option value="transient">Transient-Based (Basic)</option>
+            </select>
+
+            <div id="randomChunkSettings">
+                <div class="input-group">
+                    <label for="minChunkSize">Min Chunk Size (ms):</label>
+                    <input type="number" id="minChunkSize" value="200" min="10">
+                    <label for="maxChunkSize">Max Chunk Size (ms):</label>
+                    <input type="number" id="maxChunkSize" value="500" min="10">
+                </div>
+            </div>
+
+            <div id="silenceChunkSettings" class="hidden">
+                 <div class="input-group">
+                    <label for="silenceThreshold">Silence Threshold (dBFS, e.g., -50):</label>
+                    <input type="number" id="silenceThreshold" value="-50" max="0" step="1">
+                    <label for="minSilenceDuration">Min Silence Duration for Split (ms):</label>
+                    <input type="number" id="minSilenceDuration" value="150" min="10">
+                    <label for="minChunkDurationSilence">Min Non-Silent Chunk Duration (ms):</label>
+                    <input type="number" id="minChunkDurationSilence" value="100" min="10">
+                 </div>
+            </div>
+            
+            <div id="transientChunkSettings" class="hidden">
+                <div class="input-group">
+                    <label for="transientThreshold">Transient Sensitivity (0.1-1.0, higher is more sensitive):</label>
+                    <input type="number" id="transientThreshold" value="0.3" min="0.05" max="1.0" step="0.05">
+                    <label for="minChunkDurationTransient">Min Chunk Duration After Transient (ms):</label>
+                    <input type="number" id="minChunkDurationTransient" value="100" min="10">
+                     <label for="maxChunkDurationTransient">Max Chunk Duration After Transient (ms):</label>
+                    <input type="number" id="maxChunkDurationTransient" value="1000" min="10">
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>3. Process & Result</h2>
+            <button id="processButton">Process Audio</button>
+            <audio id="resultAudio" controls></audio>
+            <button id="downloadButton" disabled>Download Result</button>
+        </section>
+
+        <div id="status">Please upload your audio files and click "Process Audio".</div>
+    </div>
+
+    <script>
+        // Ensure Meyda is available
+        if (typeof Meyda === "undefined") {
+            alert("Meyda.js library not loaded. Please check the CDN link or your internet connection.");
+            document.getElementById('processButton').disabled = true;
+        }
+
+        let audioContext;
+        let referenceBuffer = null;
+        let sourceBuffers = [];
+        let resultAudioBuffer = null;
+        // No global meyda instance needed if we create one per chunk extraction
+
+        // DOM Elements
+        const referenceFileInput = document.getElementById('referenceFile');
+        const sourceFilesInput = document.getElementById('sourceFiles');
+        const referenceFileNameDiv = document.getElementById('referenceFileName');
+        const sourceFileNamesContainer = document.getElementById('sourceFileNamesContainer');
+        
+        const chunkingStrategySelect = document.getElementById('chunkingStrategy');
+        const randomChunkSettingsDiv = document.getElementById('randomChunkSettings');
+        const silenceChunkSettingsDiv = document.getElementById('silenceChunkSettings');
+        const transientChunkSettingsDiv = document.getElementById('transientChunkSettings');
+
+        const minChunkSizeInput = document.getElementById('minChunkSize');
+        const maxChunkSizeInput = document.getElementById('maxChunkSize');
+        const silenceThresholdInput = document.getElementById('silenceThreshold');
+        const minSilenceDurationInput = document.getElementById('minSilenceDuration');
+        const minChunkDurationSilenceInput = document.getElementById('minChunkDurationSilence');
+        const transientThresholdInput = document.getElementById('transientThreshold');
+        const minChunkDurationTransientInput = document.getElementById('minChunkDurationTransient');
+        const maxChunkDurationTransientInput = document.getElementById('maxChunkDurationTransient');
+
+        const processButton = document.getElementById('processButton');
+        const resultAudioPlayer = document.getElementById('resultAudio');
+        const downloadButton = document.getElementById('downloadButton');
+        const statusDiv = document.getElementById('status');
+
+        // Constants for Meyda
+        const MEYDA_BUFFER_SIZE = 512; 
+        const NUM_MFCC_COEFFS = 13; 
+
+        function initializeAudioContext() {
+            if (!audioContext) {
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    if (audioContext.state === 'suspended') {
+                        audioContext.resume().catch(e => console.warn("Could not resume main AudioContext:", e));
+                    }
+                } catch (e) {
+                    updateStatus("Error: Web Audio API is not supported.", true);
+                    console.error("Web Audio API not supported:", e);
+                    throw e;
+                }
+            }
+        }
+        
+        function updateStatus(message, isError = false) {
+            statusDiv.textContent = message;
+            statusDiv.style.borderColor = isError ? '#dc3545' : '#007bff';
+            console.log(message); // Also log to console
+        }
+
+        chunkingStrategySelect.addEventListener('change', (event) => {
+            randomChunkSettingsDiv.classList.add('hidden');
+            silenceChunkSettingsDiv.classList.add('hidden');
+            transientChunkSettingsDiv.classList.add('hidden');
+            const selectedSettingsDiv = document.getElementById(event.target.value + 'ChunkSettings');
+            if (selectedSettingsDiv) {
+                selectedSettingsDiv.classList.remove('hidden');
+            }
+        });
+        // Initialize correct settings view on load
+        const initialSettingsDiv = document.getElementById(chunkingStrategySelect.value + 'ChunkSettings');
+        if (initialSettingsDiv) {
+            initialSettingsDiv.classList.remove('hidden');
+        }
+
+
+        referenceFileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                try {
+                    initializeAudioContext();
+                    referenceFileNameDiv.textContent = `Selected Reference: ${file.name}`;
+                    referenceFileNameDiv.style.display = 'block';
+                    referenceFileNameDiv.classList.remove('error');
+                    updateStatus(`Loading reference: ${file.name}...`);
+                    const arrayBuffer = await file.arrayBuffer();
+                    referenceBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    updateStatus(`Reference "${file.name}" loaded successfully.`);
+                } catch (e) {
+                    updateStatus(`Error loading reference file "${file.name}": ${e.message}`, true);
+                    console.error(e);
+                    referenceBuffer = null;
+                    referenceFileNameDiv.textContent = `Error loading: ${file.name}`;
+                    referenceFileNameDiv.classList.add('error');
+                }
+            } else {
+                 referenceFileNameDiv.style.display = 'none';
+                 referenceFileNameDiv.textContent = '';
+                 referenceBuffer = null;
+            }
+        });
+
+        sourceFilesInput.addEventListener('change', async (event) => {
+            const files = event.target.files;
+            if (files.length > 0) {
+                try {
+                    initializeAudioContext();
+                } catch (e) { return; }
+
+                sourceBuffers = [];
+                sourceFileNamesContainer.innerHTML = '';
+                updateStatus(`Loading ${files.length} source file(s)...`);
+                let loadedCount = 0;
+                let errorCount = 0;
+
+                for (const file of files) {
+                    const nameItem = document.createElement('div');
+                    nameItem.className = 'file-list-item';
+                    sourceFileNamesContainer.appendChild(nameItem);
+                    try {
+                        const arrayBuffer = await file.arrayBuffer();
+                        const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        sourceBuffers.push(decodedBuffer);
+                        loadedCount++;
+                        nameItem.textContent = `Loaded: ${file.name}`;
+                    } catch (e) {
+                        updateStatus(`Error loading source file "${file.name}": ${e.message}`, true);
+                        console.error(e);
+                        nameItem.textContent = `Error loading: ${file.name}`;
+                        nameItem.classList.add('error');
+                        errorCount++;
+                    }
+                }
+                if (loadedCount > 0) updateStatus(`Successfully loaded ${loadedCount}/${files.length} source files.`);
+                else if (errorCount > 0) updateStatus(`Failed to load any source files. Check console.`, true);
+                else if (files.length === 0) updateStatus("No source files selected.");
+
+            } else {
+                sourceFileNamesContainer.innerHTML = '';
+                sourceBuffers = [];
+                updateStatus("Source file selection cleared.");
+            }
+        });
+
+        processButton.addEventListener('click', async () => {
+            try {
+                initializeAudioContext(); // Ensure main context is ready
+            } catch (e) {
+                updateStatus("AudioContext could not be initialized. Please interact with the page and try again.", true);
+                return;
+            }
+
+            if (!referenceBuffer) {
+                updateStatus("Processing Error: Please upload a reference audio file.", true);
+                return;
+            }
+            if (sourceBuffers.length === 0) {
+                updateStatus("Processing Error: Please upload at least one source audio file.", true);
+                return;
+            }
+
+            processButton.disabled = true;
+            downloadButton.disabled = true;
+            resultAudioPlayer.src = ''; // Clear previous result
+            updateStatus("Processing started... This may take a while.");
+
+            try {
+                await new Promise(resolve => setTimeout(resolve, 50)); // Allow UI to update
+                
+                resultAudioBuffer = await reconstructAudio(
+                    referenceBuffer,
+                    sourceBuffers,
+                    audioContext.sampleRate // Pass main context's sample rate
+                );
+                
+                if (resultAudioBuffer && resultAudioBuffer.length > 0) {
+                    updateStatus("Processing complete! Result is ready for playback or download.");
+                    const wavBlob = audioBufferToWav(resultAudioBuffer);
+                    const url = URL.createObjectURL(wavBlob);
+                    resultAudioPlayer.src = url;
+                    downloadButton.disabled = false;
+                } else {
+                    updateStatus("Processing failed or no audible output was generated. Check console for details.", true);
+                }
+            } catch (e) {
+                updateStatus(`Error during processing: ${e.message}. Check console for more details.`, true);
+                console.error("Processing error:", e);
+            } finally {
+                processButton.disabled = false;
+            }
+        });
+
+        downloadButton.addEventListener('click', () => {
+            if (resultAudioBuffer && resultAudioPlayer.src) {
+                const wavBlob = audioBufferToWav(resultAudioBuffer); 
+                const url = URL.createObjectURL(wavBlob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'reconstructed_audio_v3.1.wav'; // Updated filename
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url); 
+                updateStatus("Result downloaded as reconstructed_audio_v3.1.wav");
+            } else {
+                updateStatus("No result audio available to download.", true);
+            }
+        });
+        
+        async function segmentAudio(audioBuffer, sampleRate) {
+            const strategy = chunkingStrategySelect.value;
+            updateStatus(`Segmenting with strategy: ${strategy}...`);
+            // ... (segmentation functions: segmentRandom, segmentBySilence, segmentByTransients remain largely the same)
+            // Ensure these functions are defined as they were in the previous version.
+            // For brevity, I'm omitting them here but they should be included from the prior version.
+            if (strategy === 'random') {
+                const minMs = parseFloat(minChunkSizeInput.value);
+                const maxMs = parseFloat(maxChunkSizeInput.value);
+                if (isNaN(minMs) || isNaN(maxMs) || minMs <= 0 || maxMs <= 0 || minMs > maxMs) {
+                    updateStatus("Invalid min/max chunk sizes for random strategy.", true); return [];
+                }
+                return segmentRandom(audioBuffer, minMs, maxMs, sampleRate);
+            } else if (strategy === 'silence') {
+                const thresholdDBFS = parseFloat(silenceThresholdInput.value);
+                const minSilenceMs = parseFloat(minSilenceDurationInput.value);
+                const minChunkMs = parseFloat(minChunkDurationSilenceInput.value);
+                return segmentBySilence(audioBuffer, sampleRate, thresholdDBFS, minSilenceMs, minChunkMs);
+            } else if (strategy === 'transient') {
+                const threshold = parseFloat(transientThresholdInput.value);
+                const minChunkMs = parseFloat(minChunkDurationTransientInput.value);
+                const maxChunkMs = parseFloat(maxChunkDurationTransientInput.value);
+                return segmentByTransients(audioBuffer, sampleRate, threshold, minChunkMs, maxChunkMs);
+            }
+            return [];
+        }
+
+        function segmentRandom(audioBuffer, minMs, maxMs, sampleRate) {
+            const chunks = []; let currentSample = 0; const totalSamples = audioBuffer.length;
+            const minSamples = Math.floor(minMs / 1000 * sampleRate); const maxSamples = Math.floor(maxMs / 1000 * sampleRate);
+            if (minSamples <= 0 || maxSamples <= 0) return [];
+            while (currentSample < totalSamples) {
+                let chunkSizeSamples = minSamples + Math.floor(Math.random() * (maxSamples - minSamples + 1));
+                if (currentSample + chunkSizeSamples > totalSamples) chunkSizeSamples = totalSamples - currentSample;
+                if (chunkSizeSamples <= 0) break;
+                const chunkBuffer = audioContext.createBuffer(audioBuffer.numberOfChannels, chunkSizeSamples, sampleRate);
+                for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
+                    chunkBuffer.copyToChannel(audioBuffer.getChannelData(i).slice(currentSample, currentSample + chunkSizeSamples), i);
+                }
+                chunks.push({ buffer: chunkBuffer, durationMs: (chunkSizeSamples / sampleRate) * 1000 });
+                currentSample += chunkSizeSamples;
+            }
+            return chunks;
+        }
+
+        async function segmentBySilence(audioBuffer, sampleRate, thresholdDBFS, minSilenceMs, minChunkMs) {
+            updateStatus("Segmenting by silence..."); await new Promise(resolve => setTimeout(resolve, 10));
+            const channelData = audioBuffer.getChannelData(0); const thresholdLinear = Math.pow(10, thresholdDBFS / 20);
+            const minSilenceSamples = Math.floor(minSilenceMs / 1000 * sampleRate);
+            const minChunkSamples = Math.floor(minChunkMs / 1000 * sampleRate);
+            const analysisFrameSize = 256; let chunks = []; let segmentStartSample = 0; let inSoundSegment = false;
+            for (let i = 0; i < channelData.length - analysisFrameSize; i += analysisFrameSize) {
+                let sumSquare = 0; for (let j = 0; j < analysisFrameSize; j++) sumSquare += channelData[i + j] * channelData[i + j];
+                const rms = Math.sqrt(sumSquare / analysisFrameSize);
+                if (rms > thresholdLinear && !inSoundSegment) { segmentStartSample = i; inSoundSegment = true;
+                } else if (rms <= thresholdLinear && inSoundSegment) {
+                    const silenceStartIndex = i; let currentSilenceDuration = 0;
+                    while (currentSilenceDuration < minSilenceSamples && (i + currentSilenceDuration) < channelData.length - analysisFrameSize) {
+                        let lookAheadSumSquare = 0; for (let k = 0; k < analysisFrameSize; k++) lookAheadSumSquare += channelData[i + currentSilenceDuration + k] * channelData[i + currentSilenceDuration + k];
+                        const lookAheadRms = Math.sqrt(lookAheadSumSquare / analysisFrameSize); if (lookAheadRms > thresholdLinear) break;
+                        currentSilenceDuration += analysisFrameSize;
+                    }
+                    if (currentSilenceDuration >= minSilenceSamples) {
+                        const segmentEndSample = silenceStartIndex;
+                        if (segmentEndSample - segmentStartSample >= minChunkSamples) {
+                            const chunkBuffer = audioContext.createBuffer(audioBuffer.numberOfChannels, segmentEndSample - segmentStartSample, sampleRate);
+                            for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) chunkBuffer.copyToChannel(audioBuffer.getChannelData(ch).slice(segmentStartSample, segmentEndSample), ch);
+                            chunks.push({ buffer: chunkBuffer, durationMs: chunkBuffer.duration * 1000 });
+                        }
+                        inSoundSegment = false; i += currentSilenceDuration - analysisFrameSize;
+                    }
+                }
+            }
+            if (inSoundSegment && (channelData.length - segmentStartSample >= minChunkSamples)) {
+                const chunkBuffer = audioContext.createBuffer(audioBuffer.numberOfChannels, channelData.length - segmentStartSample, sampleRate);
+                for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) chunkBuffer.copyToChannel(audioBuffer.getChannelData(ch).slice(segmentStartSample, channelData.length), ch);
+                chunks.push({ buffer: chunkBuffer, durationMs: chunkBuffer.duration * 1000 });
+            }
+            updateStatus(`Silence segmentation: ${chunks.length} chunks.`); return chunks;
+        }
+
+        async function segmentByTransients(audioBuffer, sampleRate, sensitivity, minChunkMs, maxChunkMs) {
+            updateStatus("Segmenting by transients (basic)..."); await new Promise(resolve => setTimeout(resolve, 10));
+            const channelData = audioBuffer.getChannelData(0);
+            const minChunkSamples = Math.floor(minChunkMs / 1000 * sampleRate); const maxChunkSamples = Math.floor(maxChunkMs / 1000 * sampleRate);
+            const analysisFrameSize = 256; const historySize = 5; let rmsHistory = new Array(historySize).fill(0);
+            let chunks = []; let lastTransientSample = 0;
+            for (let i = 0; i < channelData.length - analysisFrameSize; i += analysisFrameSize) {
+                let sumSquare = 0; for (let j = 0; j < analysisFrameSize; j++) sumSquare += channelData[i + j] * channelData[i + j];
+                const currentRms = Math.sqrt(sumSquare / analysisFrameSize);
+                const avgHistoryRms = rmsHistory.reduce((a, b) => a + b, 0) / historySize || 0.0001;
+                rmsHistory.shift(); rmsHistory.push(currentRms);
+                if (currentRms > (avgHistoryRms * (1 + sensitivity * 5)) && currentRms > 0.01) { 
+                    if (i - lastTransientSample >= minChunkSamples) {
+                        let chunkSizeSamples = Math.min(i - lastTransientSample, maxChunkSamples);
+                        const chunkBuffer = audioContext.createBuffer(audioBuffer.numberOfChannels, chunkSizeSamples, sampleRate);
+                        for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) chunkBuffer.copyToChannel(audioBuffer.getChannelData(ch).slice(lastTransientSample, lastTransientSample + chunkSizeSamples), ch);
+                        chunks.push({ buffer: chunkBuffer, durationMs: chunkBuffer.duration * 1000 });
+                        lastTransientSample = lastTransientSample + chunkSizeSamples; // Move lastTransientSample to end of created chunk
+                        i = lastTransientSample - analysisFrameSize; // Ensure next iteration starts after this chunk
+                    }
+                }
+            }
+            if (channelData.length - lastTransientSample >= minChunkSamples) {
+                let chunkSizeSamples = Math.min(channelData.length - lastTransientSample, maxChunkSamples);
+                const chunkBuffer = audioContext.createBuffer(audioBuffer.numberOfChannels, chunkSizeSamples, sampleRate);
+                for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) chunkBuffer.copyToChannel(audioBuffer.getChannelData(ch).slice(lastTransientSample, lastTransientSample + chunkSizeSamples), ch);
+                chunks.push({ buffer: chunkBuffer, durationMs: chunkBuffer.duration * 1000 });
+            }
+            updateStatus(`Transient segmentation: ${chunks.length} chunks.`); return chunks;
+        }
+
+
+        async function extractFeatures(audioChunkBuffer, sampleRate) {
+            // Initialize features object
+            let features = { 
+                rms: 0, 
+                spectralCentroid: 0, 
+                spectralFlatness: 0, 
+                mfcc: new Array(NUM_MFCC_COEFFS).fill(0), 
+                valid: false 
+            };
+
+            if (!audioChunkBuffer || audioChunkBuffer.length === 0) {
+                console.warn("extractFeatures: audioChunkBuffer is null or empty.");
+                return features;
+            }
+            if (typeof Meyda === "undefined") {
+                 console.error("Meyda not available for feature extraction.");
+                 return features; // Return default invalid features
+            }
+
+            // Use a single OfflineAudioContext for all non-Meyda features for this chunk
+            const offlineCtx = new OfflineAudioContext(audioChunkBuffer.numberOfChannels, audioChunkBuffer.length, sampleRate);
+            const offlineSource = offlineCtx.createBufferSource();
+            offlineSource.buffer = audioChunkBuffer;
+
+            try {
+                // RMS calculation
+                let sumSquares = 0;
+                const channelData = audioChunkBuffer.getChannelData(0); // Use first channel
+                for (let i = 0; i < channelData.length; i++) sumSquares += channelData[i] * channelData[i];
+                features.rms = Math.sqrt(sumSquares / channelData.length) || 0;
+
+                // Spectral features (Centroid, Flatness) using AnalyserNode
+                const analyserForSpectral = offlineCtx.createAnalyser();
+                let fftSize = 2048; // Default FFT size
+                // Adjust FFT size if chunk is too short, minimum 32
+                if (audioChunkBuffer.length < 32) {
+                    console.warn("Chunk too short for reliable spectral analysis, length:", audioChunkBuffer.length);
+                    // Potentially return early or use default spectral values if too short
+                } else if (audioChunkBuffer.length < fftSize) {
+                    fftSize = Math.pow(2, Math.floor(Math.log2(audioChunkBuffer.length)));
+                    fftSize = Math.max(32, fftSize); // Ensure minimum fftSize
+                }
+                analyserForSpectral.fftSize = fftSize;
+                
+                offlineSource.connect(analyserForSpectral);
+                offlineSource.start(); // Start source for this OfflineAudioContext
+
+                await offlineCtx.startRendering(); // Process the audio for spectral features
+
+                const frequencyBinCount = analyserForSpectral.frequencyBinCount;
+                const frequencyData = new Uint8Array(frequencyBinCount);
+                analyserForSpectral.getByteFrequencyData(frequencyData);
+
+                let weightedSum = 0, Ssum = 0;
+                for (let i = 0; i < frequencyBinCount; i++) {
+                    const freqVal = i * sampleRate / analyserForSpectral.fftSize;
+                    weightedSum += freqVal * frequencyData[i];
+                    Ssum += frequencyData[i];
+                }
+                features.spectralCentroid = (Ssum === 0) ? 0 : weightedSum / Ssum;
+
+                let sumVal = 0, sumLogVal = 0, nonZeroBins = 0;
+                for(let i=0; i < frequencyBinCount; ++i) {
+                    if (frequencyData[i] > 0) { // Avoid log(0)
+                        sumVal += frequencyData[i]; sumLogVal += Math.log(frequencyData[i]); nonZeroBins++;
+                    }
+                }
+                const arithmeticMean = (nonZeroBins === 0) ? 0 : sumVal / nonZeroBins;
+                const geometricMean = (nonZeroBins === 0) ? 0 : Math.exp(sumLogVal / nonZeroBins);
+                features.spectralFlatness = (arithmeticMean === 0 || nonZeroBins === 0) ? 0 : geometricMean / arithmeticMean;
+
+                // MFCC extraction with Meyda (Revised for more robust handling)
+                if (audioChunkBuffer.length >= MEYDA_BUFFER_SIZE) {
+                    features.mfcc = await new Promise((resolveMfcc, rejectMfcc) => {
+                        const tempLiveCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: sampleRate });
+                        
+                        const cleanupAndResolve = (mfccData) => {
+                            if (meydaInstance) meydaInstance.stop();
+                            if (tempLiveSource && (tempLiveSource.playbackState === tempLiveSource.PLAYING_STATE || tempLiveSource.playbackState === tempLiveSource.SCHEDULED_STATE)) {
+                                try { tempLiveSource.stop(); } catch(e) {/*ignore*/}
+                            }
+                            if (tempLiveSource) tempLiveSource.disconnect();
+                            if (tempLiveCtx.state !== 'closed') {
+                                tempLiveCtx.close().then(() => resolveMfcc(mfccData)).catch(e => {
+                                    console.warn("Error closing temp Meyda context, but resolving:", e);
+                                    resolveMfcc(mfccData);
+                                });
+                            } else {
+                                resolveMfcc(mfccData);
+                            }
+                        };
+
+                        let tempLiveSource; // Declare here to be accessible in cleanup
+                        let meydaInstance;  // Declare here
+
+                        const timeoutId = setTimeout(() => {
+                            console.warn("Meyda MFCC extraction timed out for a chunk.");
+                            cleanupAndResolve(new Array(NUM_MFCC_COEFFS).fill(0));
+                        }, audioChunkBuffer.duration * 1000 + 300); // Increased timeout slightly
+
+                        const processWithMeyda = (ctx) => {
+                            tempLiveSource = ctx.createBufferSource();
+                            tempLiveSource.buffer = audioChunkBuffer;
+                            let meydaFeaturesReceived = false;
+
+                            meydaInstance = new Meyda({
+                                audioContext: ctx,
+                                source: tempLiveSource,
+                                bufferSize: MEYDA_BUFFER_SIZE,
+                                featureExtractors: ["mfcc"],
+                                numberOfMFCCCoefficients: NUM_MFCC_COEFFS,
+                                callback: (meydaOutput) => {
+                                    if (meydaOutput && meydaOutput.mfcc && !meydaFeaturesReceived) {
+                                        meydaFeaturesReceived = true;
+                                        clearTimeout(timeoutId); // Clear timeout as we got features
+                                        cleanupAndResolve(meydaOutput.mfcc);
+                                    }
+                                }
+                            });
+
+                            tempLiveSource.onended = () => {
+                                if (!meydaFeaturesReceived) {
+                                    clearTimeout(timeoutId);
+                                    console.warn("Meyda: tempLiveSource ended before MFCC callback.");
+                                    cleanupAndResolve(new Array(NUM_MFCC_COEFFS).fill(0));
+                                }
+                            };
+                            
+                            try {
+                                tempLiveSource.connect(ctx.destination); // Meyda might need connection to destination
+                                tempLiveSource.start();
+                                meydaInstance.start();
+                            } catch (e) {
+                                clearTimeout(timeoutId);
+                                console.error("Error starting Meyda temp source:", e);
+                                cleanupAndResolve(new Array(NUM_MFCC_COEFFS).fill(0)); // Resolve with zeros on error
+                            }
+                        };
+                        
+                        // Resume context if suspended (Safari/Chrome autoplay policies)
+                        if (tempLiveCtx.state === 'suspended') {
+                            tempLiveCtx.resume().then(() => processWithMeyda(tempLiveCtx)).catch(e => {
+                                clearTimeout(timeoutId);
+                                console.error("Failed to resume tempLiveCtx for Meyda", e);
+                                cleanupAndResolve(new Array(NUM_MFCC_COEFFS).fill(0));
+                            });
+                        } else {
+                            processWithMeyda(tempLiveCtx);
+                        }
+                    }).catch(err => {
+                        console.error("MFCC extraction promise outer catch:", err);
+                        return new Array(NUM_MFCC_COEFFS).fill(0); // Fallback on error
+                    });
+                } else {
+                    console.warn(`Chunk too short for Meyda MFCC (length: ${audioChunkBuffer.length}, need: ${MEYDA_BUFFER_SIZE}). Using zeros.`);
+                    features.mfcc = new Array(NUM_MFCC_COEFFS).fill(0);
+                }
+                features.valid = true; // Mark as valid if we reached here, even if MFCCs are zeros
+            } catch (e) {
+                console.error("Error in main feature extraction try-catch block:", e);
+                features.valid = false; // Explicitly mark as invalid on major error
+            }
+            // console.log("Extracted Features:", features); // For debugging
+            return features;
+        }
+        
+        function calculateSimilarity(f1, f2) {
+            // ... (Similarity calculation remains the same, ensure f1.mfcc and f2.mfcc are handled if null/undefined)
+            if (!f1 || !f2 || !f1.valid || !f2.valid) return Infinity;
+
+            const wRMS = 0.5; const wCentroid = 0.8; const wFlatness = 0.5; const wMFCC = 1.5;
+            let distance = 0;
+            distance += wRMS * Math.pow((f1.rms || 0) - (f2.rms || 0), 2);
+
+            const maxCentroid = (audioContext ? audioContext.sampleRate : 44100) / 2; // Fallback sampleRate
+            if (maxCentroid > 0) {
+                 distance += wCentroid * Math.pow(((f1.spectralCentroid || 0) - (f2.spectralCentroid || 0)) / maxCentroid, 2);
+            }
+            distance += wFlatness * Math.pow((f1.spectralFlatness || 0) - (f2.spectralFlatness || 0), 2);
+
+            let mfccDist = 0;
+            const f1Mfcc = f1.mfcc || []; const f2Mfcc = f2.mfcc || [];
+            const len = Math.min(f1Mfcc.length, f2Mfcc.length, NUM_MFCC_COEFFS);
+            if (len > 1) { // Ensure we have coefficients to compare
+                for (let i = 1; i < len; i++) { // Start from 1 to skip overall energy
+                     mfccDist += Math.pow((f1Mfcc[i] || 0) - (f2Mfcc[i] || 0), 2);
+                }
+                 distance += wMFCC * (mfccDist / (len -1)); 
+            } else if (len === 1 && NUM_MFCC_COEFFS > 1) { // Only one coeff but expected more
+                 distance += wMFCC; // Add max penalty if MFCCs were expected but largely missing
+            }
+            return Math.sqrt(distance);
+        }
+
+        async function reconstructAudio(referenceBuf, sourceBufs, sampleRate) {
+            updateStatus("Segmenting reference audio...");
+            const referenceChunksData = await segmentAudio(referenceBuf, sampleRate);
+            
+            if (!referenceChunksData || referenceChunksData.length === 0) {
+                updateStatus("Could not segment reference audio. Check strategy/parameters or audio file.", true);
+                return null;
+            }
+            updateStatus(`Reference audio segmented into ${referenceChunksData.length} chunks.`);
+
+            const outputAudioDataChunks = [];
+            const numOutputChannels = referenceBuf.numberOfChannels;
+
+            for (let i = 0; i < referenceChunksData.length; i++) {
+                const refChunk = referenceChunksData[i];
+                updateStatus(`Processing reference chunk ${i + 1}/${referenceChunksData.length} (duration: ${refChunk.durationMs.toFixed(0)}ms)...`);
+                await new Promise(resolve => setTimeout(resolve, 1)); // Brief yield for UI
+
+                const refFeatures = await extractFeatures(refChunk.buffer, sampleRate);
+                if (!refFeatures.valid) {
+                     console.warn(`Skipping ref chunk ${i+1}, invalid features (length: ${refChunk.buffer.length}).`);
+                    const silentChunk = audioContext.createBuffer(numOutputChannels, refChunk.buffer.length, sampleRate);
+                    outputAudioDataChunks.push(silentChunk);
+                    continue;
+                }
+
+                let bestMatch = { sourceChunkBuffer: null, similarityScore: Infinity };
+                // updateStatus(`Ref chunk ${i + 1}: Searching for match...`); // Redundant with outer status
+
+                for (let j = 0; j < sourceBufs.length; j++) {
+                    const currentSourceBuffer = sourceBufs[j];
+                    const targetChunkLengthSamples = refChunk.buffer.length;
+                    // Dynamic step size, ensure it's not too small or too large
+                    const stepSizeMs = Math.max(20, Math.min(refChunk.durationMs / 4, 100)); 
+                    const stepSizeSamples = Math.max(1, Math.floor(stepSizeMs / 1000 * sampleRate));
+
+                    if (targetChunkLengthSamples === 0 || targetChunkLengthSamples > currentSourceBuffer.length) continue;
+
+                    for (let startSample = 0; (startSample + targetChunkLengthSamples) <= currentSourceBuffer.length; startSample += stepSizeSamples) {
+                        const sourceWindowBuffer = audioContext.createBuffer(numOutputChannels, targetChunkLengthSamples, sampleRate);
+                        for (let ch = 0; ch < numOutputChannels; ch++) {
+                            const sourceChannelToUse = ch % currentSourceBuffer.numberOfChannels;
+                            // Ensure segment slice is valid
+                            const segment = currentSourceBuffer.getChannelData(sourceChannelToUse).slice(startSample, startSample + targetChunkLengthSamples);
+                            if (segment.length === targetChunkLengthSamples) { // Important check
+                                sourceWindowBuffer.copyToChannel(segment, ch);
+                            } else {
+                                // This case should ideally not happen if logic is correct
+                                console.warn("Segment length mismatch in source window creation.");
+                                break; // Break inner loop for this source window
+                            }
+                        }
+                        if(sourceWindowBuffer.getChannelData(0).length !== targetChunkLengthSamples) continue; // Skip if buffer creation failed
+                        
+                        const sourceWindowFeatures = await extractFeatures(sourceWindowBuffer, sampleRate);
+                        if (!sourceWindowFeatures.valid) continue;
+
+                        const similarity = calculateSimilarity(refFeatures, sourceWindowFeatures);
+                        if (similarity < bestMatch.similarityScore) {
+                            bestMatch.similarityScore = similarity;
+                            bestMatch.sourceChunkBuffer = sourceWindowBuffer;
+                        }
+                    }
+                }
+
+                if (bestMatch.sourceChunkBuffer) {
+                    outputAudioDataChunks.push(bestMatch.sourceChunkBuffer);
+                } else {
+                    console.warn(`No suitable match for ref chunk ${i + 1} (score: ${bestMatch.similarityScore}). Using silence.`);
+                    const silentChunk = audioContext.createBuffer(numOutputChannels, refChunk.buffer.length, sampleRate);
+                    outputAudioDataChunks.push(silentChunk);
+                }
+            }
+
+            updateStatus("Concatenating results...");
+            await new Promise(resolve => setTimeout(resolve, 20));
+            if (outputAudioDataChunks.length === 0) {
+                updateStatus("No output chunks generated.", true);
+                return null;
+            }
+            return concatenateAudioBuffers(outputAudioDataChunks, sampleRate, numOutputChannels);
+        }
+
+        function concatenateAudioBuffers(buffers, sampleRate, numChannels) {
+            if (!buffers || buffers.length === 0) { console.warn("Concatenate: No buffers to concatenate."); return null; }
+            let totalLength = 0;
+            buffers.forEach(buffer => { if(buffer) totalLength += buffer.length; });
+            if (totalLength === 0) { console.warn("Concatenate: Total length is zero."); return null; }
+
+            const finalBuffer = audioContext.createBuffer(numChannels, totalLength, sampleRate);
+            let offset = 0;
+            for (const buffer of buffers) {
+                if (!buffer || buffer.length === 0) {
+                    console.warn("Concatenate: Skipping null or zero-length buffer.");
+                    continue; 
+                }
+                for (let channel = 0; channel < numChannels; channel++) {
+                    if (channel < buffer.numberOfChannels) { 
+                        finalBuffer.copyToChannel(buffer.getChannelData(channel), channel, offset);
+                    }
+                    // If buffer has fewer channels, remaining channels in finalBuffer will be silent for this segment.
+                }
+                offset += buffer.length;
+            }
+            return finalBuffer;
+        }
+
+        function audioBufferToWav(buffer) {
+            // ... (This function should be correct from previous versions)
+            const numChannels = buffer.numberOfChannels, sampleRate = buffer.sampleRate, numSamples = buffer.length, bitsPerSample = 16;
+            const dataSize = numChannels * numSamples * (bitsPerSample / 8), blockAlign = numChannels * (bitsPerSample / 8), byteRate = sampleRate * blockAlign;
+            const wavBuffer = new ArrayBuffer(44 + dataSize); const view = new DataView(wavBuffer);
+            writeString(view, 0, 'RIFF'); view.setUint32(4, 36 + dataSize, true); writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true); view.setUint32(28, byteRate, true); view.setUint16(32, blockAlign, true); view.setUint16(34, bitsPerSample, true);
+            writeString(view, 36, 'data'); view.setUint32(40, dataSize, true);
+            let wavOffset = 44; // Renamed to avoid conflict with outer scope 'offset'
+            for (let i = 0; i < numSamples; i++) {
+                for (let channel = 0; channel < numChannels; channel++) {
+                    const sample = buffer.getChannelData(channel)[i];
+                    let s = Math.max(-1, Math.min(1, sample)); s = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                    view.setInt16(wavOffset, s, true); wavOffset += 2;
+                }
+            }
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
+        }
+
+    </script>
+</body>
+</html>
