@@ -1,0 +1,17 @@
+{
+  "format_version": 2,
+  "header": {
+    "description": "Luminous Block Add-On",
+    "name": "Luminous Block Pack",
+    "uuid": "unique-uuid-here-0000-0000-000000000001",
+    "version": [1, 0, 0]
+  },
+  "modules": [
+    {
+      "description": "Luminous Block Pack",
+      "type": "data" or "resources", // Use "data" for BP and "resources" for RP
+      "uuid": "unique-uuid-here-0000-0000-000000000002",
+      "version": [1, 0, 0]
+    }
+  ]
+}

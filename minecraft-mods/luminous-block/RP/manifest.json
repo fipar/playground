@@ -1,0 +1,17 @@
+{
+  "format_version": 2,
+  "header": {
+    "description": "Luminous Block Resource Pack",
+    "name": "Luminous Block RP",
+    "uuid": "FD7FF874-8F2F-4B2E-A632-0105071B7414",
+    "version": [1, 0, 0]
+  },
+  "modules": [
+    {
+      "description": "Luminous Block Resources",
+      "type": "resources",
+      "uuid": "35C3E102-4457-4B18-B6AB-65F0B7BA80DD",
+      "version": [1, 0, 0]
+    }
+  ]
+}

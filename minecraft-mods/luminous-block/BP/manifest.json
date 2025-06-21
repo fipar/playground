@@ -1,0 +1,17 @@
+{
+  "format_version": 2,
+  "header": {
+    "description": "Luminous Block Behavior Pack",
+    "name": "Luminous Block BP",
+    "uuid": "C2F36C09-92C9-47A4-86B5-B69433CCB8F4",
+    "version": [1, 0, 0]
+  },
+  "modules": [
+    {
+      "description": "Luminous Block Behaviors",
+      "type": "data",
+      "uuid": "F716A722-205F-409F-9917-2C566209B13C",
+      "version": [1, 0, 0]
+    }
+  ]
+}
