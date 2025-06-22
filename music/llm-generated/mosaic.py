@@ -87,7 +87,8 @@ class AudioChunk:
         return {
             'rms': float(avg_rms),
             'pitch': float(avg_pitch),
-            'mfccs': avg_mfccs
+            'mfccs': avg_mfccs,
+            'duration': float(len(self.audio))
         }
 
 # --- Core Functions ---
@@ -136,24 +137,26 @@ def analyze_file(filepath, chunk_duration_min_s, chunk_duration_max_s, sample_ra
             
     return chunks
 
-def find_best_match(reference_chunk, source_pool, feature_weights):
+def find_best_match(reference_chunk, source_pool, feature_weights, use_duration_match):
     """
     Finds the best matching chunk from the source_pool for a given reference_chunk.
     
     The "best" match is the one with the smallest weighted distance in the
-    feature space.
+    feature space. Duration can be optionally included in this calculation.
     """
     best_match = None
     min_distance = float('inf')
 
     # Unpack weights
     w_rms, w_pitch, w_mfcc = feature_weights['rms'], feature_weights['pitch'], feature_weights['mfcc']
+    w_duration = feature_weights.get('duration', 0.0)
 
     # CORRECTED: Access object attributes using dot notation.
     # Normalized features from the reference chunk
     ref_rms = reference_chunk.norm_features['rms']
     ref_pitch = reference_chunk.norm_features['pitch']
     ref_mfccs = reference_chunk.norm_features['mfccs']
+    ref_duration = reference_chunk.norm_features['duration']
 
     for source_chunk in source_pool:
         # CORRECTED: Access object attributes using dot notation.
@@ -161,6 +164,7 @@ def find_best_match(reference_chunk, source_pool, feature_weights):
         src_rms = source_chunk.norm_features['rms']
         src_pitch = source_chunk.norm_features['pitch']
         src_mfccs = source_chunk.norm_features['mfccs']
+        src_duration = source_chunk.norm_features['duration']
 
         # Calculate distance for each feature
         # We use absolute difference for scalar values and Euclidean distance for vectors (MFCCs)
@@ -170,6 +174,10 @@ def find_best_match(reference_chunk, source_pool, feature_weights):
 
         # Calculate the total weighted distance
         total_distance = (w_rms * dist_rms) + (w_pitch * dist_pitch) + (w_mfcc * dist_mfcc)
+
+        if use_duration_match:
+            dist_duration = abs(ref_duration - src_duration)
+            total_distance += (w_duration * dist_duration)
 
         if total_distance < min_distance:
             min_distance = total_distance
@@ -187,10 +195,12 @@ def normalize_features(all_chunks):
     # Extract all values for each feature
     all_rms = [c.features['rms'] for c in all_chunks]
     all_pitches = [c.features['pitch'] for c in all_chunks]
+    all_durations = [c.features['duration'] for c in all_chunks]
     
     # Min-max normalization for scalar features
     min_rms, max_rms = min(all_rms), max(all_rms)
     min_pitch, max_pitch = min(all_pitches), max(all_pitches)
+    min_duration, max_duration = min(all_durations), max(all_durations)
 
     # For MFCCs, we normalize each coefficient across all chunks
     all_mfccs = np.array([c.features['mfccs'] for c in all_chunks])
@@ -201,6 +211,7 @@ def normalize_features(all_chunks):
         # Handle potential division by zero if all values are the same
         norm_rms = (chunk.features['rms'] - min_rms) / (max_rms - min_rms) if (max_rms - min_rms) != 0 else 0.5
         norm_pitch = (chunk.features['pitch'] - min_pitch) / (max_pitch - min_pitch) if (max_pitch - min_pitch) != 0 else 0.5
+        norm_duration = (chunk.features['duration'] - min_duration) / (max_duration - min_duration) if (max_duration - min_duration) != 0 else 0.5
         # Add a small epsilon to avoid division by zero for MFCCs
         norm_mfccs = (chunk.features['mfccs'] - min_mfccs) / (max_mfccs - min_mfccs + 1e-9)
         
@@ -208,8 +219,44 @@ def normalize_features(all_chunks):
         chunk.norm_features = {
             'rms': norm_rms,
             'pitch': norm_pitch,
-            'mfccs': norm_mfccs
+            'mfccs': norm_mfccs,
+            'duration': norm_duration
         }
+
+def concatenate_with_crossfade(chunks, fade_duration_s, sample_rate):
+    """Concatenates a list of audio chunks with a linear crossfade."""
+    if not chunks:
+        return np.array([])
+    if len(chunks) == 1:
+        return chunks[0].audio
+
+    print("Concatenating chunks with crossfade...")
+    fade_samples = int(fade_duration_s * sample_rate)
+    
+    # Start with the first chunk's audio
+    output = chunks[0].audio.copy()
+    
+    for i in tqdm(range(1, len(chunks)), desc="Crossfading"):
+        next_chunk_audio = chunks[i].audio
+        
+        # Determine overlap size
+        overlap_len = min(fade_samples, len(output), len(next_chunk_audio))
+        
+        if overlap_len == 0:
+            output = np.concatenate((output, next_chunk_audio))
+            continue
+            
+        # Create fade ramps
+        fade_out = np.linspace(1, 0, overlap_len)
+        fade_in = np.linspace(0, 1, overlap_len)
+        
+        # The crossfaded section
+        crossfaded_section = (output[-overlap_len:] * fade_out) + (next_chunk_audio[:overlap_len] * fade_in)
+        
+        # Concatenate all parts
+        output = np.concatenate((output[:-overlap_len], crossfaded_section, next_chunk_audio[overlap_len:]))
+        
+    return output
 
 # --- Main Execution Block ---
 def main():
@@ -219,6 +266,9 @@ def main():
     parser.add_argument('-o', '--output', type=str, required=True, help="Path for the output audio file.")
     parser.add_argument('--chunk-size-min', type=float, default=0.1, help="Minimum duration of each chunk in seconds. Default: 0.1")
     parser.add_argument('--chunk-size-max', type=float, default=0.4, help="Maximum duration of each chunk in seconds. Default: 0.4")
+    parser.add_argument('--no-crossfade', dest='crossfade', action='store_false', help="Disable crossfading between chunks.")
+    parser.add_argument('--crossfade-duration', type=float, default=0.01, help="Duration of the crossfade in seconds. Default: 0.01")
+    parser.add_argument('--no-chunk-duration-match', dest='duration_match', action='store_false', help="Disable matching based on chunk duration.")
     parser.add_argument('--sr', type=int, default=22050, help="Sample rate to use for all processing. All files will be resampled to this rate.")
     
     args = parser.parse_args()
@@ -262,18 +312,22 @@ def main():
     feature_weights = {
         'rms': 1.0,      # Importance of matching loudness
         'pitch': 1.5,    # Importance of matching pitch (melody)
-        'mfcc': 1.0      # Importance of matching timbre
+        'mfcc': 1.0,     # Importance of matching timbre
+        'duration': 0.5  # Importance of matching duration
     }
 
     for ref_chunk in tqdm(reference_chunks, desc="Matching"):
-        best_source_chunk = find_best_match(ref_chunk, source_pool, feature_weights)
+        best_source_chunk = find_best_match(ref_chunk, source_pool, feature_weights, args.duration_match)
         if best_source_chunk:
             output_chunks.append(best_source_chunk)
 
     # --- 4. Synthesis Phase ---
-    print("Synthesizing output file...")
-    # Concatenate the audio data from the chosen chunks
-    final_audio = np.concatenate([chunk.audio for chunk in output_chunks])
+    if args.crossfade:
+        final_audio = concatenate_with_crossfade(output_chunks, args.crossfade_duration, args.sr)
+    else:
+        print("Synthesizing output file (no crossfade)...")
+        # Concatenate the audio data from the chosen chunks
+        final_audio = np.concatenate([chunk.audio for chunk in output_chunks])
     
     # Write the final audio to a file
     try:
