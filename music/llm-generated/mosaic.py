@@ -38,7 +38,8 @@ python mosaic.py \
     --reference path/to/your/reference.wav \
     --sources path/to/source1.wav path/to/source2.wav \
     --output path/to/your/output.wav \
-    --chunk-size 0.2
+    --chunk-size-min 0.1 \
+    --chunk-size-max 0.4
 
 """
 
@@ -91,8 +92,8 @@ class AudioChunk:
 
 # --- Core Functions ---
 
-def analyze_file(filepath, chunk_duration_s, sample_rate):
-    """Loads an audio file and splits it into a list of AudioChunk objects."""
+def analyze_file(filepath, chunk_duration_min_s, chunk_duration_max_s, sample_rate):
+    """Loads an audio file and splits it into variable-sized AudioChunk objects."""
     print(f"Analyzing file: {filepath}...")
     try:
         y, sr = librosa.load(filepath, sr=sample_rate)
@@ -100,20 +101,38 @@ def analyze_file(filepath, chunk_duration_s, sample_rate):
         print(f"Error loading {filepath}: {e}")
         return []
 
-    chunk_samples = int(chunk_duration_s * sr)
-    if chunk_samples == 0:
-        print("Error: Chunk size is too small, resulting in zero samples. Please use a larger chunk size.")
-        return []
-        
-    num_chunks = len(y) // chunk_samples
-    
     chunks = []
-    for i in tqdm(range(num_chunks), desc=f"Chunking {filepath.split('/')[-1]}"):
-        start = i * chunk_samples
-        end = start + chunk_samples
-        chunk_audio = y[start:end]
-        if len(chunk_audio) > 0:
-            chunks.append(AudioChunk(chunk_audio, sr))
+    current_pos_samples = 0
+    y_len_samples = len(y)
+
+    min_chunk_samples = int(chunk_duration_min_s * sr)
+    if min_chunk_samples == 0:
+        print("Error: Minimum chunk size is too small, resulting in zero samples. Please use a larger value for --chunk-size-min.")
+        return []
+
+    with tqdm(total=y_len_samples, desc=f"Chunking {filepath.split('/')[-1]}") as pbar:
+        while current_pos_samples < y_len_samples:
+            # Randomly determine chunk duration for this chunk
+            chunk_duration_s = np.random.uniform(chunk_duration_min_s, chunk_duration_max_s)
+            chunk_samples = int(chunk_duration_s * sr)
+
+            start = current_pos_samples
+            end = start + chunk_samples
+
+            # For the last chunk, just take what's left
+            if end >= y_len_samples:
+                end = y_len_samples
+
+            chunk_audio = y[start:end]
+            actual_chunk_len = len(chunk_audio)
+
+            # Ensure the chunk is not empty and is of a minimum reasonable size
+            # to avoid issues with feature extraction on tiny slivers of audio.
+            if actual_chunk_len >= min_chunk_samples:
+                chunks.append(AudioChunk(chunk_audio, sr))
+
+            pbar.update(actual_chunk_len)
+            current_pos_samples = end
             
     return chunks
 
@@ -198,14 +217,23 @@ def main():
     parser.add_argument('-r', '--reference', type=str, required=True, help="Path to the reference audio file.")
     parser.add_argument('-s', '--sources', nargs='+', required=True, help="Paths to one or more source audio files.")
     parser.add_argument('-o', '--output', type=str, required=True, help="Path for the output audio file.")
-    parser.add_argument('-c', '--chunk-size', type=float, default=0.2, help="Duration of each chunk in seconds. Smaller values are more detailed but computationally intensive.")
+    parser.add_argument('--chunk-size-min', type=float, default=0.1, help="Minimum duration of each chunk in seconds. Default: 0.1")
+    parser.add_argument('--chunk-size-max', type=float, default=0.4, help="Maximum duration of each chunk in seconds. Default: 0.4")
     parser.add_argument('--sr', type=int, default=22050, help="Sample rate to use for all processing. All files will be resampled to this rate.")
     
     args = parser.parse_args()
 
+    # Validate chunk sizes
+    if args.chunk_size_min >= args.chunk_size_max:
+        print("Error: --chunk-size-min must be smaller than --chunk-size-max.")
+        return
+    if args.chunk_size_min <= 0:
+        print("Error: --chunk-size-min must be positive.")
+        return
+
     # --- 1. Analysis Phase ---
     # Analyze the reference file
-    reference_chunks = analyze_file(args.reference, args.chunk_size, args.sr)
+    reference_chunks = analyze_file(args.reference, args.chunk_size_min, args.chunk_size_max, args.sr)
     if not reference_chunks:
         print("Could not process reference file. Exiting.")
         return
@@ -213,7 +241,7 @@ def main():
     # Analyze all source files and create a single pool of chunks
     source_pool = []
     for source_file in args.sources:
-        source_pool.extend(analyze_file(source_file, args.chunk_size, args.sr))
+        source_pool.extend(analyze_file(source_file, args.chunk_size_min, args.chunk_size_max, args.sr))
     
     if not source_pool:
         print("Could not process any source files. Exiting.")
