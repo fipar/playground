@@ -38,8 +38,12 @@ python mosaic.py \
     --reference path/to/your/reference.wav \
     --sources path/to/source1.wav path/to/source2.wav \
     --output path/to/your/output.wav \
-    --chunk-size-min 0.1 \
-    --chunk-size-max 0.4
+    --chunk-size-min 0.1 \ # Minimum duration of a chunk
+    --chunk-size-max 0.4 \ # Maximum duration of a chunk
+    --mfcc-distance-metric cosine \ # Use cosine similarity for timbre matching
+    --weight-rms 1.0 \ # Weight for loudness matching
+    --weight-pitch 1.5 \ # Weight for pitch matching
+    --weight-mfcc 2.0 # Weight for timbre matching (increased for cosine)
 
 """
 
@@ -137,7 +141,7 @@ def analyze_file(filepath, chunk_duration_min_s, chunk_duration_max_s, sample_ra
             
     return chunks
 
-def find_best_match(reference_chunk, source_pool, feature_weights, use_duration_match):
+def find_best_match(reference_chunk, source_pool, feature_weights, use_duration_match, mfcc_distance_metric):
     """
     Finds the best matching chunk from the source_pool for a given reference_chunk.
     
@@ -151,7 +155,6 @@ def find_best_match(reference_chunk, source_pool, feature_weights, use_duration_
     w_rms, w_pitch, w_mfcc = feature_weights['rms'], feature_weights['pitch'], feature_weights['mfcc']
     w_duration = feature_weights.get('duration', 0.0)
 
-    # CORRECTED: Access object attributes using dot notation.
     # Normalized features from the reference chunk
     ref_rms = reference_chunk.norm_features['rms']
     ref_pitch = reference_chunk.norm_features['pitch']
@@ -159,18 +162,53 @@ def find_best_match(reference_chunk, source_pool, feature_weights, use_duration_
     ref_duration = reference_chunk.norm_features['duration']
 
     for source_chunk in source_pool:
-        # CORRECTED: Access object attributes using dot notation.
         # Normalized features from the source chunk
         src_rms = source_chunk.norm_features['rms']
         src_pitch = source_chunk.norm_features['pitch']
         src_mfccs = source_chunk.norm_features['mfccs']
         src_duration = source_chunk.norm_features['duration']
 
-        # Calculate distance for each feature
-        # We use absolute difference for scalar values and Euclidean distance for vectors (MFCCs)
+        # --- Feature Distance Calculation ---
+        # Calculate distance for scalar features (lower is better)
         dist_rms = abs(ref_rms - src_rms)
         dist_pitch = abs(ref_pitch - src_pitch)
-        dist_mfcc = np.linalg.norm(ref_mfccs - src_mfccs)
+        
+        # --- MFCC (Timbre) Distance Calculation ---
+        # This block calculates the distance between the timbre of the reference
+        # and source chunks using the selected metric.
+        #
+        # HOW TO ADD A NEW METRIC:
+        # 1. Add a new `elif mfcc_distance_metric == 'your_metric_name':` block.
+        # 2. Implement your distance calculation. The result (`dist_mfcc`) should be
+        #    a single float where 0 means a perfect match and higher values mean a
+        #    worse match.
+        # 3. If you are implementing a SIMILARITY metric (where higher is better, e.g.,
+        #    ranging from 0 to 1), you must convert it to a DISTANCE metric. A common
+        #    way is `distance = 1 - similarity`.
+        # 4. Add 'your_metric_name' to the `choices` list in the `add_argument` call
+        #    for `--mfcc-distance-metric` in the `main` function.
+        
+        if mfcc_distance_metric == 'euclidean':
+            # Euclidean distance (L2 norm): Measures the straight-line distance
+            # between the two MFCC vectors in multi-dimensional space.
+            # It is sensitive to both magnitude and angle.
+            dist_mfcc = np.linalg.norm(ref_mfccs - src_mfccs)
+        elif mfcc_distance_metric == 'cosine':
+            # Cosine distance: Measures the angle between two vectors, ignoring their
+            # magnitude. It's useful for comparing the "shape" of the feature vectors.
+            # Cosine SIMILARITY is dot(a,b) / (norm(a)*norm(b)), ranging from -1 to 1.
+            # We convert it to a distance metric (ranging from 0 to 2) via `1 - similarity`.
+            norm_ref = np.linalg.norm(ref_mfccs)
+            norm_src = np.linalg.norm(src_mfccs)
+            if norm_ref == 0 or norm_src == 0:
+                # If one vector is all zeros, they are maximally dissimilar.
+                dist_mfcc = 1.0 
+            else:
+                cosine_sim = np.dot(ref_mfccs, src_mfccs) / (norm_ref * norm_src)
+                dist_mfcc = 1 - cosine_sim # Convert similarity to distance.
+        else:
+            # This will catch any metric names that are passed but not implemented.
+            raise ValueError(f"Unknown MFCC distance metric: {mfcc_distance_metric}")
 
         # Calculate the total weighted distance
         total_distance = (w_rms * dist_rms) + (w_pitch * dist_pitch) + (w_mfcc * dist_mfcc)
@@ -267,6 +305,12 @@ def main():
     parser.add_argument('--chunk-size-min', type=float, default=0.1, help="Minimum duration of each chunk in seconds. Default: 0.1")
     parser.add_argument('--chunk-size-max', type=float, default=0.4, help="Maximum duration of each chunk in seconds. Default: 0.4")
     parser.add_argument('--no-crossfade', dest='crossfade', action='store_false', help="Disable crossfading between chunks.")
+    # HOW TO ADD A NEW METRIC: Add your new metric name to the 'choices' list below.
+    parser.add_argument('--mfcc-distance-metric', type=str, choices=['euclidean', 'cosine'], default='euclidean', help="Distance metric for MFCCs. Choices: 'euclidean', 'cosine'. Default: 'euclidean'.")
+    parser.add_argument('--weight-rms', type=float, default=1.0, help="Weight for RMS (loudness) matching. Default: 1.0")
+    parser.add_argument('--weight-pitch', type=float, default=1.5, help="Weight for pitch matching. Default: 1.5")
+    parser.add_argument('--weight-mfcc', type=float, default=1.0, help="Weight for MFCC (timbre) matching. Default: 1.0")
+    parser.add_argument('--weight-duration', type=float, default=0.5, help="Weight for duration matching. Default: 0.5")
     parser.add_argument('--crossfade-duration', type=float, default=0.01, help="Duration of the crossfade in seconds. Default: 0.01")
     parser.add_argument('--no-chunk-duration-match', dest='duration_match', action='store_false', help="Disable matching based on chunk duration.")
     parser.add_argument('--sr', type=int, default=22050, help="Sample rate to use for all processing. All files will be resampled to this rate.")
@@ -309,15 +353,15 @@ def main():
     # These weights determine the importance of matching each feature.
     # You can experiment with these values to change the output.
     # For example, increasing 'w_pitch' will prioritize matching the melody.
-    feature_weights = {
-        'rms': 1.0,      # Importance of matching loudness
-        'pitch': 1.5,    # Importance of matching pitch (melody)
-        'mfcc': 1.0,     # Importance of matching timbre
-        'duration': 0.5  # Importance of matching duration
+    feature_weights = { # Weights are now configurable via command-line arguments
+        'rms': args.weight_rms,
+        'pitch': args.weight_pitch,
+        'mfcc': args.weight_mfcc,
+        'duration': args.weight_duration
     }
 
-    for ref_chunk in tqdm(reference_chunks, desc="Matching"):
-        best_source_chunk = find_best_match(ref_chunk, source_pool, feature_weights, args.duration_match)
+    for ref_chunk in tqdm(reference_chunks, desc="Finding best matches"):
+        best_source_chunk = find_best_match(ref_chunk, source_pool, feature_weights, args.duration_match, args.mfcc_distance_metric)
         if best_source_chunk:
             output_chunks.append(best_source_chunk)
 
