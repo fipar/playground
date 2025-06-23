@@ -43,7 +43,8 @@ python mosaic.py \
     --mfcc-distance-metric cosine \ # Use cosine similarity for timbre matching
     --weight-rms 1.0 \ # Weight for loudness matching
     --weight-pitch 1.5 \ # Weight for pitch matching
-    --weight-mfcc 2.0 # Weight for timbre matching (increased for cosine)
+    --weight-mfcc 2.0 \ # Weight for timbre matching (increased for cosine)
+    --adjust-pitch # Enable autotune-like pitch correction
 
 """
 
@@ -53,6 +54,7 @@ import librosa
 import soundfile as sf
 from tqdm import tqdm
 import warnings
+import copy
 
 # Suppress annoying librosa warnings about audioread
 warnings.filterwarnings('ignore', category=UserWarning)
@@ -313,6 +315,7 @@ def main():
     parser.add_argument('--weight-duration', type=float, default=0.5, help="Weight for duration matching. Default: 0.5")
     parser.add_argument('--crossfade-duration', type=float, default=0.01, help="Duration of the crossfade in seconds. Default: 0.01")
     parser.add_argument('--no-chunk-duration-match', dest='duration_match', action='store_false', help="Disable matching based on chunk duration.")
+    parser.add_argument('--adjust-pitch', action='store_true', help="Adjust the pitch of each source chunk to match the reference chunk (autotune effect).")
     parser.add_argument('--sr', type=int, default=22050, help="Sample rate to use for all processing. All files will be resampled to this rate.")
     
     args = parser.parse_args()
@@ -363,7 +366,31 @@ def main():
     for ref_chunk in tqdm(reference_chunks, desc="Finding best matches"):
         best_source_chunk = find_best_match(ref_chunk, source_pool, feature_weights, args.duration_match, args.mfcc_distance_metric)
         if best_source_chunk:
-            output_chunks.append(best_source_chunk)
+            chunk_to_add = best_source_chunk
+
+            # --- Pitch Adjustment Logic (Optional) ---
+            # If enabled, this acts like an autotuner, shifting the pitch of the
+            # source chunk to match the pitch of the reference chunk.
+            if args.adjust_pitch:
+                # Get the original, non-normalized pitches in Hz
+                ref_pitch_hz = ref_chunk.features['pitch']
+                src_pitch_hz = best_source_chunk.features['pitch']
+
+                # Only attempt to shift if both pitches were detected and are valid
+                if ref_pitch_hz > 0 and src_pitch_hz > 0:
+                    # Calculate the pitch difference in semitones
+                    n_semitones = 12 * np.log2(ref_pitch_hz / src_pitch_hz)
+                    
+                    # Create a deep copy to avoid modifying the original chunk in the source pool
+                    adjusted_chunk = copy.deepcopy(best_source_chunk)
+                    
+                    # Apply pitch shifting to the audio data of the copied chunk
+                    adjusted_chunk.audio = librosa.effects.pitch_shift(
+                        y=adjusted_chunk.audio, sr=adjusted_chunk.sr, n_steps=n_semitones
+                    )
+                    chunk_to_add = adjusted_chunk
+            
+            output_chunks.append(chunk_to_add)
 
     # --- 4. Synthesis Phase ---
     if args.crossfade:
