@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rhythmic Pattern Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom focus styles for better accessibility */
+        .form-input:focus {
+            outline: 2px solid transparent;
+            outline-offset: 2px;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 2px #c7d2fe;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-md bg-white rounded-xl shadow-lg p-8 space-y-6">
+        
+        <!-- Header Section -->
+        <div class="text-center">
+            <h1 class="text-3xl font-bold text-gray-900">Rhythmic Pattern Calculator</h1>
+            <p class="mt-2 text-gray-600">Find the number of notes for a perfect loop in any time signature.</p>
+        </div>
+
+        <!-- Input Form -->
+        <div class="space-y-4">
+            <!-- Time Signature Input -->
+            <div>
+                <label for="time-signature-top" class="block text-sm font-medium text-gray-700 mb-1">Time Signature</label>
+                <div class="flex items-center space-x-2">
+                    <input type="number" id="time-signature-top" value="5" class="form-input w-full text-center bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-lg focus:ring-indigo-500 focus:border-indigo-500">
+                    <span class="text-2xl font-bold text-gray-400">/</span>
+                    <input type="number" id="time-signature-bottom" value="4" class="form-input w-full text-center bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-lg focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+            </div>
+
+            <!-- Note Type Input -->
+            <div>
+                <label for="note-type" class="block text-sm font-medium text-gray-700 mb-1">Note Value</label>
+                <select id="note-type" class="form-input w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-lg focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="1">Whole Note (1/1)</option>
+                    <option value="2">Half Note (1/2)</option>
+                    <option value="4">Quarter Note (1/4)</option>
+                    <option value="8">8th Note (1/8)</option>
+                    <option value="16" selected>16th Note (1/16)</option>
+                    <option value="32">32nd Note (1/32)</option>
+                    <option value="64">64th Note (1/64)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Result Display -->
+        <div id="result-container" class="bg-indigo-50 rounded-lg p-6 text-center transition-all duration-300">
+            <p class="text-sm font-medium text-indigo-600">Pattern Length</p>
+            <p id="result" class="text-5xl font-bold text-indigo-800">20</p>
+             <p id="result-explanation" class="mt-2 text-sm text-indigo-700">You need 20 x 1/16 notes to fill a 5/4 measure.</p>
+        </div>
+
+        <!-- Error Message Box -->
+        <div id="error-box" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md" role="alert">
+            <p id="error-message">Please enter valid numbers for the time signature.</p>
+        </div>
+        
+    </div>
+
+    <script>
+        // --- DOM Element References ---
+        const timeSigTopInput = document.getElementById('time-signature-top');
+        const timeSigBottomInput = document.getElementById('time-signature-bottom');
+        const noteTypeSelect = document.getElementById('note-type');
+        const resultDisplay = document.getElementById('result');
+        const resultExplanation = document.getElementById('result-explanation');
+        const errorBox = document.getElementById('error-box');
+        const errorMessage = document.getElementById('error-message');
+
+        // --- Core Calculation Logic ---
+        function calculatePatternLength() {
+            // 1. Get and parse input values
+            const numerator = parseInt(timeSigTopInput.value, 10);
+            const denominator = parseInt(timeSigBottomInput.value, 10);
+            const noteValue = parseInt(noteTypeSelect.value, 10);
+
+            // 2. Validate inputs
+            if (isNaN(numerator) || isNaN(denominator) || numerator <= 0 || denominator <= 0) {
+                errorMessage.textContent = 'Please enter valid, positive numbers for the time signature.';
+                errorBox.classList.remove('hidden');
+                resultDisplay.textContent = '-';
+                resultExplanation.textContent = 'Invalid input';
+                return;
+            }
+            
+            // Hide error on successful validation
+            errorBox.classList.add('hidden');
+
+            // 3. Perform the calculation
+            // Formula: (Numerator * SelectedNoteValue) / Denominator
+            const result = (numerator * noteValue) / denominator;
+            
+            // 4. Update the UI with the result
+            if (Number.isInteger(result)) {
+                resultDisplay.textContent = result;
+                const selectedNoteText = noteTypeSelect.options[noteTypeSelect.selectedIndex].text.split('(')[0].trim();
+                resultExplanation.textContent = `You need ${result} x ${selectedNoteText}s to fill a ${numerator}/${denominator} measure.`;
+            } else {
+                // Handle cases where the result is not a whole number
+                resultDisplay.textContent = result.toFixed(2);
+                resultExplanation.textContent = `This combination doesn't result in a whole number of notes.`;
+            }
+        }
+
+        // --- Event Listeners ---
+        // Listen for changes on all input fields
+        timeSigTopInput.addEventListener('input', calculatePatternLength);
+        timeSigBottomInput.addEventListener('input', calculatePatternLength);
+        noteTypeSelect.addEventListener('change', calculatePatternLength);
+
+        // --- Initial Calculation on Page Load ---
+        // Run the calculation once when the script loads to show the default values.
+        calculatePatternLength();
+    </script>
+
+</body>
+</html>
+
