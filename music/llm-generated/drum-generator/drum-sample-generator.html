@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drum Sample Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        .range-value {
+            display: inline-block;
+            margin-left: 10px;
+            font-weight: bold;
+            color: #666;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .audio-controls {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Drum Sample Generator</h1>
+        
+        <div class="form-group">
+            <label for="sourceFile">Source Sample (Optional):</label>
+            <input type="file" id="sourceFile" accept="audio/*">
+        </div>
+
+        <div class="form-group">
+            <div class="checkbox-group">
+                <input type="checkbox" id="useSynth" checked>
+                <label for="useSynth">Use Synthesized Sounds</label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="partType">Part Type:</label>
+            <select id="partType">
+                <option value="kick">Kick</option>
+                <option value="snare">Snare</option>
+                <option value="tom">Tom</option>
+                <option value="rim">Rim</option>
+                <option value="snare-roll">Snare Roll</option>
+                <option value="crash-cymbal">Crash Cymbal</option>
+                <option value="ride-cymbal">Ride Cymbal</option>
+                <option value="closed-hihat">Closed Hi-Hat</option>
+                <option value="pedal-hihat">Pedal Hi-Hat</option>
+                <option value="open-hihat">Open Hi-Hat</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="randomness">Randomness:</label>
+            <input type="range" id="randomness" min="0" max="1" step="0.01" value="0">
+            <span class="range-value" id="randomnessValue">0.00</span>
+        </div>
+
+        <button id="generateBtn">Generate Sample</button>
+        <button id="playBtn" disabled>Play Sample</button>
+        <button id="downloadBtn" disabled>Download Sample</button>
+
+        <div class="audio-controls" id="audioControls" style="display: none;">
+            <h3>Generated Sample:</h3>
+            <audio id="audioPlayer" controls></audio>
+        </div>
+    </div>
+
+    <script>
+        let audioContext;
+        let generatedBuffer;
+        let sourceBuffer;
+
+        // Initialize audio context
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        // Part type configurations
+        const partConfigs = {
+            kick: {
+                duration: 0.8,
+                baseFreq: 60,
+                envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.5 },
+                noise: false
+            },
+            snare: {
+                duration: 0.3,
+                baseFreq: 200,
+                envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.19 },
+                noise: true
+            },
+            tom: {
+                duration: 0.6,
+                baseFreq: 100,
+                envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.37 },
+                noise: false
+            },
+            rim: {
+                duration: 0.1,
+                baseFreq: 1000,
+                envelope: { attack: 0.001, decay: 0.02, sustain: 0.1, release: 0.077 },
+                noise: true
+            },
+            'snare-roll': {
+                duration: 1.5,
+                baseFreq: 200,
+                envelope: { attack: 0.01, decay: 0.05, sustain: 0.8, release: 0.64 },
+                noise: true,
+                roll: true
+            },
+            'crash-cymbal': {
+                duration: 2.0,
+                baseFreq: 3000,
+                envelope: { attack: 0.01, decay: 0.5, sustain: 0.3, release: 1.19 },
+                noise: true,
+                shimmer: true
+            },
+            'ride-cymbal': {
+                duration: 1.0,
+                baseFreq: 2000,
+                envelope: { attack: 0.01, decay: 0.2, sustain: 0.4, release: 0.39 },
+                noise: true,
+                shimmer: true
+            },
+            'closed-hihat': {
+                duration: 0.1,
+                baseFreq: 8000,
+                envelope: { attack: 0.001, decay: 0.02, sustain: 0.1, release: 0.077 },
+                noise: true
+            },
+            'pedal-hihat': {
+                duration: 0.15,
+                baseFreq: 6000,
+                envelope: { attack: 0.01, decay: 0.05, sustain: 0.05, release: 0.09 },
+                noise: true
+            },
+            'open-hihat': {
+                duration: 0.8,
+                baseFreq: 7000,
+                envelope: { attack: 0.01, decay: 0.3, sustain: 0.2, release: 0.29 },
+                noise: true
+            }
+        };
+
+        // Generate white noise
+        function generateNoise(length) {
+            const noise = new Float32Array(length);
+            for (let i = 0; i < length; i++) {
+                noise[i] = Math.random() * 2 - 1;
+            }
+            return noise;
+        }
+
+        // Apply ADSR envelope
+        function applyEnvelope(buffer, envelope, sampleRate) {
+            const length = buffer.length;
+            const attackSamples = Math.floor(envelope.attack * sampleRate);
+            const decaySamples = Math.floor(envelope.decay * sampleRate);
+            const releaseSamples = Math.floor(envelope.release * sampleRate);
+            const sustainSamples = length - attackSamples - decaySamples - releaseSamples;
+
+            for (let i = 0; i < length; i++) {
+                let gain = 1;
+                
+                if (i < attackSamples) {
+                    // Attack
+                    gain = i / attackSamples;
+                } else if (i < attackSamples + decaySamples) {
+                    // Decay
+                    const decayProgress = (i - attackSamples) / decaySamples;
+                    gain = 1 - decayProgress * (1 - envelope.sustain);
+                } else if (i < attackSamples + decaySamples + sustainSamples) {
+                    // Sustain
+                    gain = envelope.sustain;
+                } else {
+                    // Release
+                    const releaseProgress = (i - attackSamples - decaySamples - sustainSamples) / releaseSamples;
+                    gain = envelope.sustain * (1 - releaseProgress);
+                }
+                
+                buffer[i] *= gain;
+            }
+        }
+
+        // Generate synthesized sample
+        function generateSynthSample(config, randomness) {
+            const sampleRate = 44100;
+            const duration = config.duration * (1 + (Math.random() - 0.5) * randomness * 0.5);
+            const length = Math.floor(duration * sampleRate);
+            const buffer = new Float32Array(length);
+            
+            const baseFreq = config.baseFreq * (1 + (Math.random() - 0.5) * randomness);
+            
+            if (config.noise) {
+                const noise = generateNoise(length);
+                for (let i = 0; i < length; i++) {
+                    buffer[i] = noise[i];
+                    
+                    // Add tonal component for some sounds
+                    if (config.baseFreq < 1000) {
+                        const t = i / sampleRate;
+                        const freq = baseFreq * Math.exp(-t * 2); // Pitch decay
+                        buffer[i] += 0.3 * Math.sin(2 * Math.PI * freq * t);
+                    }
+                    
+                    // Add shimmer for cymbals
+                    if (config.shimmer) {
+                        const t = i / sampleRate;
+                        buffer[i] += 0.2 * Math.sin(2 * Math.PI * (baseFreq * 1.5) * t) * Math.random();
+                    }
+                }
+            } else {
+                // Pure tonal sounds
+                for (let i = 0; i < length; i++) {
+                    const t = i / sampleRate;
+                    let freq = baseFreq;
+                    
+                    // Pitch bend for kicks and toms
+                    if (config.baseFreq < 300) {
+                        freq = baseFreq * Math.exp(-t * 8);
+                    }
+                    
+                    buffer[i] = Math.sin(2 * Math.PI * freq * t);
+                    
+                    // Add harmonics
+                    buffer[i] += 0.3 * Math.sin(2 * Math.PI * freq * 2 * t);
+                    buffer[i] += 0.1 * Math.sin(2 * Math.PI * freq * 3 * t);
+                }
+            }
+            
+            // Handle snare roll
+            if (config.roll) {
+                const rollFreq = 40; // rolls per second
+                for (let i = 0; i < length; i++) {
+                    const t = i / sampleRate;
+                    const rollEnv = 0.5 + 0.5 * Math.sin(2 * Math.PI * rollFreq * t);
+                    buffer[i] *= rollEnv;
+                }
+            }
+            
+            // Apply randomized envelope
+            const envelope = { ...config.envelope };
+            Object.keys(envelope).forEach(key => {
+                envelope[key] *= (1 + (Math.random() - 0.5) * randomness * 0.3);
+            });
+            
+            applyEnvelope(buffer, envelope, sampleRate);
+            
+            return buffer;
+        }
+
+        // Mix source sample with synth
+        function mixSamples(synthBuffer, sourceBuffer) {
+            const maxLength = Math.max(synthBuffer.length, sourceBuffer ? sourceBuffer.length : 0);
+            const mixed = new Float32Array(maxLength);
+            
+            for (let i = 0; i < maxLength; i++) {
+                let sample = 0;
+                
+                if (i < synthBuffer.length) {
+                    sample += synthBuffer[i] * 0.7;
+                }
+                
+                if (sourceBuffer && i < sourceBuffer.length) {
+                    sample += sourceBuffer[i] * 0.3;
+                }
+                
+                // Soft clipping
+                if (Math.abs(sample) > 0.95) {
+                    sample = Math.sign(sample) * (1 - Math.exp(-Math.abs(sample)));
+                }
+                
+                mixed[i] = sample;
+            }
+            
+            return mixed;
+        }
+
+        // Generate sample
+        async function generateSample() {
+            initAudioContext();
+            
+            const partType = document.getElementById('partType').value;
+            const useSynth = document.getElementById('useSynth').checked;
+            const randomness = parseFloat(document.getElementById('randomness').value);
+            
+            if (!useSynth && !sourceBuffer) {
+                alert('Please either enable synthesized sounds or upload a source sample.');
+                return;
+            }
+            
+            const config = partConfigs[partType];
+            let finalBuffer;
+            
+            if (useSynth) {
+                const synthBuffer = generateSynthSample(config, randomness);
+                
+                if (sourceBuffer) {
+                    finalBuffer = mixSamples(synthBuffer, sourceBuffer);
+                } else {
+                    finalBuffer = synthBuffer;
+                }
+            } else {
+                finalBuffer = new Float32Array(sourceBuffer);
+            }
+            
+            // Create audio buffer
+            generatedBuffer = audioContext.createBuffer(1, finalBuffer.length, 44100);
+            generatedBuffer.copyToChannel(finalBuffer, 0);
+            
+            // Create blob URL for audio element
+            const wavBlob = bufferToWav(generatedBuffer);
+            const audioUrl = URL.createObjectURL(wavBlob);
+            
+            const audioPlayer = document.getElementById('audioPlayer');
+            audioPlayer.src = audioUrl;
+            
+            document.getElementById('audioControls').style.display = 'block';
+            document.getElementById('playBtn').disabled = false;
+            document.getElementById('downloadBtn').disabled = false;
+        }
+
+        // Convert audio buffer to WAV blob
+        function bufferToWav(buffer) {
+            const length = buffer.length;
+            const arrayBuffer = new ArrayBuffer(44 + length * 2);
+            const view = new DataView(arrayBuffer);
+            
+            // WAV header
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+            
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + length * 2, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, 44100, true);
+            view.setUint32(28, 44100 * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, length * 2, true);
+            
+            // Convert float samples to 16-bit PCM
+            const channelData = buffer.getChannelData(0);
+            let offset = 44;
+            for (let i = 0; i < length; i++) {
+                const sample = Math.max(-1, Math.min(1, channelData[i]));
+                view.setInt16(offset, sample * 0x7FFF, true);
+                offset += 2;
+            }
+            
+            return new Blob([arrayBuffer], { type: 'audio/wav' });
+        }
+
+        // Play sample
+        function playSample() {
+            if (!generatedBuffer) return;
+            
+            initAudioContext();
+            const source = audioContext.createBufferSource();
+            source.buffer = generatedBuffer;
+            source.connect(audioContext.destination);
+            source.start();
+        }
+
+        // Download sample
+        function downloadSample() {
+            if (!generatedBuffer) return;
+            
+            const wavBlob = bufferToWav(generatedBuffer);
+            const url = URL.createObjectURL(wavBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `drum-sample-${document.getElementById('partType').value}.wav`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Load source file
+        async function loadSourceFile(file) {
+            if (!file) return;
+            
+            initAudioContext();
+            const arrayBuffer = await file.arrayBuffer();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            sourceBuffer = audioBuffer.getChannelData(0);
+        }
+
+        // Event listeners
+        document.getElementById('randomness').addEventListener('input', (e) => {
+            document.getElementById('randomnessValue').textContent = parseFloat(e.target.value).toFixed(2);
+        });
+
+        document.getElementById('sourceFile').addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                loadSourceFile(e.target.files[0]);
+            }
+        });
+
+        document.getElementById('generateBtn').addEventListener('click', generateSample);
+        document.getElementById('playBtn').addEventListener('click', playSample);
+        document.getElementById('downloadBtn').addEventListener('click', downloadSample);
+    </script>
+</body>
+</html>
