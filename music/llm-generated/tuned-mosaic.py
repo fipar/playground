@@ -20,6 +20,8 @@ Enhancements over mosaic.py:
   acoustic analysis (default 50% overlap).
 - Windowing Functions: Applies windowing (Hann, Hamming, etc.) before FFT
   analysis to reduce spectral leakage and improve frequency analysis.
+- Usage Tracking (Novelty): Tracks block usage and penalizes overused blocks
+  to create more variety and avoid repetitive patterns.
 - Chunk Caching: Analyzed chunks are cached in .mosaic-cache/ directory for
   faster repeated runs with the same input files.
 
@@ -46,6 +48,7 @@ python tuned-mosaic.py \
     --chunk-size-max 0.4 \
     --overlap 0.5 \
     --window hann \
+    --usage-importance 0.1 \
     --enable-pitch-tuning \
     --enable-volume-tuning \
     --enable-envelope-tuning
@@ -78,6 +81,8 @@ class AudioChunk:
         self.features = self._extract_features()
         # Normalized features added later
         self.norm_features = {}
+        # Usage tracking for novelty (avoiding repetitive blocks)
+        self.usage = 0.0
 
     def _apply_window(self, audio):
         """Apply windowing function to reduce spectral leakage."""
@@ -304,9 +309,31 @@ def analyze_file(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, 
 
     return chunks
 
-def find_best_match(reference_chunk, source_pool, feature_weights, use_duration_match, mfcc_distance_metric):
+def deplete_usage(chunks, decay_rate=0.99):
+    """
+    Decay usage values for all chunks to allow reuse over time.
+
+    Args:
+        chunks: List of AudioChunk objects
+        decay_rate: Multiplicative decay factor (0.99 = 1% decay per call)
+    """
+    for chunk in chunks:
+        # Handle chunks loaded from old cache that don't have usage attribute
+        if not hasattr(chunk, 'usage'):
+            chunk.usage = 0.0
+        chunk.usage *= decay_rate
+
+def find_best_match(reference_chunk, source_pool, feature_weights, use_duration_match, mfcc_distance_metric, usage_importance=0.0):
     """
     Finds the best matching chunk from the source_pool for a given reference_chunk.
+
+    Args:
+        reference_chunk: The target chunk to match
+        source_pool: List of source chunks to search
+        feature_weights: Dictionary of feature weights
+        use_duration_match: Whether to match duration
+        mfcc_distance_metric: 'euclidean' or 'cosine'
+        usage_importance: Weight for usage/novelty (0.0 = ignore usage, higher = prefer unused blocks)
     """
     best_match = None
     min_distance = float('inf')
@@ -347,12 +374,22 @@ def find_best_match(reference_chunk, source_pool, feature_weights, use_duration_
         else:
             raise ValueError(f"Unknown MFCC distance metric: {mfcc_distance_metric}")
 
-        # Total weighted distance
+        # Total weighted distance (acoustic similarity)
         total_distance = (w_rms * dist_rms) + (w_pitch * dist_pitch) + (w_mfcc * dist_mfcc)
 
         if use_duration_match:
             dist_duration = abs(ref_duration - src_duration)
             total_distance += (w_duration * dist_duration)
+
+        # Blend in usage to penalize overused blocks (novelty)
+        # Higher usage = higher penalty = less likely to be chosen
+        if usage_importance > 0:
+            # Handle chunks loaded from old cache that don't have usage attribute
+            if not hasattr(source_chunk, 'usage'):
+                source_chunk.usage = 0.0
+            # Normalize usage to a similar scale as acoustic distance
+            # Usage starts at 0 and increases, so we blend it in directly
+            total_distance = (1 - usage_importance) * total_distance + usage_importance * source_chunk.usage
 
         if total_distance < min_distance:
             min_distance = total_distance
@@ -565,6 +602,8 @@ def main():
                        help="Weight for MFCC (timbre) matching. Default: 1.0")
     parser.add_argument('--weight-duration', type=float, default=0.5,
                        help="Weight for duration matching. Default: 0.5")
+    parser.add_argument('--usage-importance', type=float, default=0.0,
+                       help="Weight for usage/novelty (0.0 = ignore, higher = prefer unused blocks). Default: 0.0")
     parser.add_argument('--crossfade-duration', type=float, default=0.01,
                        help="Duration of the crossfade in seconds. Default: 0.01")
     parser.add_argument('--no-chunk-duration-match', dest='duration_match',
@@ -633,14 +672,25 @@ def main():
         'duration': args.weight_duration
     }
 
-    for ref_chunk in tqdm(reference_chunks, desc="Matching and tuning"):
+    for idx, ref_chunk in enumerate(tqdm(reference_chunks, desc="Matching and tuning")):
+        # Periodically decay usage values to allow reuse
+        if idx % 10 == 0:
+            deplete_usage(source_pool, decay_rate=0.99)
+
         # Find the best match
         best_source_chunk = find_best_match(
             ref_chunk, source_pool, feature_weights,
-            args.duration_match, args.mfcc_distance_metric
+            args.duration_match, args.mfcc_distance_metric,
+            usage_importance=args.usage_importance
         )
 
         if best_source_chunk:
+            # Increase usage of chosen chunk to encourage variety
+            # Handle chunks loaded from old cache that don't have usage attribute
+            if not hasattr(best_source_chunk, 'usage'):
+                best_source_chunk.usage = 0.0
+            best_source_chunk.usage += 1.0
+
             chunk_to_add = best_source_chunk
 
             # Apply tuning in order: pitch -> volume -> envelope
