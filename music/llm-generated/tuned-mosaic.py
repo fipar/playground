@@ -40,6 +40,7 @@ python tuned-mosaic.py \
     --output path/to/output.wav \
     --chunk-size-min 0.1 \
     --chunk-size-max 0.4 \
+    --overlap 0.5 \
     --enable-pitch-tuning \
     --enable-volume-tuning \
     --enable-envelope-tuning
@@ -125,19 +126,22 @@ def compute_file_hash(filepath):
         print(f"Error computing file hash for {filepath}: {e}")
         return None
 
-def get_cache_paths(filepath, cache_dir=".mosaic-cache"):
-    """Get the cache file paths for a given audio file."""
+def get_cache_paths(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, cache_dir=".mosaic-cache"):
+    """Get the cache file paths for a given audio file and chunking parameters."""
     path_hash = compute_path_hash(filepath)
-    chunks_file = os.path.join(cache_dir, f"{path_hash}_chunks.pkl")
-    hash_file = os.path.join(cache_dir, f"{path_hash}_hash.txt")
+    # Include chunking parameters in cache key
+    params_str = f"{chunk_duration_min_s}_{chunk_duration_max_s}_{overlap}_{sample_rate}"
+    params_hash = hashlib.md5(params_str.encode('utf-8')).hexdigest()[:8]
+    chunks_file = os.path.join(cache_dir, f"{path_hash}_{params_hash}_chunks.pkl")
+    hash_file = os.path.join(cache_dir, f"{path_hash}_{params_hash}_hash.txt")
     return chunks_file, hash_file
 
-def load_chunks_from_cache(filepath, cache_dir=".mosaic-cache"):
+def load_chunks_from_cache(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, cache_dir=".mosaic-cache"):
     """
     Load cached chunks if they exist and are valid.
     Returns (chunks, cache_hit) where cache_hit is True if cache was used.
     """
-    chunks_file, hash_file = get_cache_paths(filepath, cache_dir)
+    chunks_file, hash_file = get_cache_paths(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, cache_dir)
 
     # Check if cache files exist
     if not os.path.exists(chunks_file) or not os.path.exists(hash_file):
@@ -171,12 +175,12 @@ def load_chunks_from_cache(filepath, cache_dir=".mosaic-cache"):
         print(f"Error loading cached chunks: {e}")
         return None, False
 
-def save_chunks_to_cache(filepath, chunks, cache_dir=".mosaic-cache"):
+def save_chunks_to_cache(filepath, chunks, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, cache_dir=".mosaic-cache"):
     """Save chunks to cache along with file hash."""
     # Create cache directory if it doesn't exist
     os.makedirs(cache_dir, exist_ok=True)
 
-    chunks_file, hash_file = get_cache_paths(filepath, cache_dir)
+    chunks_file, hash_file = get_cache_paths(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, cache_dir)
 
     # Compute and save file hash
     file_hash = compute_file_hash(filepath)
@@ -200,12 +204,21 @@ def save_chunks_to_cache(filepath, chunks, cache_dir=".mosaic-cache"):
 
 # --- Core Functions ---
 
-def analyze_file(filepath, chunk_duration_min_s, chunk_duration_max_s, sample_rate):
-    """Loads an audio file and splits it into variable-sized AudioChunk objects."""
+def analyze_file(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate):
+    """
+    Loads an audio file and splits it into variable-sized AudioChunk objects.
+
+    Args:
+        filepath: Path to audio file
+        chunk_duration_min_s: Minimum chunk duration in seconds
+        chunk_duration_max_s: Maximum chunk duration in seconds
+        overlap: Overlap fraction (0.0 = no overlap, 0.5 = 50% overlap)
+        sample_rate: Target sample rate
+    """
     print(f"Analyzing file: {filepath}...")
 
     # Try to load from cache first
-    cached_chunks, cache_hit = load_chunks_from_cache(filepath)
+    cached_chunks, cache_hit = load_chunks_from_cache(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate)
     if cache_hit and cached_chunks is not None:
         return cached_chunks
 
@@ -224,6 +237,7 @@ def analyze_file(filepath, chunk_duration_min_s, chunk_duration_max_s, sample_ra
         print("Error: Minimum chunk size is too small. Please use a larger --chunk-size-min.")
         return []
 
+    last_update_pos = 0
     with tqdm(total=y_len_samples, desc=f"Chunking {filepath.split('/')[-1]}") as pbar:
         while current_pos_samples < y_len_samples:
             chunk_duration_s = np.random.uniform(chunk_duration_min_s, chunk_duration_max_s)
@@ -241,11 +255,21 @@ def analyze_file(filepath, chunk_duration_min_s, chunk_duration_max_s, sample_ra
             if actual_chunk_len >= min_chunk_samples:
                 chunks.append(AudioChunk(chunk_audio, sr))
 
-            pbar.update(actual_chunk_len)
-            current_pos_samples = end
+            # Update progress bar with actual advancement (not chunk size)
+            advancement = current_pos_samples - last_update_pos
+            if advancement > 0:
+                pbar.update(advancement)
+                last_update_pos = current_pos_samples
+
+            # Advance position with overlap
+            # overlap = 0.5 means 50% overlap, so advance by 50% of chunk size
+            hop_samples = int(chunk_samples * (1 - overlap))
+            if hop_samples == 0:
+                hop_samples = 1  # Ensure we always make progress
+            current_pos_samples += hop_samples
 
     # Save to cache for next time
-    save_chunks_to_cache(filepath, chunks)
+    save_chunks_to_cache(filepath, chunks, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate)
 
     return chunks
 
@@ -492,6 +516,8 @@ def main():
                        help="Minimum duration of each chunk in seconds. Default: 0.1")
     parser.add_argument('--chunk-size-max', type=float, default=0.4,
                        help="Maximum duration of each chunk in seconds. Default: 0.4")
+    parser.add_argument('--overlap', type=float, default=0.5,
+                       help="Chunk overlap fraction (0.0 = no overlap, 0.5 = 50%% overlap). Default: 0.5")
     parser.add_argument('--no-crossfade', dest='crossfade', action='store_false',
                        help="Disable crossfading between chunks.")
     parser.add_argument('--mfcc-distance-metric', type=str,
@@ -538,10 +564,13 @@ def main():
     if args.chunk_size_min <= 0:
         print("Error: --chunk-size-min must be positive.")
         return
+    if not 0.0 <= args.overlap < 1.0:
+        print("Error: --overlap must be in range [0.0, 1.0).")
+        return
 
     # --- 1. Analysis Phase ---
     reference_chunks = analyze_file(args.reference, args.chunk_size_min,
-                                    args.chunk_size_max, args.sr)
+                                    args.chunk_size_max, args.overlap, args.sr)
     if not reference_chunks:
         print("Could not process reference file. Exiting.")
         return
@@ -549,7 +578,7 @@ def main():
     source_pool = []
     for source_file in args.sources:
         source_pool.extend(analyze_file(source_file, args.chunk_size_min,
-                                       args.chunk_size_max, args.sr))
+                                       args.chunk_size_max, args.overlap, args.sr))
 
     if not source_pool:
         print("Could not process any source files. Exiting.")
