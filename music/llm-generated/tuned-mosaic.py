@@ -16,12 +16,19 @@ Enhancements over mosaic.py:
 - Volume Envelope Matching: The dynamic volume changes over time (the envelope)
   are analyzed in the reference chunk and applied to the source chunk, creating
   a more natural and expressive match.
+- Chunk Caching: Analyzed chunks are cached in .mosaic-cache/ directory for
+  faster repeated runs with the same input files.
 
 Core Workflow:
 1. Find the best matching source chunk (same as mosaic.py)
 2. Apply pitch shift to match reference pitch
 3. Apply volume scaling to match reference RMS
 4. Apply volume envelope to match reference dynamics
+
+Caching:
+- Chunks are automatically cached in .mosaic-cache/ directory
+- Cache is invalidated if input files change
+- Significantly speeds up repeated runs with the same files
 
 Dependencies:
 pip install numpy librosa soundfile tqdm scipy
@@ -47,6 +54,9 @@ from tqdm import tqdm
 from scipy.interpolate import interp1d
 import warnings
 import copy
+import hashlib
+import pickle
+import os
 
 # Suppress annoying librosa warnings
 warnings.filterwarnings('ignore', category=UserWarning)
@@ -97,11 +107,108 @@ class AudioChunk:
             'rms_envelope': rms_envelope  # Store the envelope
         }
 
+# --- Cache Management Functions ---
+
+def compute_path_hash(filepath):
+    """Compute a hash of the filepath string to use as cache key."""
+    return hashlib.md5(os.path.abspath(filepath).encode('utf-8')).hexdigest()
+
+def compute_file_hash(filepath):
+    """Compute a hash of the file content to detect changes."""
+    hash_md5 = hashlib.md5()
+    try:
+        with open(filepath, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+        return hash_md5.hexdigest()
+    except Exception as e:
+        print(f"Error computing file hash for {filepath}: {e}")
+        return None
+
+def get_cache_paths(filepath, cache_dir=".mosaic-cache"):
+    """Get the cache file paths for a given audio file."""
+    path_hash = compute_path_hash(filepath)
+    chunks_file = os.path.join(cache_dir, f"{path_hash}_chunks.pkl")
+    hash_file = os.path.join(cache_dir, f"{path_hash}_hash.txt")
+    return chunks_file, hash_file
+
+def load_chunks_from_cache(filepath, cache_dir=".mosaic-cache"):
+    """
+    Load cached chunks if they exist and are valid.
+    Returns (chunks, cache_hit) where cache_hit is True if cache was used.
+    """
+    chunks_file, hash_file = get_cache_paths(filepath, cache_dir)
+
+    # Check if cache files exist
+    if not os.path.exists(chunks_file) or not os.path.exists(hash_file):
+        return None, False
+
+    # Read the stored file hash
+    try:
+        with open(hash_file, 'r') as f:
+            stored_hash = f.read().strip()
+    except Exception as e:
+        print(f"Error reading cache hash file: {e}")
+        return None, False
+
+    # Compute current file hash
+    current_hash = compute_file_hash(filepath)
+    if current_hash is None:
+        return None, False
+
+    # Check if hashes match
+    if stored_hash != current_hash:
+        print(f"Cache invalidated for {filepath} (file content changed)")
+        return None, False
+
+    # Load cached chunks
+    try:
+        with open(chunks_file, 'rb') as f:
+            chunks = pickle.load(f)
+        print(f"Loaded {len(chunks)} chunks from cache for {filepath}")
+        return chunks, True
+    except Exception as e:
+        print(f"Error loading cached chunks: {e}")
+        return None, False
+
+def save_chunks_to_cache(filepath, chunks, cache_dir=".mosaic-cache"):
+    """Save chunks to cache along with file hash."""
+    # Create cache directory if it doesn't exist
+    os.makedirs(cache_dir, exist_ok=True)
+
+    chunks_file, hash_file = get_cache_paths(filepath, cache_dir)
+
+    # Compute and save file hash
+    file_hash = compute_file_hash(filepath)
+    if file_hash is None:
+        return
+
+    try:
+        with open(hash_file, 'w') as f:
+            f.write(file_hash)
+    except Exception as e:
+        print(f"Error saving cache hash: {e}")
+        return
+
+    # Save chunks
+    try:
+        with open(chunks_file, 'wb') as f:
+            pickle.dump(chunks, f)
+        print(f"Cached {len(chunks)} chunks for {filepath}")
+    except Exception as e:
+        print(f"Error saving chunks to cache: {e}")
+
 # --- Core Functions ---
 
 def analyze_file(filepath, chunk_duration_min_s, chunk_duration_max_s, sample_rate):
     """Loads an audio file and splits it into variable-sized AudioChunk objects."""
     print(f"Analyzing file: {filepath}...")
+
+    # Try to load from cache first
+    cached_chunks, cache_hit = load_chunks_from_cache(filepath)
+    if cache_hit and cached_chunks is not None:
+        return cached_chunks
+
     try:
         y, sr = librosa.load(filepath, sr=sample_rate)
     except Exception as e:
@@ -136,6 +243,9 @@ def analyze_file(filepath, chunk_duration_min_s, chunk_duration_max_s, sample_ra
 
             pbar.update(actual_chunk_len)
             current_pos_samples = end
+
+    # Save to cache for next time
+    save_chunks_to_cache(filepath, chunks)
 
     return chunks
 
