@@ -16,6 +16,10 @@ Enhancements over mosaic.py:
 - Volume Envelope Matching: The dynamic volume changes over time (the envelope)
   are analyzed in the reference chunk and applied to the source chunk, creating
   a more natural and expressive match.
+- Overlapping Chunks: Chunks can overlap for smoother transitions and better
+  acoustic analysis (default 50% overlap).
+- Windowing Functions: Applies windowing (Hann, Hamming, etc.) before FFT
+  analysis to reduce spectral leakage and improve frequency analysis.
 - Chunk Caching: Analyzed chunks are cached in .mosaic-cache/ directory for
   faster repeated runs with the same input files.
 
@@ -41,6 +45,7 @@ python tuned-mosaic.py \
     --chunk-size-min 0.1 \
     --chunk-size-max 0.4 \
     --overlap 0.5 \
+    --window hann \
     --enable-pitch-tuning \
     --enable-volume-tuning \
     --enable-envelope-tuning
@@ -53,6 +58,7 @@ import librosa
 import soundfile as sf
 from tqdm import tqdm
 from scipy.interpolate import interp1d
+from scipy import signal
 import warnings
 import copy
 import hashlib
@@ -65,26 +71,50 @@ warnings.filterwarnings('ignore', category=UserWarning)
 # --- Data Structure for an Audio Chunk ---
 class AudioChunk:
     """A class to hold a chunk of audio and its features."""
-    def __init__(self, audio_data, sample_rate):
+    def __init__(self, audio_data, sample_rate, window_type='hann'):
         self.audio = audio_data
         self.sr = sample_rate
+        self.window_type = window_type
         self.features = self._extract_features()
         # Normalized features added later
         self.norm_features = {}
+
+    def _apply_window(self, audio):
+        """Apply windowing function to reduce spectral leakage."""
+        if self.window_type == 'none' or len(audio) == 0:
+            return audio
+
+        # Create window of same length as audio
+        if self.window_type == 'hann':
+            window = signal.windows.hann(len(audio))
+        elif self.window_type == 'hamming':
+            window = signal.windows.hamming(len(audio))
+        elif self.window_type == 'blackman':
+            window = signal.windows.blackman(len(audio))
+        elif self.window_type == 'bartlett':
+            window = signal.windows.bartlett(len(audio))
+        else:
+            # Default to hann if unknown
+            window = signal.windows.hann(len(audio))
+
+        return audio * window
 
     def _extract_features(self):
         """Calculates the acoustic features (fingerprint) of the chunk."""
         hop_length = 512
 
+        # Apply windowing to reduce spectral leakage
+        windowed_audio = self._apply_window(self.audio)
+
         # 1. Loudness (RMS Energy)
-        rms = librosa.feature.rms(y=self.audio, hop_length=hop_length)
+        rms = librosa.feature.rms(y=windowed_audio, hop_length=hop_length)
         avg_rms = np.mean(rms)
         # Store the full RMS envelope for envelope matching
         rms_envelope = rms[0]  # Remove the extra dimension
 
         # 2. Pitch (Fundamental Frequency)
         pitches, _, _ = librosa.pyin(
-            y=self.audio,
+            y=windowed_audio,
             fmin=librosa.note_to_hz('C2'),
             fmax=librosa.note_to_hz('C7'),
             sr=self.sr
@@ -93,7 +123,7 @@ class AudioChunk:
 
         # 3. Timbre (MFCCs)
         mfccs = librosa.feature.mfcc(
-            y=self.audio,
+            y=windowed_audio,
             sr=self.sr,
             n_mfcc=13,
             hop_length=hop_length
@@ -126,22 +156,22 @@ def compute_file_hash(filepath):
         print(f"Error computing file hash for {filepath}: {e}")
         return None
 
-def get_cache_paths(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, cache_dir=".mosaic-cache"):
+def get_cache_paths(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, window_type, cache_dir=".mosaic-cache"):
     """Get the cache file paths for a given audio file and chunking parameters."""
     path_hash = compute_path_hash(filepath)
     # Include chunking parameters in cache key
-    params_str = f"{chunk_duration_min_s}_{chunk_duration_max_s}_{overlap}_{sample_rate}"
+    params_str = f"{chunk_duration_min_s}_{chunk_duration_max_s}_{overlap}_{sample_rate}_{window_type}"
     params_hash = hashlib.md5(params_str.encode('utf-8')).hexdigest()[:8]
     chunks_file = os.path.join(cache_dir, f"{path_hash}_{params_hash}_chunks.pkl")
     hash_file = os.path.join(cache_dir, f"{path_hash}_{params_hash}_hash.txt")
     return chunks_file, hash_file
 
-def load_chunks_from_cache(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, cache_dir=".mosaic-cache"):
+def load_chunks_from_cache(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, window_type, cache_dir=".mosaic-cache"):
     """
     Load cached chunks if they exist and are valid.
     Returns (chunks, cache_hit) where cache_hit is True if cache was used.
     """
-    chunks_file, hash_file = get_cache_paths(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, cache_dir)
+    chunks_file, hash_file = get_cache_paths(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, window_type, cache_dir)
 
     # Check if cache files exist
     if not os.path.exists(chunks_file) or not os.path.exists(hash_file):
@@ -175,12 +205,12 @@ def load_chunks_from_cache(filepath, chunk_duration_min_s, chunk_duration_max_s,
         print(f"Error loading cached chunks: {e}")
         return None, False
 
-def save_chunks_to_cache(filepath, chunks, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, cache_dir=".mosaic-cache"):
+def save_chunks_to_cache(filepath, chunks, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, window_type, cache_dir=".mosaic-cache"):
     """Save chunks to cache along with file hash."""
     # Create cache directory if it doesn't exist
     os.makedirs(cache_dir, exist_ok=True)
 
-    chunks_file, hash_file = get_cache_paths(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, cache_dir)
+    chunks_file, hash_file = get_cache_paths(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, window_type, cache_dir)
 
     # Compute and save file hash
     file_hash = compute_file_hash(filepath)
@@ -204,7 +234,7 @@ def save_chunks_to_cache(filepath, chunks, chunk_duration_min_s, chunk_duration_
 
 # --- Core Functions ---
 
-def analyze_file(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate):
+def analyze_file(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, window_type='hann'):
     """
     Loads an audio file and splits it into variable-sized AudioChunk objects.
 
@@ -214,11 +244,12 @@ def analyze_file(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, 
         chunk_duration_max_s: Maximum chunk duration in seconds
         overlap: Overlap fraction (0.0 = no overlap, 0.5 = 50% overlap)
         sample_rate: Target sample rate
+        window_type: Window function type ('hann', 'hamming', 'blackman', 'bartlett', 'none')
     """
     print(f"Analyzing file: {filepath}...")
 
     # Try to load from cache first
-    cached_chunks, cache_hit = load_chunks_from_cache(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate)
+    cached_chunks, cache_hit = load_chunks_from_cache(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, window_type)
     if cache_hit and cached_chunks is not None:
         return cached_chunks
 
@@ -253,7 +284,7 @@ def analyze_file(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, 
             actual_chunk_len = len(chunk_audio)
 
             if actual_chunk_len >= min_chunk_samples:
-                chunks.append(AudioChunk(chunk_audio, sr))
+                chunks.append(AudioChunk(chunk_audio, sr, window_type))
 
             # Update progress bar with actual advancement (not chunk size)
             advancement = current_pos_samples - last_update_pos
@@ -269,7 +300,7 @@ def analyze_file(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, 
             current_pos_samples += hop_samples
 
     # Save to cache for next time
-    save_chunks_to_cache(filepath, chunks, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate)
+    save_chunks_to_cache(filepath, chunks, chunk_duration_min_s, chunk_duration_max_s, overlap, sample_rate, window_type)
 
     return chunks
 
@@ -518,6 +549,9 @@ def main():
                        help="Maximum duration of each chunk in seconds. Default: 0.4")
     parser.add_argument('--overlap', type=float, default=0.5,
                        help="Chunk overlap fraction (0.0 = no overlap, 0.5 = 50%% overlap). Default: 0.5")
+    parser.add_argument('--window', type=str, default='hann',
+                       choices=['hann', 'hamming', 'blackman', 'bartlett', 'none'],
+                       help="Window function for FFT analysis. Default: 'hann'")
     parser.add_argument('--no-crossfade', dest='crossfade', action='store_false',
                        help="Disable crossfading between chunks.")
     parser.add_argument('--mfcc-distance-metric', type=str,
@@ -570,7 +604,7 @@ def main():
 
     # --- 1. Analysis Phase ---
     reference_chunks = analyze_file(args.reference, args.chunk_size_min,
-                                    args.chunk_size_max, args.overlap, args.sr)
+                                    args.chunk_size_max, args.overlap, args.sr, args.window)
     if not reference_chunks:
         print("Could not process reference file. Exiting.")
         return
@@ -578,7 +612,7 @@ def main():
     source_pool = []
     for source_file in args.sources:
         source_pool.extend(analyze_file(source_file, args.chunk_size_min,
-                                       args.chunk_size_max, args.overlap, args.sr))
+                                       args.chunk_size_max, args.overlap, args.sr, args.window))
 
     if not source_pool:
         print("Could not process any source files. Exiting.")
