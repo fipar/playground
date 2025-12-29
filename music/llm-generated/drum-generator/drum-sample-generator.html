@@ -315,31 +315,120 @@
             return buffer;
         }
 
-        // Mix source sample with synth
-        function mixSamples(synthBuffer, sourceBuffer) {
-            const maxLength = Math.max(synthBuffer.length, sourceBuffer ? sourceBuffer.length : 0);
-            const mixed = new Float32Array(maxLength);
+        // Process source sample as sidechain input (Minimoog-style)
+        function processSampleWithSource(config, sourceBuffer, randomness) {
+            const sampleRate = 44100;
+            const duration = config.duration * (1 + (Math.random() - 0.5) * randomness * 0.5);
+            const length = Math.floor(duration * sampleRate);
+            const buffer = new Float32Array(length);
             
-            for (let i = 0; i < maxLength; i++) {
-                let sample = 0;
-                
-                if (i < synthBuffer.length) {
-                    sample += synthBuffer[i] * 0.7;
+            const baseFreq = config.baseFreq * (1 + (Math.random() - 0.5) * randomness);
+            
+            // Prepare source sample for the target duration
+            let processedSource = new Float32Array(length);
+            if (sourceBuffer && sourceBuffer.length > 0) {
+                for (let i = 0; i < length; i++) {
+                    // Loop or stretch source to match target duration
+                    const sourceIndex = Math.floor((i / length) * sourceBuffer.length);
+                    processedSource[i] = sourceBuffer[sourceIndex];
                 }
-                
-                if (sourceBuffer && i < sourceBuffer.length) {
-                    sample += sourceBuffer[i] * 0.3;
-                }
-                
-                // Soft clipping
-                if (Math.abs(sample) > 0.95) {
-                    sample = Math.sign(sample) * (1 - Math.exp(-Math.abs(sample)));
-                }
-                
-                mixed[i] = sample;
             }
             
-            return mixed;
+            if (config.noise) {
+                const noise = generateNoise(length);
+                for (let i = 0; i < length; i++) {
+                    let sample = noise[i];
+                    
+                    // Use source as modulation/filter control
+                    if (sourceBuffer) {
+                        const sourceAmp = Math.abs(processedSource[i]);
+                        // Source amplitude controls filter cutoff and noise intensity
+                        sample *= (0.3 + 0.7 * sourceAmp);
+                        // Add filtered source as harmonic content
+                        sample += processedSource[i] * 0.4;
+                    }
+                    
+                    // Add tonal component for some sounds
+                    if (config.baseFreq < 1000) {
+                        const t = i / sampleRate;
+                        let freq = baseFreq * Math.exp(-t * 2); // Pitch decay
+                        
+                        // Source modulates frequency
+                        if (sourceBuffer) {
+                            freq *= (1 + processedSource[i] * 0.2);
+                        }
+                        
+                        sample += 0.3 * Math.sin(2 * Math.PI * freq * t);
+                    }
+                    
+                    // Add shimmer for cymbals
+                    if (config.shimmer) {
+                        const t = i / sampleRate;
+                        let shimmerFreq = baseFreq * 1.5;
+                        
+                        // Source modulates shimmer
+                        if (sourceBuffer) {
+                            shimmerFreq *= (1 + processedSource[i] * 0.3);
+                        }
+                        
+                        sample += 0.2 * Math.sin(2 * Math.PI * shimmerFreq * t) * Math.random();
+                    }
+                    
+                    buffer[i] = sample;
+                }
+            } else {
+                // Pure tonal sounds with source modulation
+                for (let i = 0; i < length; i++) {
+                    const t = i / sampleRate;
+                    let freq = baseFreq;
+                    
+                    // Pitch bend for kicks and toms
+                    if (config.baseFreq < 300) {
+                        freq = baseFreq * Math.exp(-t * 8);
+                    }
+                    
+                    // Source modulates frequency and amplitude
+                    if (sourceBuffer) {
+                        freq *= (1 + processedSource[i] * 0.3);
+                        // Ring modulation effect
+                        buffer[i] = Math.sin(2 * Math.PI * freq * t) * (0.7 + 0.3 * processedSource[i]);
+                        // Add some of the source as harmonic content
+                        buffer[i] += processedSource[i] * 0.2;
+                    } else {
+                        buffer[i] = Math.sin(2 * Math.PI * freq * t);
+                    }
+                    
+                    // Add harmonics
+                    let harmonic2Freq = freq * 2;
+                    let harmonic3Freq = freq * 3;
+                    
+                    if (sourceBuffer) {
+                        harmonic2Freq *= (1 + processedSource[i] * 0.1);
+                        harmonic3Freq *= (1 + processedSource[i] * 0.15);
+                    }
+                    
+                    buffer[i] += 0.3 * Math.sin(2 * Math.PI * harmonic2Freq * t);
+                    buffer[i] += 0.1 * Math.sin(2 * Math.PI * harmonic3Freq * t);
+                }
+            }
+            
+            // Handle snare roll
+            if (config.roll) {
+                const rollFreq = 40; // rolls per second
+                for (let i = 0; i < length; i++) {
+                    const t = i / sampleRate;
+                    let rollEnv = 0.5 + 0.5 * Math.sin(2 * Math.PI * rollFreq * t);
+                    
+                    // Source modulates roll intensity
+                    if (sourceBuffer) {
+                        rollEnv *= (0.5 + 0.5 * Math.abs(processedSource[i]));
+                    }
+                    
+                    buffer[i] *= rollEnv;
+                }
+            }
+            
+            return buffer;
         }
 
         // Generate sample
@@ -359,16 +448,34 @@
             let finalBuffer;
             
             if (useSynth) {
-                const synthBuffer = generateSynthSample(config, randomness);
-                
-                if (sourceBuffer) {
-                    finalBuffer = mixSamples(synthBuffer, sourceBuffer);
-                } else {
-                    finalBuffer = synthBuffer;
-                }
+                // Use the new Minimoog-style processing that incorporates source as sidechain
+                finalBuffer = processSampleWithSource(config, sourceBuffer, randomness);
             } else {
-                finalBuffer = new Float32Array(sourceBuffer);
+                // Process source-only sample with drum envelope and duration
+                if (!sourceBuffer) {
+                    alert('No source sample loaded.');
+                    return;
+                }
+                
+                const sampleRate = 44100;
+                const duration = config.duration * (1 + (Math.random() - 0.5) * randomness * 0.5);
+                const length = Math.floor(duration * sampleRate);
+                finalBuffer = new Float32Array(length);
+                
+                // Stretch/compress source to match target duration and apply envelope
+                for (let i = 0; i < length; i++) {
+                    const sourceIndex = Math.floor((i / length) * sourceBuffer.length);
+                    finalBuffer[i] = sourceBuffer[sourceIndex];
+                }
             }
+            
+            // Apply randomized envelope
+            const envelope = { ...config.envelope };
+            Object.keys(envelope).forEach(key => {
+                envelope[key] *= (1 + (Math.random() - 0.5) * randomness * 0.3);
+            });
+            
+            applyEnvelope(finalBuffer, envelope, 44100);
             
             // Create audio buffer
             generatedBuffer = audioContext.createBuffer(1, finalBuffer.length, 44100);
