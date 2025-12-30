@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tape Machine</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #2c1810, #4a3426);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .tape-machine {
+            background: linear-gradient(145deg, #8B4513, #A0522D);
+            border: 3px solid #654321;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 
+                inset -5px -5px 15px rgba(0,0,0,0.3),
+                inset 5px 5px 15px rgba(255,255,255,0.1),
+                0 10px 30px rgba(0,0,0,0.5);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .machine-header {
+            text-align: center;
+            color: #FFE4B5;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin-bottom: 30px;
+        }
+
+        .controls-row {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 30px 0;
+            gap: 20px;
+        }
+
+        .file-input-container {
+            position: relative;
+            background: #654321;
+            border-radius: 10px;
+            padding: 10px;
+            border: 2px inset #8B4513;
+        }
+
+        input[type="file"] {
+            background: #2F1B14;
+            color: #FFE4B5;
+            border: 1px solid #654321;
+            border-radius: 5px;
+            padding: 8px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .button {
+            background: linear-gradient(145deg, #DC143C, #B22222);
+            border: 3px outset #DC143C;
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.1s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .button:active {
+            border: 3px inset #DC143C;
+            transform: translateY(2px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .button:disabled {
+            background: linear-gradient(145deg, #666, #444);
+            border-color: #666;
+            cursor: not-allowed;
+        }
+
+        .speed-wheel-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .speed-wheel {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #2F1B14, #1a0f0a);
+            border: 5px solid #654321;
+            position: relative;
+            cursor: pointer;
+            box-shadow: 
+                inset 0 0 20px rgba(0,0,0,0.5),
+                0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .speed-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 50px;
+            background: #FFE4B5;
+            transform-origin: bottom center;
+            transform: translate(-50%, -100%) rotate(0deg);
+            border-radius: 2px;
+            box-shadow: 0 0 5px rgba(255, 228, 181, 0.8);
+        }
+
+        .speed-display {
+            color: #FFE4B5;
+            font-weight: bold;
+            text-align: center;
+            min-width: 80px;
+            background: #2F1B14;
+            border: 1px solid #654321;
+            border-radius: 5px;
+            padding: 5px;
+        }
+
+        .status {
+            text-align: center;
+            color: #FFE4B5;
+            margin: 20px 0;
+            font-weight: bold;
+            min-height: 24px;
+        }
+
+        .reels {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+        }
+
+        .reel {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #2F1B14, #1a0f0a);
+            border: 3px solid #654321;
+            position: relative;
+            animation: spin 4s linear infinite;
+            animation-play-state: paused;
+        }
+
+        .reel::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            background: #654321;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .playing .reel {
+            animation-play-state: running;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="tape-machine">
+        <div class="machine-header">
+            <h1>TAPE MACHINE</h1>
+        </div>
+
+        <div class="controls-row">
+            <div class="file-input-container">
+                <label for="audioFile">Load Tape:</label><br>
+                <input type="file" id="audioFile" accept="audio/*">
+            </div>
+        </div>
+
+        <div class="reels">
+            <div class="reel"></div>
+            <div class="reel"></div>
+        </div>
+
+        <div class="controls-row">
+            <button class="button" id="playBtn" disabled>PLAY</button>
+            
+            <div class="speed-wheel-container">
+                <div class="speed-wheel" id="speedWheel">
+                    <div class="speed-indicator" id="speedIndicator"></div>
+                </div>
+                <div class="speed-display" id="speedDisplay">1.0x</div>
+            </div>
+            
+            <button class="button" id="stopBtn" disabled>STOP</button>
+        </div>
+
+        <div class="status" id="status">Load an audio file to begin</div>
+    </div>
+
+    <script>
+        class TapeMachine {
+            constructor() {
+                this.audioContext = null;
+                this.audioBuffer = null;
+                this.source = null;
+                this.isPlaying = false;
+                this.isPaused = false;
+                this.startTime = 0;
+                this.pauseTime = 0;
+                this.playbackRate = 1.0;
+                this.isReverse = false;
+                this.mediaRecorder = null;
+                this.recordedChunks = [];
+                this.outputAudioContext = null;
+                this.scriptProcessor = null;
+
+                this.initializeElements();
+                this.setupEventListeners();
+                this.setupSpeedWheel();
+            }
+
+            initializeElements() {
+                this.fileInput = document.getElementById('audioFile');
+                this.playBtn = document.getElementById('playBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                this.speedWheel = document.getElementById('speedWheel');
+                this.speedIndicator = document.getElementById('speedIndicator');
+                this.speedDisplay = document.getElementById('speedDisplay');
+                this.status = document.getElementById('status');
+                this.machine = document.querySelector('.tape-machine');
+            }
+
+            setupEventListeners() {
+                this.fileInput.addEventListener('change', (e) => this.loadAudio(e));
+                this.playBtn.addEventListener('click', () => this.togglePlay());
+                this.stopBtn.addEventListener('click', () => this.stop());
+            }
+
+            setupSpeedWheel() {
+                let isDragging = false;
+                let startAngle = 0;
+                let currentAngle = 0;
+
+                this.speedWheel.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    startAngle = this.getAngle(e);
+                    e.preventDefault();
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    
+                    const angle = this.getAngle(e);
+                    const deltaAngle = angle - startAngle;
+                    currentAngle += deltaAngle;
+                    startAngle = angle;
+                    
+                    // Constrain angle to -180 to 180 degrees
+                    currentAngle = Math.max(-180, Math.min(180, currentAngle));
+                    
+                    this.updateSpeedFromAngle(currentAngle);
+                    e.preventDefault();
+                });
+
+                document.addEventListener('mouseup', () => {
+                    isDragging = false;
+                });
+
+                // Touch events for mobile
+                this.speedWheel.addEventListener('touchstart', (e) => {
+                    isDragging = true;
+                    startAngle = this.getAngle(e.touches[0]);
+                    e.preventDefault();
+                });
+
+                document.addEventListener('touchmove', (e) => {
+                    if (!isDragging) return;
+                    
+                    const angle = this.getAngle(e.touches[0]);
+                    const deltaAngle = angle - startAngle;
+                    currentAngle += deltaAngle;
+                    startAngle = angle;
+                    
+                    currentAngle = Math.max(-180, Math.min(180, currentAngle));
+                    
+                    this.updateSpeedFromAngle(currentAngle);
+                    e.preventDefault();
+                });
+
+                document.addEventListener('touchend', () => {
+                    isDragging = false;
+                });
+            }
+
+            getAngle(event) {
+                const rect = this.speedWheel.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const x = event.clientX - centerX;
+                const y = event.clientY - centerY;
+                return Math.atan2(y, x) * 180 / Math.PI;
+            }
+
+            updateSpeedFromAngle(angle) {
+                // Non-linear mapping: easier to make small changes, harder for extreme changes
+                let normalizedAngle = angle / 180; // -1 to 1
+                
+                if (normalizedAngle >= 0) {
+                    // Forward playback: 1x to 16x (non-linear)
+                    this.playbackRate = 1 + (Math.pow(normalizedAngle, 1.5) * 15);
+                    this.isReverse = false;
+                } else {
+                    // Reverse playback: -1/16x to -16x (non-linear)
+                    const absAngle = Math.abs(normalizedAngle);
+                    if (absAngle < 0.5) {
+                        // Slow reverse: -1/16x to -1x
+                        this.playbackRate = -(1/16 + (absAngle * 2) * (15/16));
+                    } else {
+                        // Fast reverse: -1x to -16x
+                        this.playbackRate = -(1 + Math.pow((absAngle - 0.5) * 2, 1.5) * 15);
+                    }
+                    this.isReverse = true;
+                }
+
+                this.speedIndicator.style.transform = `translate(-50%, -100%) rotate(${angle}deg)`;
+                
+                if (this.isReverse) {
+                    this.speedDisplay.textContent = `${Math.abs(this.playbackRate).toFixed(2)}x ←`;
+                } else {
+                    this.speedDisplay.textContent = `${this.playbackRate.toFixed(2)}x →`;
+                }
+
+                if (this.isPlaying && this.source) {
+                    this.source.playbackRate.value = Math.abs(this.playbackRate);
+                }
+            }
+
+            async loadAudio(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                try {
+                    this.status.textContent = 'Loading audio...';
+                    
+                    if (!this.audioContext) {
+                        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+
+                    const arrayBuffer = await file.arrayBuffer();
+                    this.audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+                    
+                    this.playBtn.disabled = false;
+                    this.status.textContent = `Loaded: ${file.name} (${this.audioBuffer.duration.toFixed(1)}s)`;
+                } catch (error) {
+                    this.status.textContent = 'Error loading audio file';
+                    console.error('Error loading audio:', error);
+                }
+            }
+
+            async togglePlay() {
+                if (!this.audioBuffer) return;
+
+                if (this.isPlaying) {
+                    this.pause();
+                } else {
+                    await this.play();
+                }
+            }
+
+            async play() {
+                if (!this.audioContext || !this.audioBuffer) return;
+
+                try {
+                    if (this.audioContext.state === 'suspended') {
+                        await this.audioContext.resume();
+                    }
+
+                    this.startRecording();
+
+                    if (this.isReverse) {
+                        await this.playReverse();
+                    } else {
+                        await this.playForward();
+                    }
+
+                    this.isPlaying = true;
+                    this.isPaused = false;
+                    this.playBtn.textContent = 'PAUSE';
+                    this.stopBtn.disabled = false;
+                    this.status.textContent = 'Playing...';
+                    this.machine.classList.add('playing');
+
+                } catch (error) {
+                    console.error('Error playing audio:', error);
+                    this.status.textContent = 'Error playing audio';
+                }
+            }
+
+            async playForward() {
+                this.source = this.audioContext.createBufferSource();
+                this.source.buffer = this.audioBuffer;
+                this.source.playbackRate.value = this.playbackRate;
+                this.source.connect(this.audioContext.destination);
+
+                const startOffset = this.isPaused ? this.pauseTime : 0;
+                this.source.start(0, startOffset);
+                this.startTime = this.audioContext.currentTime - startOffset / this.playbackRate;
+
+                this.source.onended = () => {
+                    if (this.isPlaying) {
+                        this.stop();
+                    }
+                };
+            }
+
+            async playReverse() {
+                // Create reversed buffer
+                const reversedBuffer = this.audioContext.createBuffer(
+                    this.audioBuffer.numberOfChannels,
+                    this.audioBuffer.length,
+                    this.audioBuffer.sampleRate
+                );
+
+                for (let channel = 0; channel < this.audioBuffer.numberOfChannels; channel++) {
+                    const originalData = this.audioBuffer.getChannelData(channel);
+                    const reversedData = reversedBuffer.getChannelData(channel);
+                    
+                    for (let i = 0; i < originalData.length; i++) {
+                        reversedData[i] = originalData[originalData.length - 1 - i];
+                    }
+                }
+
+                this.source = this.audioContext.createBufferSource();
+                this.source.buffer = reversedBuffer;
+                this.source.playbackRate.value = Math.abs(this.playbackRate);
+                this.source.connect(this.audioContext.destination);
+
+                const startOffset = this.isPaused ? this.pauseTime : 0;
+                this.source.start(0, startOffset);
+                this.startTime = this.audioContext.currentTime - startOffset / Math.abs(this.playbackRate);
+
+                this.source.onended = () => {
+                    if (this.isPlaying) {
+                        this.stop();
+                    }
+                };
+            }
+
+            pause() {
+                if (this.source) {
+                    this.source.stop();
+                    this.pauseTime = (this.audioContext.currentTime - this.startTime) * Math.abs(this.playbackRate);
+                }
+                
+                this.isPlaying = false;
+                this.isPaused = true;
+                this.playBtn.textContent = 'PLAY';
+                this.status.textContent = 'Paused';
+                this.machine.classList.remove('playing');
+                this.stopRecording();
+            }
+
+            stop() {
+                if (this.source) {
+                    this.source.stop();
+                }
+                
+                this.isPlaying = false;
+                this.isPaused = false;
+                this.pauseTime = 0;
+                this.playBtn.textContent = 'PLAY';
+                this.stopBtn.disabled = true;
+                this.status.textContent = 'Stopped';
+                this.machine.classList.remove('playing');
+                
+                this.stopRecording();
+                
+                if (this.recordedChunks.length > 0) {
+                    this.promptDownload();
+                }
+            }
+
+            startRecording() {
+                try {
+                    // Create a destination for recording
+                    const dest = this.audioContext.createMediaStreamDestination();
+                    
+                    // We'll connect our audio source to this destination
+                    // This is a bit tricky since we need to intercept the audio
+                    this.recordedChunks = [];
+                    
+                    this.mediaRecorder = new MediaRecorder(dest.stream);
+                    this.mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            this.recordedChunks.push(event.data);
+                        }
+                    };
+                    
+                    this.mediaRecorder.start();
+                } catch (error) {
+                    console.error('Recording setup failed:', error);
+                }
+            }
+
+            stopRecording() {
+                if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+                    this.mediaRecorder.stop();
+                }
+            }
+
+            promptDownload() {
+                const userWantsDownload = confirm('Do you want to download the recorded audio?');
+                
+                if (userWantsDownload && this.recordedChunks.length > 0) {
+                    const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `tape_recording_${Date.now()}.webm`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+                
+                this.recordedChunks = [];
+            }
+        }
+
+        // Initialize the tape machine when the page loads
+        window.addEventListener('load', () => {
+            new TapeMachine();
+        });
+    </script>
+</body>
+</html>

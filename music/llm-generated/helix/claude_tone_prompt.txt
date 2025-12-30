@@ -1,0 +1,34 @@
+You are an expert guitar tone designer familiar with Line 6 Helix modeling. I need you to create intelligent tone recommendations for: "A tone like the intro to The Diamond Sea by Sonic Youth. This uses a hard-to-find vintage pedal known as the Ludwig Synthethizer. There's nothing exactly like it in Helix but maybe some of the voice/vocoder style effects can be used"
+
+Your task:
+1. First, fetch the current Line 6 Helix model list from https://line6.com/helix-models/
+2. Also reference https://helixhelp.com/models for additional model details and documentation
+3. Based on this current information, recommend the best models to achieve the requested tone
+
+For the tone request "A tone like the intro to The Diamond Sea by Sonic Youth. This uses a hard-to-find vintage pedal known as the Ludwig Synthethizer. There's nothing exactly like it in Helix but maybe some of the voice/vocoder style effects can be used", analyze what would create an authentic version of this sound and recommend:
+
+**Signal Chain Recommendations:**
+- List 4-8 models in logical signal chain order
+- Include model names exactly as they appear on the Line 6 site
+- For each model, specify:
+  - Model name (exact from Line 6 documentation)
+  - Type (amp, distortion, modulation, delay, reverb, etc.)
+  - Enabled/Disabled by default
+  - Brief reason why it's appropriate for this tone
+  - Suggested parameter ranges (e.g., "Drive: 60-70%, Treble: 40-50%")
+
+**Musical Context:**
+- Explain the characteristics of this tone (frequency response, gain staging, effects)
+- Reference the original recordings or artists if applicable
+- Mention any alternative model choices and why
+
+**Performance Notes:**
+- Which effects should be bypassable/switchable
+- Footswitch recommendations for live use
+- Any special technique or playing style considerations
+
+Focus on musical authenticity - what would actually recreate this tone effectively on a Helix? Use your knowledge of guitar tones, amp characteristics, and the specific qualities of the requested sound.
+
+Make sure to pull the latest model names from the official Line 6 sources so recommendations are current and accurate.
+
+Present your response in a structured, easy-to-read format that I can use to manually create the Helix preset.

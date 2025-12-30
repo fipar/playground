@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Mosaic Reconstruction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        
+        .glass-panel {
+            background: rgba(31, 41, 55, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            margin-top: -6px;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: #4b5563;
+            border-radius: 2px;
+        }
+        
+        /* Spinner */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3b82f6;
+            width: 20px;
+            height: 20px;
+            -webkit-animation: spin 1s linear infinite; /* Safari */
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans selection:bg-blue-500 selection:text-white">
+
+    <div class="max-w-4xl mx-auto p-4 md:p-8">
+        <!-- Header -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 mb-2">
+                Audio Reconstruction Engine
+            </h1>
+            <p class="text-gray-400 text-sm">
+                Rebuild a reference track using snippets from an orchestra of source files.
+            </p>
+        </header>
+
+        <!-- Main Interface -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Left Col: Inputs -->
+            <div class="space-y-6">
+                <!-- Reference Input -->
+                <div class="glass-panel rounded-xl p-6">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center text-blue-300">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>
+                        1. Reference Audio
+                    </h2>
+                    <p class="text-xs text-gray-400 mb-3">The song you want to reconstruct.</p>
+                    <input type="file" id="refInput" accept="audio/*" class="block w-full text-sm text-gray-400
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-blue-600 file:text-white
+                        hover:file:bg-blue-700
+                        cursor-pointer
+                    "/>
+                    <div id="refStatus" class="mt-2 text-xs text-gray-500 font-mono">Waiting for file...</div>
+                </div>
+
+                <!-- Source Input -->
+                <div class="glass-panel rounded-xl p-6">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center text-green-300">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                        2. Source Orchestra
+                    </h2>
+                    <p class="text-xs text-gray-400 mb-3">The sounds used to build the reference.</p>
+                    <input type="file" id="sourceInput" accept="audio/*" multiple class="block w-full text-sm text-gray-400
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-green-600 file:text-white
+                        hover:file:bg-green-700
+                        cursor-pointer
+                    "/>
+                    <div id="sourceStatus" class="mt-2 text-xs text-gray-500 font-mono">Waiting for files...</div>
+                </div>
+
+                <!-- Parameters -->
+                <div class="glass-panel rounded-xl p-6">
+                    <h2 class="text-lg font-semibold mb-4 text-purple-300">3. Configuration</h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <label>Grain Size (Resolution)</label>
+                                <span id="grainVal" class="font-mono text-purple-300">100ms</span>
+                            </div>
+                            <input type="range" id="grainSize" min="20" max="500" value="100" step="10" class="w-full">
+                            <p class="text-xs text-gray-500 mt-1">Smaller = smoother but glitchy. Larger = clearer snippets.</p>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <label>Match Priority</label>
+                                <span class="font-mono text-purple-300 text-xs">Timbre <-> Volume</span>
+                            </div>
+                            <input type="range" id="blendWeight" min="0" max="1" value="0.6" step="0.1" class="w-full">
+                            <p class="text-xs text-gray-500 mt-1">Left: Focus on Tone/Timbre. Right: Focus on Loudness.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Col: Visualization & Action -->
+            <div class="space-y-6 flex flex-col">
+                <!-- Canvas -->
+                <div class="glass-panel rounded-xl p-1 flex-grow relative min-h-[300px] flex items-center justify-center bg-black/40">
+                    <canvas id="visualizer" class="w-full h-full rounded-lg absolute top-0 left-0"></canvas>
+                    <div id="canvasOverlay" class="z-10 text-center pointer-events-none transition-opacity duration-300">
+                        <p class="text-gray-500 text-sm">Visualizer Idle</p>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="glass-panel rounded-xl p-6">
+                    <div class="flex flex-col space-y-3">
+                        <button id="processBtn" class="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold rounded-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2">
+                            <span>Reconstruct & Play</span>
+                        </button>
+                        
+                        <div class="flex gap-2">
+                            <button id="stopBtn" disabled class="flex-1 py-2 bg-gray-700 hover:bg-red-900/50 text-white rounded-lg transition-colors disabled:opacity-50">
+                                Stop
+                            </button>
+                            <button id="downloadBtn" disabled class="flex-1 py-2 bg-gray-700 hover:bg-green-900/50 text-white rounded-lg transition-colors disabled:opacity-50 flex justify-center items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                Download .WAV
+                            </button>
+                        </div>
+                        
+                        <div id="statusLog" class="h-24 bg-black/30 rounded p-2 text-xs font-mono text-gray-400 overflow-y-auto whitespace-pre-wrap">System ready. Load files to begin.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * AUDIO ENGINE & LOGIC
+         */
+
+        // -- Global State --
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        let refBuffer = null;
+        let sourceBuffers = []; // Array of AudioBuffers
+        let reconstructedBuffer = null;
+        let activeSourceNode = null;
+        
+        // -- Configuration --
+        const config = {
+            grainSizeMs: 100, // Duration of each slice in ms
+            overlapRatio: 0.05, // Slight crossfade to reduce clicks (5%)
+            volumeWeight: 0.4, // How much RMS matters (0-1)
+            timbreWeight: 0.6  // How much Spectral Centroid matters
+        };
+
+        // -- UI Elements --
+        const ui = {
+            refInput: document.getElementById('refInput'),
+            sourceInput: document.getElementById('sourceInput'),
+            grainSlider: document.getElementById('grainSize'),
+            grainVal: document.getElementById('grainVal'),
+            weightSlider: document.getElementById('blendWeight'),
+            processBtn: document.getElementById('processBtn'),
+            stopBtn: document.getElementById('stopBtn'),
+            downloadBtn: document.getElementById('downloadBtn'),
+            status: document.getElementById('statusLog'),
+            refStatus: document.getElementById('refStatus'),
+            sourceStatus: document.getElementById('sourceStatus'),
+            canvas: document.getElementById('visualizer'),
+            canvasOverlay: document.getElementById('canvasOverlay')
+        };
+
+        // -- Helpers --
+        const log = (msg) => {
+            ui.status.textContent += `\n> ${msg}`;
+            ui.status.scrollTop = ui.status.scrollHeight;
+        };
+
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+        // -- Event Listeners --
+        ui.grainSlider.addEventListener('input', (e) => {
+            config.grainSizeMs = parseInt(e.target.value);
+            ui.grainVal.textContent = `${config.grainSizeMs}ms`;
+        });
+
+        ui.weightSlider.addEventListener('input', (e) => {
+            config.volumeWeight = 1 - parseFloat(e.target.value);
+            config.timbreWeight = parseFloat(e.target.value);
+        });
+
+        ui.stopBtn.addEventListener('click', () => {
+            if (activeSourceNode) {
+                try { activeSourceNode.stop(); } catch(e){}
+                activeSourceNode = null;
+                log("Playback stopped.");
+            }
+        });
+
+        ui.downloadBtn.addEventListener('click', () => {
+            if (!reconstructedBuffer) return;
+            downloadWav(reconstructedBuffer);
+        });
+
+        // -- File Handling --
+        
+        // 1. Load Reference
+        ui.refInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            ui.processBtn.disabled = true;
+            ui.refStatus.textContent = "Decoding...";
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                refBuffer = await ctx.decodeAudioData(arrayBuffer);
+                ui.refStatus.textContent = `Loaded: ${refBuffer.duration.toFixed(1)}s`;
+                log(`Reference loaded: "${file.name}"`);
+                checkReady();
+            } catch (err) {
+                ui.refStatus.textContent = "Error loading file.";
+                log("Error decoding reference: " + err);
+            }
+        });
+
+        // 2. Load Sources
+        ui.sourceInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
+            ui.processBtn.disabled = true;
+            sourceBuffers = [];
+            ui.sourceStatus.textContent = `Decoding 0/${files.length}...`;
+
+            let loadedCount = 0;
+            for (let file of files) {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const buf = await ctx.decodeAudioData(arrayBuffer);
+                    sourceBuffers.push(buf);
+                    loadedCount++;
+                    ui.sourceStatus.textContent = `Decoding ${loadedCount}/${files.length}...`;
+                } catch (err) {
+                    log(`Failed to load source "${file.name}"`);
+                }
+            }
+            
+            ui.sourceStatus.textContent = `Ready (${loadedCount} files in orchestra)`;
+            log(`Orchestra loaded with ${loadedCount} clips.`);
+            checkReady();
+        });
+
+        function checkReady() {
+            if (refBuffer && sourceBuffers.length > 0) {
+                ui.processBtn.disabled = false;
+            }
+        }
+
+        // -- Core Processing --
+
+        ui.processBtn.addEventListener('click', async () => {
+            if (ctx.state === 'suspended') await ctx.resume();
+
+            ui.processBtn.disabled = true;
+            ui.stopBtn.disabled = true;
+            ui.downloadBtn.disabled = true;
+            ui.canvasOverlay.style.opacity = 0;
+
+            try {
+                // 1. Analyze Sources
+                log("Analyzing source orchestra... (This may take a moment)");
+                
+                await sleep(50); 
+                
+                const grainSizeSamples = Math.floor((config.grainSizeMs / 1000) * ctx.sampleRate);
+                
+                // Build Source Library: Array of { bufferIndex, startSample, features: {} }
+                const sourceLibrary = [];
+                
+                for (let i = 0; i < sourceBuffers.length; i++) {
+                    const buf = sourceBuffers[i];
+                    const grains = analyzeBuffer(buf, grainSizeSamples, true); // true = keep source info
+                    
+                    // Add buffer index to each grain so we know where it came from
+                    grains.forEach(g => {
+                        g.bufferIndex = i;
+                        sourceLibrary.push(g);
+                    });
+                }
+                
+                log(`Library built: ${sourceLibrary.length} unique grains.`);
+                
+                // 2. Analyze Reference
+                log("Analyzing reference track...");
+                await sleep(50);
+                const refGrains = analyzeBuffer(refBuffer, grainSizeSamples, false);
+
+                // 3. Matching
+                log("Matching snippets...");
+                await sleep(50);
+                
+                // We create a "Recipe": Array of { sourceBufferIndex, startSample }
+                const reconstructionRecipe = [];
+                
+                for (let i = 0; i < refGrains.length; i++) {
+                    const target = refGrains[i];
+                    
+                    let bestMatch = null;
+                    let minDistance = Infinity;
+                    
+                    // Batch matching to prevent UI freeze
+                    if (i % 50 === 0) {
+                        await sleep(0); 
+                        ui.status.textContent = `Matching... ${Math.round((i/refGrains.length)*100)}%`;
+                    }
+
+                    // Linear search (Optimization: in real apps, use KD-Tree)
+                    for (let j = 0; j < sourceLibrary.length; j++) {
+                        const candidate = sourceLibrary[j];
+                        
+                        const dRMS = Math.abs(target.rms - candidate.rms);
+                        const dCentroid = Math.abs(target.centroid - candidate.centroid) / (ctx.sampleRate / 4);
+                        
+                        const distance = (dRMS * config.volumeWeight) + (dCentroid * config.timbreWeight);
+                        
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            bestMatch = candidate;
+                        }
+                    }
+                    
+                    if (bestMatch) {
+                        reconstructionRecipe.push({
+                            bufferIndex: bestMatch.bufferIndex,
+                            offset: bestMatch.offset,
+                            originalIndex: i 
+                        });
+                    }
+                }
+
+                log("Reconstruction complete. Rendering audio (Direct Buffer)...");
+                await sleep(50);
+
+                // 4. Render Manual (Buffer Manipulation)
+                // This replaces OfflineAudioContext which can crash on Safari with too many nodes
+                
+                const totalSamples = refGrains.length * grainSizeSamples;
+                
+                // Create output buffer (Stereo)
+                const outBuf = ctx.createBuffer(2, totalSamples, ctx.sampleRate);
+                const outL = outBuf.getChannelData(0);
+                const outR = outBuf.getChannelData(1);
+                
+                // Fade window parameters (5ms fade in/out)
+                const fadeLen = Math.floor(0.005 * ctx.sampleRate);
+
+                reconstructionRecipe.forEach((item, index) => {
+                    const srcBuf = sourceBuffers[item.bufferIndex];
+                    // Get channels (fallback to L if R missing)
+                    const srcL = srcBuf.getChannelData(0);
+                    const srcR = srcBuf.numberOfChannels > 1 ? srcBuf.getChannelData(1) : srcL;
+                    
+                    const startSample = index * grainSizeSamples; // Where to write in output
+                    const offsetSample = item.offset; // Where to read from source
+                    
+                    // Copy and envelope loop
+                    for (let i = 0; i < grainSizeSamples; i++) {
+                        // Bounds check
+                        if (startSample + i >= totalSamples) break;
+                        if (offsetSample + i >= srcL.length) break;
+                        
+                        // Simple linear fade in/out to prevent clicks
+                        let env = 1.0;
+                        if (i < fadeLen) env = i / fadeLen;
+                        else if (i > grainSizeSamples - fadeLen) env = (grainSizeSamples - i) / fadeLen;
+                        
+                        outL[startSample + i] = srcL[offsetSample + i] * env;
+                        outR[startSample + i] = srcR[offsetSample + i] * env;
+                    }
+                });
+
+                reconstructedBuffer = outBuf;
+                log("Audio rendered. Playing result...");
+                
+                // 5. Playback
+                playBuffer(reconstructedBuffer);
+                drawVisualizer(reconstructedBuffer);
+                
+                ui.stopBtn.disabled = false;
+                ui.downloadBtn.disabled = false;
+
+            } catch (err) {
+                console.error(err);
+                log("Error during processing: " + err.message);
+            } finally {
+                ui.processBtn.disabled = false;
+            }
+        });
+
+        /**
+         * Analyzes an AudioBuffer and returns an array of Grain objects
+         * Grain: { offset (samples), rms, centroid }
+         */
+        function analyzeBuffer(buffer, grainSizeSamples, isSource) {
+            const channelData = buffer.getChannelData(0); // Analyze mono channel only for perf
+            const grains = [];
+            const len = channelData.length;
+            
+            for (let i = 0; i < len; i += grainSizeSamples) {
+                // If last chunk is too small, skip
+                if (i + grainSizeSamples > len) break;
+                
+                // Extract snippet
+                const subarray = channelData.subarray(i, i + grainSizeSamples);
+                
+                // 1. RMS (Volume)
+                let sumSq = 0;
+                let zeroCrossings = 0;
+                for (let k = 0; k < subarray.length; k++) {
+                    const val = subarray[k];
+                    sumSq += val * val;
+                    
+                    // Zero Crossing (Brightness proxy)
+                    if (k > 0 && subarray[k] >= 0 && subarray[k-1] < 0) {
+                        zeroCrossings++;
+                    } else if (k > 0 && subarray[k] < 0 && subarray[k-1] >= 0) {
+                        zeroCrossings++;
+                    }
+                }
+                const rms = Math.sqrt(sumSq / subarray.length);
+                
+                // Heuristic Centroid (Frequency proxy)
+                const centroid = (zeroCrossings / subarray.length) * (ctx.sampleRate / 2);
+                
+                // Skip silent grains in Source files to avoid matching silence to sound
+                if (isSource && rms < 0.01) continue;
+
+                grains.push({
+                    offset: i,
+                    rms: rms,
+                    centroid: centroid
+                });
+            }
+            return grains;
+        }
+
+        function playBuffer(buffer) {
+            if (activeSourceNode) try { activeSourceNode.stop(); } catch(e){}
+            
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(ctx.destination);
+            source.start(0);
+            activeSourceNode = source;
+            
+            source.onended = () => {
+                log("Playback finished.");
+                activeSourceNode = null;
+            };
+        }
+
+        // -- Visualizer --
+        function drawVisualizer(buffer) {
+            const canvas = ui.canvas;
+            const cCtx = canvas.getContext('2d');
+            
+            // Set canvas size for high DPI
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            cCtx.scale(dpr, dpr);
+            
+            const width = rect.width;
+            const height = rect.height;
+            const data = buffer.getChannelData(0);
+            const step = Math.ceil(data.length / width);
+            const amp = height / 2;
+            
+            cCtx.clearRect(0, 0, width, height);
+            cCtx.fillStyle = '#1f2937'; // bg
+            cCtx.fillRect(0,0, width, height);
+            
+            cCtx.beginPath();
+            cCtx.moveTo(0, amp);
+            cCtx.strokeStyle = '#60a5fa'; // blue-400
+            cCtx.lineWidth = 1;
+            
+            for (let i = 0; i < width; i++) {
+                let min = 1.0;
+                let max = -1.0;
+                
+                for (let j = 0; j < step; j++) {
+                    const datum = data[(i * step) + j];
+                    if (datum < min) min = datum;
+                    if (datum > max) max = datum;
+                }
+                
+                cCtx.lineTo(i, (1 + min) * amp);
+                cCtx.lineTo(i, (1 + max) * amp);
+            }
+            cCtx.stroke();
+        }
+
+        /**
+         * Export Helper: AudioBuffer to WAV
+         * Adapted for browser compatibility
+         */
+        function downloadWav(buffer) {
+            const numOfChan = buffer.numberOfChannels;
+            const length = buffer.length * numOfChan * 2 + 44;
+            const bufferArr = new ArrayBuffer(length);
+            const view = new DataView(bufferArr);
+            const channels = [];
+            let i;
+            let sample;
+            let offset = 0;
+            let pos = 0;
+
+            // write WAV header
+            setUint32(0x46464952);                         // "RIFF"
+            setUint32(length - 8);                         // file length - 8
+            setUint32(0x45564157);                         // "WAVE"
+
+            setUint32(0x20746d66);                         // "fmt " chunk
+            setUint32(16);                                 // length = 16
+            setUint16(1);                                  // PCM (uncompressed)
+            setUint16(numOfChan);
+            setUint32(buffer.sampleRate);
+            setUint32(buffer.sampleRate * 2 * numOfChan);  // avg. bytes/sec
+            setUint16(numOfChan * 2);                      // block-align
+            setUint16(16);                                 // 16-bit (hardcoded in this encoder)
+
+            setUint32(0x61746164);                         // "data" - chunk
+            setUint32(length - pos - 4);                   // chunk length
+
+            // Write interleaved data
+            for(i = 0; i < buffer.numberOfChannels; i++)
+                channels.push(buffer.getChannelData(i));
+
+            while(pos < buffer.length) {
+                for(i = 0; i < numOfChan; i++) {             // interleave channels
+                    sample = Math.max(-1, Math.min(1, channels[i][pos])); // clamp
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767)|0; // scale to 16-bit signed int
+                    view.setInt16(44 + offset, sample, true);          // write 16-bit sample
+                    offset += 2;
+                }
+                pos++;
+            }
+
+            // Create Blob
+            const blob = new Blob([bufferArr], { type: 'audio/wav' });
+            const url = URL.createObjectURL(blob);
+            
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = 'reconstructed_mosaic.wav';
+            anchor.click();
+            URL.revokeObjectURL(url);
+            log("WAV file downloaded.");
+
+            function setUint16(data) {
+                view.setUint16(pos, data, true);
+                pos += 2;
+            }
+            function setUint32(data) {
+                view.setUint32(pos, data, true);
+                pos += 4;
+            }
+        }
+
+    </script>
+</body>
+</html>

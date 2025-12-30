@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Metronome</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+            margin: 0;
+        }
+        .metronome-container {
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+        }
+        .controls {
+            margin: 1rem 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .input-group label {
+            font-weight: bold;
+        }
+        input[type="number"] {
+            width: 60px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        #play-button {
+            background-color: #4CAF50;
+            color: white;
+        }
+        #play-button:hover {
+            background-color: #45a049;
+        }
+        #stop-button {
+            background-color: #f44336;
+            color: white;
+        }
+        #stop-button:hover {
+            background-color: #da190b;
+        }
+        .visual-cue {
+            width: 150px;
+            height: 150px;
+            background-color: #ddd;
+            border-radius: 50%;
+            margin-top: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            font-weight: bold;
+            color: #555;
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+        .tick-animation {
+            animation: tick-pulse 0.2s ease-in-out forwards;
+        }
+        @keyframes tick-pulse {
+            0% { transform: scale(1); background-color: #ddd; }
+            50% { transform: scale(1.1); background-color: #2196F3; }
+            100% { transform: scale(1); background-color: #ddd; }
+        }
+        .downbeat-animation {
+            animation: downbeat-pulse 0.2s ease-in-out forwards;
+        }
+        @keyframes downbeat-pulse {
+            0% { transform: scale(1); background-color: #ddd; }
+            50% { transform: scale(1.2); background-color: #FFC107; }
+            100% { transform: scale(1); background-color: #ddd; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="metronome-container">
+        <h1>Visual Metronome</h1>
+        <div class="controls">
+            <div class="input-group">
+                <label for="bpm-input">BPM:</label>
+                <input type="number" id="bpm-input" value="120" min="40" max="240">
+            </div>
+            <div class="input-group">
+                <label for="beats-per-measure">Time Signature:</label>
+                <input type="number" id="beats-per-measure" value="4" min="1" max="16">
+                <span style="font-size: 1.5rem;">/</span>
+                <input type="number" id="note-value" value="4" min="1" max="16">
+            </div>
+            <div class="buttons">
+                <button id="play-button">Play</button>
+                <button id="stop-button">Stop</button>
+            </div>
+        </div>
+        <div class="visual-cue" id="visual-cue">
+            <span id="beat-number">1</span>
+        </div>
+    </div>
+
+    <audio id="tick-sound" src="https://www.soundjay.com/button/button-3.mp3" preload="auto"></audio>
+    <audio id="downbeat-sound" src="https://www.soundjay.com/button/button-10.mp3" preload="auto"></audio>
+
+    <script>
+        const playButton = document.getElementById('play-button');
+        const stopButton = document.getElementById('stop-button');
+        const bpmInput = document.getElementById('bpm-input');
+        const beatsPerMeasureInput = document.getElementById('beats-per-measure');
+        const visualCue = document.getElementById('visual-cue');
+        const beatNumberDisplay = document.getElementById('beat-number');
+        const tickSound = document.getElementById('tick-sound');
+        const downbeatSound = document.getElementById('downbeat-sound');
+
+        let isPlaying = false;
+        let metronomeInterval;
+        let currentBeat = 0;
+
+        playButton.addEventListener('click', startMetronome);
+        stopButton.addEventListener('click', stopMetronome);
+
+        function startMetronome() {
+            if (isPlaying) return;
+
+            isPlaying = true;
+            playButton.textContent = 'Playing...';
+            playButton.disabled = true;
+            stopButton.disabled = false;
+
+            const bpm = parseInt(bpmInput.value);
+            const beatsPerMeasure = parseInt(beatsPerMeasureInput.value);
+            const interval = 60000 / bpm;
+
+            currentBeat = 0;
+            tick(); // Start immediately
+
+            metronomeInterval = setInterval(tick, interval);
+        }
+
+        function stopMetronome() {
+            if (!isPlaying) return;
+
+            isPlaying = false;
+            playButton.textContent = 'Play';
+            playButton.disabled = false;
+            stopButton.disabled = true;
+
+            clearInterval(metronomeInterval);
+            currentBeat = 0;
+            beatNumberDisplay.textContent = '1';
+            visualCue.classList.remove('tick-animation', 'downbeat-animation');
+        }
+
+        function tick() {
+            const beatsPerMeasure = parseInt(beatsPerMeasureInput.value);
+            currentBeat++;
+
+            if (currentBeat > beatsPerMeasure) {
+                currentBeat = 1;
+            }
+
+            beatNumberDisplay.textContent = currentBeat;
+
+            // Visual and audio feedback
+            visualCue.classList.remove('tick-animation', 'downbeat-animation');
+            // Use setTimeout to allow the animation to re-run on each beat
+            setTimeout(() => {
+                if (currentBeat === 1) {
+                    downbeatSound.currentTime = 0;
+                    downbeatSound.play().catch(e => console.error("Downbeat sound play failed:", e));
+                    visualCue.classList.add('downbeat-animation');
+                } else {
+                    tickSound.currentTime = 0;
+                    tickSound.play().catch(e => console.error("Tick sound play failed:", e));
+                    visualCue.classList.add('tick-animation');
+                }
+            }, 10);
+        }
+    </script>
+</body>
+</html>

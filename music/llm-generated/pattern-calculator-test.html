@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pattern Calculator Test Suite</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-passed {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .test-failed {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .test-case {
+            padding: 8px;
+            margin: 4px 0;
+            border-left: 4px solid #007bff;
+            background-color: #f8f9fa;
+        }
+        .summary {
+            font-size: 18px;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .summary.passed {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .summary.failed {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>Rhythmic Pattern Calculator Test Suite</h1>
+    
+    <div class="test-container">
+        <h2>Test Results</h2>
+        <div id="test-results"></div>
+        <div id="summary" class="summary"></div>
+    </div>
+
+    <script>
+        function calculatePatternLength(numerator, denominator, noteValue) {
+            return (numerator / denominator) * noteValue;
+        }
+
+        const testCases = [
+            // 4/4 time signature tests
+            { timeSignature: "4/4", numerator: 4, denominator: 4, noteValue: 1, expected: 1, noteText: "Whole" },
+            { timeSignature: "4/4", numerator: 4, denominator: 4, noteValue: 2, expected: 2, noteText: "Half" },
+            { timeSignature: "4/4", numerator: 4, denominator: 4, noteValue: 4, expected: 4, noteText: "Quarter" },
+            { timeSignature: "4/4", numerator: 4, denominator: 4, noteValue: 8, expected: 8, noteText: "8th" },
+            { timeSignature: "4/4", numerator: 4, denominator: 4, noteValue: 16, expected: 16, noteText: "16th" },
+            
+            // 5/4 time signature tests
+            { timeSignature: "5/4", numerator: 5, denominator: 4, noteValue: 1, expected: 1.25, noteText: "Whole" },
+            { timeSignature: "5/4", numerator: 5, denominator: 4, noteValue: 2, expected: 2.5, noteText: "Half" },
+            { timeSignature: "5/4", numerator: 5, denominator: 4, noteValue: 4, expected: 5, noteText: "Quarter" },
+            { timeSignature: "5/4", numerator: 5, denominator: 4, noteValue: 8, expected: 10, noteText: "8th" },
+            { timeSignature: "5/4", numerator: 5, denominator: 4, noteValue: 16, expected: 20, noteText: "16th" },
+            
+            // 7/8 time signature tests
+            { timeSignature: "7/8", numerator: 7, denominator: 8, noteValue: 1, expected: 0.875, noteText: "Whole" },
+            { timeSignature: "7/8", numerator: 7, denominator: 8, noteValue: 2, expected: 1.75, noteText: "Half" },
+            { timeSignature: "7/8", numerator: 7, denominator: 8, noteValue: 4, expected: 3.5, noteText: "Quarter" },
+            { timeSignature: "7/8", numerator: 7, denominator: 8, noteValue: 8, expected: 7, noteText: "8th" },
+            { timeSignature: "7/8", numerator: 7, denominator: 8, noteValue: 16, expected: 14, noteText: "16th" },
+        ];
+
+        function runTests() {
+            const resultsContainer = document.getElementById('test-results');
+            let passedTests = 0;
+            let totalTests = testCases.length;
+            
+            testCases.forEach((testCase, index) => {
+                const result = calculatePatternLength(testCase.numerator, testCase.denominator, testCase.noteValue);
+                const passed = Math.abs(result - testCase.expected) < 0.0001; // Handle floating point precision
+                
+                const testDiv = document.createElement('div');
+                testDiv.className = 'test-case';
+                
+                if (passed) {
+                    passedTests++;
+                    testDiv.innerHTML = `
+                        <span class="test-passed">✓ PASS</span> - 
+                        ${testCase.timeSignature} with ${testCase.noteText} notes (1/${testCase.noteValue}): 
+                        Expected ${testCase.expected}, Got ${result}
+                    `;
+                } else {
+                    testDiv.innerHTML = `
+                        <span class="test-failed">✗ FAIL</span> - 
+                        ${testCase.timeSignature} with ${testCase.noteText} notes (1/${testCase.noteValue}): 
+                        Expected ${testCase.expected}, Got ${result}
+                    `;
+                }
+                
+                resultsContainer.appendChild(testDiv);
+            });
+            
+            // Show summary
+            const summaryDiv = document.getElementById('summary');
+            const allPassed = passedTests === totalTests;
+            summaryDiv.className = `summary ${allPassed ? 'passed' : 'failed'}`;
+            summaryDiv.innerHTML = `
+                <strong>Test Summary:</strong> ${passedTests}/${totalTests} tests passed
+                ${allPassed ? '🎉 All tests passed!' : '❌ Some tests failed'}
+            `;
+        }
+
+        // Run tests when page loads
+        window.addEventListener('load', runTests);
+    </script>
+</body>
+</html>

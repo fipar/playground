@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Reconstructor</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #f5f5f5;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .description {
+            margin-bottom: 30px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
+            margin-bottom: 15px;
+            color: #444;
+            font-size: 1.2em;
+        }
+
+        .file-input {
+            margin-bottom: 15px;
+        }
+
+        .file-input label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px dashed #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        input[type="file"]:hover {
+            border-color: #999;
+        }
+
+        .controls {
+            margin-top: 20px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        input[type="range"] {
+            width: 100%;
+        }
+
+        .range-value {
+            display: inline-block;
+            margin-left: 10px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: background 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            background: #0051D5;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            color: #333;
+            min-height: 50px;
+        }
+
+        .status.processing {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+
+        .status.success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #007AFF;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .playback-controls {
+            margin-top: 20px;
+        }
+
+        .audio-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .file-list {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .file-list-item {
+            padding: 5px;
+            margin: 2px 0;
+            background: #f9f9f9;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Audio Reconstructor</h1>
+    <div class="description">
+        This tool reconstructs a reference audio file using snippets from source audio files.
+        It analyzes features like pitch, amplitude, timbre, and spectral content to find the best matches.
+    </div>
+
+    <div class="section">
+        <h2>1. Load Audio Files</h2>
+
+        <div class="file-input">
+            <label for="referenceFile">Reference Audio (the file to reconstruct):</label>
+            <input type="file" id="referenceFile" accept="audio/*">
+            <div id="referenceInfo" class="audio-info" style="display: none;"></div>
+        </div>
+
+        <div class="file-input">
+            <label for="sourceFiles">Source Audio Files (materials to use for reconstruction):</label>
+            <input type="file" id="sourceFiles" accept="audio/*" multiple>
+            <div id="sourceInfo" class="file-list" style="display: none;"></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>2. Configure Parameters</h2>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="segmentSize">
+                    Segment Size (ms): <span class="range-value" id="segmentSizeValue">100</span>
+                </label>
+                <input type="range" id="segmentSize" min="20" max="500" value="100" step="10">
+                <small style="color: #888;">Smaller = more detailed but slower</small>
+            </div>
+
+            <div class="control-group">
+                <label for="hopSize">
+                    Hop Size (ms): <span class="range-value" id="hopSizeValue">50</span>
+                </label>
+                <input type="range" id="hopSize" min="10" max="250" value="50" step="10">
+                <small style="color: #888;">Overlap between segments in source analysis</small>
+            </div>
+
+            <div class="control-group">
+                <label for="pitchWeight">
+                    Pitch Weight: <span class="range-value" id="pitchWeightValue">1.0</span>
+                </label>
+                <input type="range" id="pitchWeight" min="0" max="2" value="1.0" step="0.1">
+            </div>
+
+            <div class="control-group">
+                <label for="amplitudeWeight">
+                    Amplitude Weight: <span class="range-value" id="amplitudeWeightValue">0.5</span>
+                </label>
+                <input type="range" id="amplitudeWeight" min="0" max="2" value="0.5" step="0.1">
+            </div>
+
+            <div class="control-group">
+                <label for="timbreWeight">
+                    Timbre Weight: <span class="range-value" id="timbreWeightValue">1.0</span>
+                </label>
+                <input type="range" id="timbreWeight" min="0" max="2" value="1.0" step="0.1">
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>3. Process</h2>
+
+        <button id="processBtn" disabled>Analyze and Reconstruct</button>
+
+        <div id="status" class="status">
+            Ready. Load reference and source files to begin.
+        </div>
+
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+    </div>
+
+    <div class="section" id="playbackSection" style="display: none;">
+        <h2>4. Playback</h2>
+
+        <div class="playback-controls">
+            <button id="playReferenceBtn">Play Reference</button>
+            <button id="playReconstructedBtn">Play Reconstructed</button>
+            <button id="stopBtn">Stop</button>
+            <button id="downloadBtn">Download Reconstructed</button>
+        </div>
+
+        <div id="reconstructionInfo" class="audio-info"></div>
+    </div>
+
+    <script>
+        // Audio context and global state
+        let audioContext = null;
+        let referenceBuffer = null;
+        let sourceBuffers = [];
+        let reconstructedBuffer = null;
+        let currentSource = null;
+
+        // DOM elements
+        const referenceInput = document.getElementById('referenceFile');
+        const sourceInput = document.getElementById('sourceFiles');
+        const processBtn = document.getElementById('processBtn');
+        const status = document.getElementById('status');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const playbackSection = document.getElementById('playbackSection');
+
+        // Parameter controls
+        const segmentSize = document.getElementById('segmentSize');
+        const hopSize = document.getElementById('hopSize');
+        const pitchWeight = document.getElementById('pitchWeight');
+        const amplitudeWeight = document.getElementById('amplitudeWeight');
+        const timbreWeight = document.getElementById('timbreWeight');
+
+        // Update value displays
+        segmentSize.addEventListener('input', (e) => {
+            document.getElementById('segmentSizeValue').textContent = e.target.value;
+        });
+        hopSize.addEventListener('input', (e) => {
+            document.getElementById('hopSizeValue').textContent = e.target.value;
+        });
+        pitchWeight.addEventListener('input', (e) => {
+            document.getElementById('pitchWeightValue').textContent = parseFloat(e.target.value).toFixed(1);
+        });
+        amplitudeWeight.addEventListener('input', (e) => {
+            document.getElementById('amplitudeWeightValue').textContent = parseFloat(e.target.value).toFixed(1);
+        });
+        timbreWeight.addEventListener('input', (e) => {
+            document.getElementById('timbreWeightValue').textContent = parseFloat(e.target.value).toFixed(1);
+        });
+
+        // Initialize audio context on user interaction
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioContext;
+        }
+
+        // Load audio file
+        async function loadAudioFile(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const ctx = initAudioContext();
+            return await ctx.decodeAudioData(arrayBuffer);
+        }
+
+        // Reference file handler
+        referenceInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                try {
+                    updateStatus('Loading reference file...', 'processing');
+                    referenceBuffer = await loadAudioFile(file);
+                    const info = `Loaded: ${file.name} (${referenceBuffer.duration.toFixed(2)}s, ${referenceBuffer.sampleRate}Hz, ${referenceBuffer.numberOfChannels} ch)`;
+                    document.getElementById('referenceInfo').textContent = info;
+                    document.getElementById('referenceInfo').style.display = 'block';
+                    updateStatus('Reference file loaded successfully.', 'success');
+                    checkReadyToProcess();
+                } catch (error) {
+                    updateStatus('Error loading reference file: ' + error.message, 'error');
+                }
+            }
+        });
+
+        // Source files handler
+        sourceInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                try {
+                    updateStatus(`Loading ${files.length} source file(s)...`, 'processing');
+                    sourceBuffers = [];
+
+                    const fileList = document.getElementById('sourceInfo');
+                    fileList.innerHTML = '';
+
+                    for (const file of files) {
+                        const buffer = await loadAudioFile(file);
+                        sourceBuffers.push({
+                            buffer: buffer,
+                            name: file.name
+                        });
+
+                        const item = document.createElement('div');
+                        item.className = 'file-list-item';
+                        item.textContent = `${file.name} (${buffer.duration.toFixed(2)}s)`;
+                        fileList.appendChild(item);
+                    }
+
+                    fileList.style.display = 'block';
+                    updateStatus(`Loaded ${files.length} source file(s) successfully.`, 'success');
+                    checkReadyToProcess();
+                } catch (error) {
+                    updateStatus('Error loading source files: ' + error.message, 'error');
+                }
+            }
+        });
+
+        function checkReadyToProcess() {
+            if (referenceBuffer && sourceBuffers.length > 0) {
+                processBtn.disabled = false;
+            }
+        }
+
+        function updateStatus(message, type = '') {
+            status.textContent = message;
+            status.className = 'status' + (type ? ' ' + type : '');
+        }
+
+        function updateProgress(percent) {
+            progressBar.style.display = 'block';
+            progressFill.style.width = percent + '%';
+        }
+
+        // Extract audio segment features
+        function extractFeatures(channelData, sampleRate) {
+            const fftSize = 2048;
+            const features = {
+                rms: 0,
+                spectralCentroid: 0,
+                pitch: 0,
+                zcr: 0,
+                spectralFlux: 0
+            };
+
+            // RMS (amplitude)
+            let sumSquares = 0;
+            for (let i = 0; i < channelData.length; i++) {
+                sumSquares += channelData[i] * channelData[i];
+            }
+            features.rms = Math.sqrt(sumSquares / channelData.length);
+
+            // Zero crossing rate
+            let zeroCrossings = 0;
+            for (let i = 1; i < channelData.length; i++) {
+                if ((channelData[i] >= 0 && channelData[i-1] < 0) ||
+                    (channelData[i] < 0 && channelData[i-1] >= 0)) {
+                    zeroCrossings++;
+                }
+            }
+            features.zcr = zeroCrossings / channelData.length;
+
+            // FFT for spectral features
+            const fftData = new Float32Array(fftSize);
+            const dataLen = Math.min(channelData.length, fftSize);
+            for (let i = 0; i < dataLen; i++) {
+                fftData[i] = channelData[i];
+            }
+
+            // Simple magnitude spectrum
+            const spectrum = new Float32Array(fftSize / 2);
+            for (let i = 0; i < fftSize / 2; i++) {
+                const real = fftData[i * 2] || 0;
+                const imag = fftData[i * 2 + 1] || 0;
+                spectrum[i] = Math.sqrt(real * real + imag * imag);
+            }
+
+            // Spectral centroid (brightness)
+            let weightedSum = 0;
+            let magnitudeSum = 0;
+            for (let i = 0; i < spectrum.length; i++) {
+                const frequency = i * sampleRate / fftSize;
+                weightedSum += frequency * spectrum[i];
+                magnitudeSum += spectrum[i];
+            }
+            features.spectralCentroid = magnitudeSum > 0 ? weightedSum / magnitudeSum : 0;
+
+            // Pitch estimation using autocorrelation
+            features.pitch = estimatePitch(channelData, sampleRate);
+
+            // Store spectrum for timbre comparison
+            features.spectrum = spectrum;
+
+            return features;
+        }
+
+        // Simple pitch estimation using autocorrelation
+        function estimatePitch(buffer, sampleRate) {
+            const minFreq = 80;   // Hz
+            const maxFreq = 1000; // Hz
+            const minPeriod = Math.floor(sampleRate / maxFreq);
+            const maxPeriod = Math.floor(sampleRate / minFreq);
+
+            let bestCorrelation = 0;
+            let bestPeriod = 0;
+
+            for (let period = minPeriod; period < maxPeriod && period < buffer.length / 2; period++) {
+                let correlation = 0;
+                for (let i = 0; i < buffer.length - period; i++) {
+                    correlation += buffer[i] * buffer[i + period];
+                }
+
+                if (correlation > bestCorrelation) {
+                    bestCorrelation = correlation;
+                    bestPeriod = period;
+                }
+            }
+
+            return bestPeriod > 0 ? sampleRate / bestPeriod : 0;
+        }
+
+        // Calculate distance between two feature sets
+        function calculateDistance(features1, features2, weights) {
+            let distance = 0;
+
+            // Pitch distance (normalized to octave range)
+            if (features1.pitch > 0 && features2.pitch > 0) {
+                const pitchRatio = Math.max(features1.pitch, features2.pitch) /
+                                 Math.min(features1.pitch, features2.pitch);
+                const pitchDist = Math.min(pitchRatio, 2.0) - 1.0; // Cap at one octave
+                distance += pitchDist * weights.pitch;
+            } else {
+                distance += weights.pitch; // Penalty if pitch is missing
+            }
+
+            // Amplitude distance
+            const ampDist = Math.abs(features1.rms - features2.rms);
+            distance += ampDist * weights.amplitude * 10; // Scale up amplitude differences
+
+            // Spectral centroid distance (timbre)
+            const centroidDist = Math.abs(features1.spectralCentroid - features2.spectralCentroid) / 10000;
+            distance += centroidDist * weights.timbre;
+
+            // Zero crossing rate distance
+            const zcrDist = Math.abs(features1.zcr - features2.zcr);
+            distance += zcrDist * weights.timbre * 0.5;
+
+            // Spectral similarity
+            if (features1.spectrum && features2.spectrum) {
+                let spectralDist = 0;
+                const minLen = Math.min(features1.spectrum.length, features2.spectrum.length);
+                for (let i = 0; i < minLen; i++) {
+                    spectralDist += Math.abs(features1.spectrum[i] - features2.spectrum[i]);
+                }
+                distance += (spectralDist / minLen) * weights.timbre;
+            }
+
+            return distance;
+        }
+
+        // Segment audio buffer
+        function segmentAudio(audioBuffer, segmentSizeMs, hopSizeMs) {
+            const sampleRate = audioBuffer.sampleRate;
+            const segmentSizeSamples = Math.floor(segmentSizeMs * sampleRate / 1000);
+            const hopSizeSamples = Math.floor(hopSizeMs * sampleRate / 1000);
+            const channelData = audioBuffer.getChannelData(0); // Use first channel
+
+            const segments = [];
+            for (let i = 0; i + segmentSizeSamples <= channelData.length; i += hopSizeSamples) {
+                const segment = channelData.slice(i, i + segmentSizeSamples);
+                segments.push({
+                    data: segment,
+                    startSample: i,
+                    features: extractFeatures(segment, sampleRate)
+                });
+            }
+
+            return segments;
+        }
+
+        // Main reconstruction process
+        async function reconstructAudio() {
+            try {
+                processBtn.disabled = true;
+                updateStatus('Starting reconstruction...', 'processing');
+                updateProgress(0);
+
+                const segmentSizeMs = parseInt(segmentSize.value);
+                const hopSizeMs = parseInt(hopSize.value);
+                const weights = {
+                    pitch: parseFloat(pitchWeight.value),
+                    amplitude: parseFloat(amplitudeWeight.value),
+                    timbre: parseFloat(timbreWeight.value)
+                };
+
+                // Segment reference audio
+                updateStatus('Segmenting reference audio...', 'processing');
+                const referenceSegments = segmentAudio(referenceBuffer, segmentSizeMs, segmentSizeMs);
+                updateProgress(10);
+
+                // Segment all source audio files
+                updateStatus('Segmenting source audio files...', 'processing');
+                const sourceSegments = [];
+                for (let i = 0; i < sourceBuffers.length; i++) {
+                    const segments = segmentAudio(sourceBuffers[i].buffer, segmentSizeMs, hopSizeMs);
+                    segments.forEach(seg => {
+                        seg.sourceIndex = i;
+                        sourceSegments.push(seg);
+                    });
+                }
+                updateProgress(20);
+
+                updateStatus(`Analyzing ${referenceSegments.length} reference segments against ${sourceSegments.length} source segments...`, 'processing');
+
+                // Find best matches for each reference segment
+                const matches = [];
+                for (let i = 0; i < referenceSegments.length; i++) {
+                    const refFeatures = referenceSegments[i].features;
+
+                    let bestMatch = null;
+                    let bestDistance = Infinity;
+
+                    for (const sourceSeg of sourceSegments) {
+                        const distance = calculateDistance(refFeatures, sourceSeg.features, weights);
+                        if (distance < bestDistance) {
+                            bestDistance = distance;
+                            bestMatch = sourceSeg;
+                        }
+                    }
+
+                    matches.push(bestMatch);
+
+                    // Update progress
+                    if (i % 10 === 0) {
+                        const progress = 20 + (i / referenceSegments.length) * 70;
+                        updateProgress(progress);
+                        updateStatus(`Matching segments: ${i}/${referenceSegments.length}`, 'processing');
+
+                        // Allow UI to update
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
+                }
+
+                updateProgress(90);
+                updateStatus('Reconstructing audio...', 'processing');
+
+                // Reconstruct audio from matches
+                const sampleRate = referenceBuffer.sampleRate;
+                const segmentSizeSamples = Math.floor(segmentSizeMs * sampleRate / 1000);
+                const totalSamples = referenceSegments.length * segmentSizeSamples;
+
+                reconstructedBuffer = audioContext.createBuffer(
+                    1, // mono for simplicity
+                    totalSamples,
+                    sampleRate
+                );
+
+                const outputData = reconstructedBuffer.getChannelData(0);
+
+                for (let i = 0; i < matches.length; i++) {
+                    const match = matches[i];
+                    const sourceBuffer = sourceBuffers[match.sourceIndex].buffer;
+                    const sourceData = sourceBuffer.getChannelData(0);
+
+                    const startSample = i * segmentSizeSamples;
+                    const matchStart = match.startSample;
+
+                    for (let j = 0; j < segmentSizeSamples && j < match.data.length; j++) {
+                        const outputIndex = startSample + j;
+                        if (outputIndex < outputData.length) {
+                            // Simple copy (could add crossfading here)
+                            outputData[outputIndex] = sourceData[matchStart + j];
+                        }
+                    }
+                }
+
+                updateProgress(100);
+                updateStatus('Reconstruction complete!', 'success');
+
+                // Show playback controls
+                playbackSection.style.display = 'block';
+                document.getElementById('reconstructionInfo').textContent =
+                    `Reconstructed ${reconstructedBuffer.duration.toFixed(2)}s using ${matches.length} segments from ${sourceBuffers.length} source file(s).`;
+
+                setTimeout(() => {
+                    progressBar.style.display = 'none';
+                }, 2000);
+
+            } catch (error) {
+                updateStatus('Error during reconstruction: ' + error.message, 'error');
+                console.error(error);
+            } finally {
+                processBtn.disabled = false;
+            }
+        }
+
+        processBtn.addEventListener('click', reconstructAudio);
+
+        // Playback controls
+        document.getElementById('playReferenceBtn').addEventListener('click', () => {
+            playAudioBuffer(referenceBuffer);
+        });
+
+        document.getElementById('playReconstructedBtn').addEventListener('click', () => {
+            playAudioBuffer(reconstructedBuffer);
+        });
+
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            if (currentSource) {
+                currentSource.stop();
+                currentSource = null;
+            }
+        });
+
+        function playAudioBuffer(buffer) {
+            if (currentSource) {
+                currentSource.stop();
+            }
+
+            currentSource = audioContext.createBufferSource();
+            currentSource.buffer = buffer;
+            currentSource.connect(audioContext.destination);
+            currentSource.start(0);
+
+            currentSource.onended = () => {
+                currentSource = null;
+            };
+        }
+
+        // Download reconstructed audio
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            if (!reconstructedBuffer) return;
+
+            // Convert to WAV
+            const wav = audioBufferToWav(reconstructedBuffer);
+            const blob = new Blob([wav], { type: 'audio/wav' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'reconstructed_audio.wav';
+            a.click();
+
+            URL.revokeObjectURL(url);
+        });
+
+        // Convert AudioBuffer to WAV format
+        function audioBufferToWav(buffer) {
+            const length = buffer.length * buffer.numberOfChannels * 2 + 44;
+            const arrayBuffer = new ArrayBuffer(length);
+            const view = new DataView(arrayBuffer);
+            const channels = [];
+            let offset = 0;
+            let pos = 0;
+
+            // WAV header
+            setUint32(0x46464952); // "RIFF"
+            setUint32(length - 8); // file length - 8
+            setUint32(0x45564157); // "WAVE"
+            setUint32(0x20746d66); // "fmt " chunk
+            setUint32(16); // length = 16
+            setUint16(1); // PCM (uncompressed)
+            setUint16(buffer.numberOfChannels);
+            setUint32(buffer.sampleRate);
+            setUint32(buffer.sampleRate * 2 * buffer.numberOfChannels); // avg. bytes/sec
+            setUint16(buffer.numberOfChannels * 2); // block-align
+            setUint16(16); // 16-bit
+            setUint32(0x61746164); // "data" - chunk
+            setUint32(length - pos - 4); // chunk length
+
+            // Write interleaved data
+            for (let i = 0; i < buffer.numberOfChannels; i++) {
+                channels.push(buffer.getChannelData(i));
+            }
+
+            while (pos < length) {
+                for (let i = 0; i < buffer.numberOfChannels; i++) {
+                    let sample = Math.max(-1, Math.min(1, channels[i][offset]));
+                    sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+                    view.setInt16(pos, sample, true);
+                    pos += 2;
+                }
+                offset++;
+            }
+
+            return arrayBuffer;
+
+            function setUint16(data) {
+                view.setUint16(pos, data, true);
+                pos += 2;
+            }
+
+            function setUint32(data) {
+                view.setUint32(pos, data, true);
+                pos += 4;
+            }
+        }
+    </script>
+</body>
+</html>
