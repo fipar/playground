@@ -22,6 +22,8 @@ Enhancements over mosaic.py:
   analysis to reduce spectral leakage and improve frequency analysis.
 - Usage Tracking (Novelty): Tracks block usage and penalizes overused blocks
   to create more variety and avoid repetitive patterns.
+- Stickyness: Preference for playing consecutive blocks from the same source
+  file, preserving longer recognizable phrases and musical coherence.
 - Chunk Caching: Analyzed chunks are cached in .mosaic-cache/ directory for
   faster repeated runs with the same input files.
 
@@ -36,6 +38,26 @@ Caching:
 - Cache is invalidated if input files change
 - Significantly speeds up repeated runs with the same files
 
+Future Enhancements (Not Yet Implemented):
+Two additional features from Samplebrain could be added but involve significant complexity:
+
+1. Dual Processing (Normal + Normalized):
+   - What: Process each chunk twice - once with dynamics, once normalized
+   - Benefit: Allows blending between "match timbre only" and "match timbre + dynamics"
+   - Use Case: When you want to preserve source dynamics vs. match target dynamics
+   - Complexity: Doubles memory usage, doubles analysis time, adds UI parameter
+   - Implementation: Add m_n_fft, m_n_mfcc to AudioChunk, modify feature extraction
+
+2. Synaptic Search Network:
+   - What: Pre-build a similarity graph connecting each chunk to its 1000 nearest neighbors
+   - Benefit: O(1) search time vs O(n) - massive speedup for large datasets (>10,000 chunks)
+   - Use Case: When working with hours of source material (currently ~1-2min is fine)
+   - Complexity: O(n²) preprocessing, complex data structure, 4-8GB RAM for large sets
+   - Implementation: Add build_synapses() function, modify find_best_match() search logic
+
+Current implementation is optimized for typical use cases (a few minutes of audio per source).
+These enhancements would primarily benefit edge cases with very large source libraries.
+
 Dependencies:
 pip install numpy librosa soundfile tqdm scipy
 
@@ -49,6 +71,7 @@ python tuned-mosaic.py \
     --overlap 0.5 \
     --window hann \
     --usage-importance 0.1 \
+    --stickyness 0.5 \
     --enable-pitch-tuning \
     --enable-volume-tuning \
     --enable-envelope-tuning
@@ -74,7 +97,7 @@ warnings.filterwarnings('ignore', category=UserWarning)
 # --- Data Structure for an Audio Chunk ---
 class AudioChunk:
     """A class to hold a chunk of audio and its features."""
-    def __init__(self, audio_data, sample_rate, window_type='hann'):
+    def __init__(self, audio_data, sample_rate, window_type='hann', source_file='', chunk_index=0):
         self.audio = audio_data
         self.sr = sample_rate
         self.window_type = window_type
@@ -83,6 +106,9 @@ class AudioChunk:
         self.norm_features = {}
         # Usage tracking for novelty (avoiding repetitive blocks)
         self.usage = 0.0
+        # Source tracking for stickyness (preserving phrases)
+        self.source_file = source_file
+        self.chunk_index = chunk_index
 
     def _apply_window(self, audio):
         """Apply windowing function to reduce spectral leakage."""
@@ -289,7 +315,8 @@ def analyze_file(filepath, chunk_duration_min_s, chunk_duration_max_s, overlap, 
             actual_chunk_len = len(chunk_audio)
 
             if actual_chunk_len >= min_chunk_samples:
-                chunks.append(AudioChunk(chunk_audio, sr, window_type))
+                chunk_idx = len(chunks)
+                chunks.append(AudioChunk(chunk_audio, sr, window_type, filepath, chunk_idx))
 
             # Update progress bar with actual advancement (not chunk size)
             advancement = current_pos_samples - last_update_pos
@@ -323,7 +350,73 @@ def deplete_usage(chunks, decay_rate=0.99):
             chunk.usage = 0.0
         chunk.usage *= decay_rate
 
-def find_best_match(reference_chunk, source_pool, feature_weights, use_duration_match, mfcc_distance_metric, usage_importance=0.0):
+def calculate_chunk_distance(ref_chunk, src_chunk, feature_weights, use_duration_match, mfcc_distance_metric, usage_importance=0.0):
+    """
+    Calculate the distance between two chunks.
+
+    Args:
+        ref_chunk: Reference chunk
+        src_chunk: Source chunk to compare
+        feature_weights: Dictionary of feature weights
+        use_duration_match: Whether to match duration
+        mfcc_distance_metric: 'euclidean' or 'cosine'
+        usage_importance: Weight for usage/novelty
+
+    Returns:
+        Distance value (lower is better match)
+    """
+    # Unpack weights
+    w_rms = feature_weights['rms']
+    w_pitch = feature_weights['pitch']
+    w_mfcc = feature_weights['mfcc']
+    w_duration = feature_weights.get('duration', 0.0)
+
+    # Normalized features
+    ref_rms = ref_chunk.norm_features['rms']
+    ref_pitch = ref_chunk.norm_features['pitch']
+    ref_mfccs = ref_chunk.norm_features['mfccs']
+    ref_duration = ref_chunk.norm_features['duration']
+
+    src_rms = src_chunk.norm_features['rms']
+    src_pitch = src_chunk.norm_features['pitch']
+    src_mfccs = src_chunk.norm_features['mfccs']
+    src_duration = src_chunk.norm_features['duration']
+
+    # Calculate distances
+    dist_rms = abs(ref_rms - src_rms)
+    dist_pitch = abs(ref_pitch - src_pitch)
+
+    # MFCC distance
+    if mfcc_distance_metric == 'euclidean':
+        dist_mfcc = np.linalg.norm(ref_mfccs - src_mfccs)
+    elif mfcc_distance_metric == 'cosine':
+        norm_ref = np.linalg.norm(ref_mfccs)
+        norm_src = np.linalg.norm(src_mfccs)
+        if norm_ref == 0 or norm_src == 0:
+            dist_mfcc = 1.0
+        else:
+            cosine_sim = np.dot(ref_mfccs, src_mfccs) / (norm_ref * norm_src)
+            dist_mfcc = 1 - cosine_sim
+    else:
+        raise ValueError(f"Unknown MFCC distance metric: {mfcc_distance_metric}")
+
+    # Total weighted distance (acoustic similarity)
+    total_distance = (w_rms * dist_rms) + (w_pitch * dist_pitch) + (w_mfcc * dist_mfcc)
+
+    if use_duration_match:
+        dist_duration = abs(ref_duration - src_duration)
+        total_distance += (w_duration * dist_duration)
+
+    # Blend in usage to penalize overused blocks (novelty)
+    if usage_importance > 0:
+        # Handle chunks loaded from old cache that don't have usage attribute
+        if not hasattr(src_chunk, 'usage'):
+            src_chunk.usage = 0.0
+        total_distance = (1 - usage_importance) * total_distance + usage_importance * src_chunk.usage
+
+    return total_distance
+
+def find_best_match(reference_chunk, source_pool, feature_weights, use_duration_match, mfcc_distance_metric, usage_importance=0.0, last_chunk=None, stickyness=0.0):
     """
     Finds the best matching chunk from the source_pool for a given reference_chunk.
 
@@ -334,66 +427,53 @@ def find_best_match(reference_chunk, source_pool, feature_weights, use_duration_
         use_duration_match: Whether to match duration
         mfcc_distance_metric: 'euclidean' or 'cosine'
         usage_importance: Weight for usage/novelty (0.0 = ignore usage, higher = prefer unused blocks)
+        last_chunk: Previously used chunk (for stickyness)
+        stickyness: Preference for sequential blocks (0.0 = disabled, higher = prefer continuation)
     """
     best_match = None
     min_distance = float('inf')
 
-    # Unpack weights
-    w_rms = feature_weights['rms']
-    w_pitch = feature_weights['pitch']
-    w_mfcc = feature_weights['mfcc']
-    w_duration = feature_weights.get('duration', 0.0)
-
-    # Normalized features from the reference chunk
-    ref_rms = reference_chunk.norm_features['rms']
-    ref_pitch = reference_chunk.norm_features['pitch']
-    ref_mfccs = reference_chunk.norm_features['mfccs']
-    ref_duration = reference_chunk.norm_features['duration']
-
+    # Find the best match from the source pool
     for source_chunk in source_pool:
-        src_rms = source_chunk.norm_features['rms']
-        src_pitch = source_chunk.norm_features['pitch']
-        src_mfccs = source_chunk.norm_features['mfccs']
-        src_duration = source_chunk.norm_features['duration']
+        distance = calculate_chunk_distance(
+            reference_chunk, source_chunk, feature_weights,
+            use_duration_match, mfcc_distance_metric, usage_importance
+        )
 
-        # Calculate distances
-        dist_rms = abs(ref_rms - src_rms)
-        dist_pitch = abs(ref_pitch - src_pitch)
-
-        # MFCC distance
-        if mfcc_distance_metric == 'euclidean':
-            dist_mfcc = np.linalg.norm(ref_mfccs - src_mfccs)
-        elif mfcc_distance_metric == 'cosine':
-            norm_ref = np.linalg.norm(ref_mfccs)
-            norm_src = np.linalg.norm(src_mfccs)
-            if norm_ref == 0 or norm_src == 0:
-                dist_mfcc = 1.0
-            else:
-                cosine_sim = np.dot(ref_mfccs, src_mfccs) / (norm_ref * norm_src)
-                dist_mfcc = 1 - cosine_sim
-        else:
-            raise ValueError(f"Unknown MFCC distance metric: {mfcc_distance_metric}")
-
-        # Total weighted distance (acoustic similarity)
-        total_distance = (w_rms * dist_rms) + (w_pitch * dist_pitch) + (w_mfcc * dist_mfcc)
-
-        if use_duration_match:
-            dist_duration = abs(ref_duration - src_duration)
-            total_distance += (w_duration * dist_duration)
-
-        # Blend in usage to penalize overused blocks (novelty)
-        # Higher usage = higher penalty = less likely to be chosen
-        if usage_importance > 0:
-            # Handle chunks loaded from old cache that don't have usage attribute
-            if not hasattr(source_chunk, 'usage'):
-                source_chunk.usage = 0.0
-            # Normalize usage to a similar scale as acoustic distance
-            # Usage starts at 0 and increases, so we blend it in directly
-            total_distance = (1 - usage_importance) * total_distance + usage_importance * source_chunk.usage
-
-        if total_distance < min_distance:
-            min_distance = total_distance
+        if distance < min_distance:
+            min_distance = distance
             best_match = source_chunk
+
+    # Apply stickyness: check if we should use the next sequential block instead
+    if stickyness > 0 and last_chunk is not None and best_match is not None:
+        # Handle chunks loaded from old cache that don't have source_file/chunk_index
+        if not hasattr(last_chunk, 'source_file'):
+            return best_match
+        if not hasattr(last_chunk, 'chunk_index'):
+            return best_match
+
+        # Find the next sequential chunk from the same source file
+        next_chunk = None
+        for chunk in source_pool:
+            if not hasattr(chunk, 'source_file') or not hasattr(chunk, 'chunk_index'):
+                continue
+            if (chunk.source_file == last_chunk.source_file and
+                chunk.chunk_index == last_chunk.chunk_index + 1):
+                next_chunk = chunk
+                break
+
+        # If we found a next chunk, compare it
+        if next_chunk is not None:
+            dist_to_next = calculate_chunk_distance(
+                reference_chunk, next_chunk, feature_weights,
+                use_duration_match, mfcc_distance_metric, usage_importance
+            )
+
+            # Stickyness formula from Samplebrain:
+            # If dist_to_next * (1 - stickyness) < best_dist * stickyness, use next chunk
+            # This means higher stickyness favors sequential blocks
+            if dist_to_next * (1 - stickyness) < min_distance * stickyness:
+                return next_chunk
 
     return best_match
 
@@ -604,6 +684,8 @@ def main():
                        help="Weight for duration matching. Default: 0.5")
     parser.add_argument('--usage-importance', type=float, default=0.0,
                        help="Weight for usage/novelty (0.0 = ignore, higher = prefer unused blocks). Default: 0.0")
+    parser.add_argument('--stickyness', type=float, default=0.0,
+                       help="Preference for sequential blocks from same source (0.0 = disabled, higher = preserve phrases). Default: 0.0")
     parser.add_argument('--crossfade-duration', type=float, default=0.01,
                        help="Duration of the crossfade in seconds. Default: 0.01")
     parser.add_argument('--no-chunk-duration-match', dest='duration_match',
@@ -664,6 +746,7 @@ def main():
     # --- 3. Matching and Tuning Phase ---
     print("Finding best matches and applying tuning...")
     output_chunks = []
+    last_used_chunk = None
 
     feature_weights = {
         'rms': args.weight_rms,
@@ -677,11 +760,13 @@ def main():
         if idx % 10 == 0:
             deplete_usage(source_pool, decay_rate=0.99)
 
-        # Find the best match
+        # Find the best match (with stickyness support)
         best_source_chunk = find_best_match(
             ref_chunk, source_pool, feature_weights,
             args.duration_match, args.mfcc_distance_metric,
-            usage_importance=args.usage_importance
+            usage_importance=args.usage_importance,
+            last_chunk=last_used_chunk,
+            stickyness=args.stickyness
         )
 
         if best_source_chunk:
@@ -690,6 +775,9 @@ def main():
             if not hasattr(best_source_chunk, 'usage'):
                 best_source_chunk.usage = 0.0
             best_source_chunk.usage += 1.0
+
+            # Track this chunk for stickyness
+            last_used_chunk = best_source_chunk
 
             chunk_to_add = best_source_chunk
 
@@ -739,6 +827,151 @@ def main():
 
     except Exception as e:
         print(f"Error writing output file: {e}")
+
+# =============================================================================
+# FUTURE ENHANCEMENT IMPLEMENTATION GUIDE
+# =============================================================================
+#
+# Two additional features from Samplebrain remain unimplemented. Below is a
+# detailed guide for implementing them if needed in the future.
+#
+# -----------------------------------------------------------------------------
+# 1. DUAL PROCESSING (Normal + Normalized)
+# -----------------------------------------------------------------------------
+#
+# CONCEPT:
+# Analyze each chunk twice - once with original dynamics, once normalized.
+# This allows blending between "frequency-only matching" and "frequency+dynamics".
+#
+# WHEN TO IMPLEMENT:
+# - When users want control over whether to preserve source dynamics
+# - When matching purely on timbre regardless of volume differences
+# - When you want Samplebrain's "freq & dynamics" slider behavior
+#
+# COMPLEXITY ADDED:
+# - Memory: Doubles feature storage (2x FFT, 2x MFCC per chunk)
+# - CPU: Doubles analysis time (2x FFT/MFCC computation)
+# - Code: ~100 lines of additional feature extraction
+# - UI: New parameter --dynamics-ratio (0.0=ignore dynamics, 1.0=include dynamics)
+#
+# IMPLEMENTATION STEPS:
+#
+# 1. Modify AudioChunk._extract_features():
+#    - Add second analysis pass with normalized audio
+#    - Store as 'm_n_fft', 'm_n_mfcc' (normalized versions)
+#    - Current code would become 'm_fft', 'm_mfcc' (normal versions)
+#
+#    Example:
+#    ```python
+#    # Normal version (current)
+#    self.m_fft = compute_fft(windowed_audio)
+#    self.m_mfcc = compute_mfcc(windowed_audio)
+#
+#    # Normalized version (new)
+#    normalized_audio = windowed_audio / (np.max(np.abs(windowed_audio)) + 1e-9)
+#    self.m_n_fft = compute_fft(normalized_audio)
+#    self.m_n_mfcc = compute_mfcc(normalized_audio)
+#    ```
+#
+# 2. Modify calculate_chunk_distance():
+#    - Calculate distance for both normal and normalized
+#    - Blend based on dynamics_ratio parameter:
+#      `final_dist = blend(normal_dist, normalized_dist, dynamics_ratio)`
+#
+# 3. Add command-line argument:
+#    ```python
+#    parser.add_argument('--dynamics-ratio', type=float, default=1.0,
+#                       help="Blend normal/normalized (0.0=ignore dynamics, 1.0=include)")
+#    ```
+#
+# 4. Update cache key to include dynamics_ratio
+#
+# PERFORMANCE IMPACT:
+# - Analysis: 2x slower (need to process twice)
+# - Memory: 2x chunk storage
+# - Matching: Negligible (just blending two distances)
+#
+# -----------------------------------------------------------------------------
+# 2. SYNAPTIC SEARCH NETWORK
+# -----------------------------------------------------------------------------
+#
+# CONCEPT:
+# Pre-compute a similarity graph where each chunk stores indices of its 1000
+# nearest neighbors. Search only these neighbors instead of entire pool.
+#
+# WHEN TO IMPLEMENT:
+# - When source pool exceeds 10,000 chunks (hours of audio)
+# - When real-time performance is critical
+# - When you can afford O(n²) preprocessing time
+#
+# COMPLEXITY ADDED:
+# - Memory: ~4KB per chunk for 1000 neighbor indices = 40MB for 10k chunks
+# - CPU: O(n²) preprocessing (can take 10+ minutes for large sets)
+# - Code: ~300 lines for network building, modified search
+# - Algorithmic: Complex data structure management
+#
+# IMPLEMENTATION STEPS:
+#
+# 1. Add synapse storage to AudioChunk:
+#    ```python
+#    class AudioChunk:
+#        def __init__(self, ...):
+#            ...
+#            self.synapses = []  # List of indices to similar chunks
+#    ```
+#
+# 2. Implement build_synapses_network():
+#    ```python
+#    def build_synapses_network(source_pool, num_synapses=1000):
+#        """Build similarity network for all chunks."""
+#        print("Building synaptic network (this may take several minutes)...")
+#        for i, chunk_a in enumerate(tqdm(source_pool)):
+#            distances = []
+#            for j, chunk_b in enumerate(source_pool):
+#                if i == j:
+#                    continue
+#                dist = calculate_chunk_distance(chunk_a, chunk_b, ...)
+#                distances.append((dist, j))
+#
+#            # Sort and keep top N
+#            distances.sort()
+#            chunk_a.synapses = [idx for _, idx in distances[:num_synapses]]
+#    ```
+#
+# 3. Implement synaptic search:
+#    ```python
+#    def find_best_match_synaptic(ref_chunk, source_pool, last_chunk, ...):
+#        """Search only synaptic connections of last chunk."""
+#        if last_chunk is None:
+#            # First iteration - search all
+#            return find_best_match(ref_chunk, source_pool, ...)
+#
+#        # Search only synaptically connected chunks
+#        candidates = [source_pool[idx] for idx in last_chunk.synapses]
+#        return find_best_match(ref_chunk, candidates, ...)
+#    ```
+#
+# 4. Add command-line arguments:
+#    ```python
+#    parser.add_argument('--use-synaptic-search', action='store_true',
+#                       help="Use synaptic network for faster search")
+#    parser.add_argument('--num-synapses', type=int, default=1000,
+#                       help="Number of connections per chunk")
+#    ```
+#
+# 5. Call build_synapses_network() after normalization, before matching
+#
+# PERFORMANCE IMPACT:
+# - Preprocessing: O(n²) - very slow for large n
+# - Search: O(1) instead of O(n) - huge speedup
+# - Memory: Minimal (~4KB per chunk for indices)
+#
+# WHEN TO SKIP:
+# - Current implementation handles <10,000 chunks efficiently
+# - Linear search is fast enough for typical use cases
+# - Avoids preprocessing time and complexity
+#
+# =============================================================================
 
 if __name__ == '__main__':
     main()
