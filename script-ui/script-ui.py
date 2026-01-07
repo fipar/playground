@@ -318,14 +318,14 @@ class GUIGenerator:
             var = tk.StringVar(value='')
             self.values[arg.name] = var
 
-            listbox_frame = ttk.Frame(frame)
+            listbox_frame = tk.Frame(frame, bg='#f0f0f0')
             listbox_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
             listbox_frame.columnconfigure(0, weight=1)
 
-            listbox = tk.Listbox(listbox_frame, height=3)
+            listbox = tk.Listbox(listbox_frame, height=3, width=40)
             listbox.grid(row=0, column=0, sticky=(tk.W, tk.E))
 
-            btn_frame = ttk.Frame(listbox_frame)
+            btn_frame = tk.Frame(listbox_frame, bg='#f0f0f0')
             btn_frame.grid(row=0, column=1, padx=5)
 
             def add_file():
@@ -340,8 +340,8 @@ class GUIGenerator:
                     listbox.delete(index)
                 self._update_file_list(arg.name, listbox, var)
 
-            ttk.Button(btn_frame, text="Add", command=add_file).pack(pady=2)
-            ttk.Button(btn_frame, text="Remove", command=remove_file).pack(pady=2)
+            tk.Button(btn_frame, text="Add Files", command=add_file).pack(pady=2, fill=tk.X)
+            tk.Button(btn_frame, text="Remove", command=remove_file).pack(pady=2, fill=tk.X)
 
             self.widgets[arg.name] = listbox
 
