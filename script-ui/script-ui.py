@@ -203,83 +203,195 @@ class GUIGenerator:
         self.values = {}   # Map argument name to StringVar/IntVar/etc
 
     def create_gui(self):
-        """Create the GUI window"""
+        """Create the GUI window - SIMPLIFIED VERSION WITHOUT CANVAS"""
         script_name = Path(self.script_path).name
         self.root.title(f"GUI Wrapper - {script_name}")
-        self.root.geometry("900x700")
+        self.root.geometry("1000x800")
+        self.root.configure(bg='white')
 
-        # Create a simple paned window for better compatibility
-        paned = tk.PanedWindow(self.root, orient=tk.VERTICAL)
-        paned.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        # Header
+        header = tk.Label(self.root, text=f"Configure: {script_name}",
+                         font=('Arial', 14, 'bold'), bg='white', fg='black', pady=10)
+        header.pack(fill=tk.X)
 
-        # Top section: Arguments with scrollbar
-        args_frame_container = tk.Frame(paned)
-        paned.add(args_frame_container, minsize=300)
+        # Separator
+        sep1 = tk.Frame(self.root, height=2, bg='#cccccc')
+        sep1.pack(fill=tk.X)
 
-        # Create scrollbar and text widget for arguments
-        args_canvas = tk.Canvas(args_frame_container, bg='white')
-        scrollbar = tk.Scrollbar(args_frame_container, orient=tk.VERTICAL, command=args_canvas.yview)
-        args_frame = tk.Frame(args_canvas, bg='white')
+        # Arguments section - simple frame with scrollbar (no canvas!)
+        args_container = tk.Frame(self.root, bg='white')
+        args_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        args_canvas.configure(yscrollcommand=scrollbar.set)
+        # Create a frame that will hold all argument widgets
+        args_frame = tk.Frame(args_container, bg='white')
+        args_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # Pack scrollbar and canvas
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        args_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-        # Create window in canvas
-        canvas_frame = args_canvas.create_window((0, 0), window=args_frame, anchor='nw')
-
-        # Update scroll region when frame changes
-        def on_frame_configure(event):
-            args_canvas.configure(scrollregion=args_canvas.bbox("all"))
-            # Also update the width of the frame to match canvas
-            canvas_width = args_canvas.winfo_width()
-            args_canvas.itemconfig(canvas_frame, width=canvas_width)
-
-        args_frame.bind("<Configure>", on_frame_configure)
-        args_canvas.bind("<Configure>", lambda e: args_canvas.itemconfig(canvas_frame, width=e.width))
-
-        # Enable mousewheel scrolling
-        def on_mousewheel(event):
-            args_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        args_canvas.bind_all("<MouseWheel>", on_mousewheel)
-
-        # Create widgets for each argument
+        # Create widgets for each argument - using pack instead of grid
         for i, arg in enumerate(self.arguments):
-            self._create_argument_widget(args_frame, arg, i)
+            self._create_argument_widget_pack(args_frame, arg)
 
-        # Bottom section: Output and buttons
-        bottom_frame = tk.Frame(paned)
-        paned.add(bottom_frame, minsize=200)
+        # Separator
+        sep2 = tk.Frame(self.root, height=2, bg='#cccccc')
+        sep2.pack(fill=tk.X)
 
-        # Run button at top of bottom section
-        button_frame = tk.Frame(bottom_frame)
-        button_frame.pack(fill=tk.X, pady=5)
+        # Bottom section: Buttons and output
+        bottom_frame = tk.Frame(self.root, bg='white')
+        bottom_frame.pack(fill=tk.BOTH, expand=False, padx=10, pady=10)
+
+        # Run button
+        button_frame = tk.Frame(bottom_frame, bg='white')
+        button_frame.pack(fill=tk.X, pady=(0, 10))
 
         run_button = tk.Button(button_frame, text="▶ Run Script", command=self._run_script,
-                              bg='#4CAF50', fg='white', font=('Arial', 12, 'bold'),
-                              padx=20, pady=5)
+                              bg='#4CAF50', fg='white', font=('Arial', 14, 'bold'),
+                              padx=30, pady=10)
         run_button.pack(side=tk.LEFT, padx=5)
 
         clear_button = tk.Button(button_frame, text="Clear Output", command=self._clear_output,
-                                padx=10, pady=5)
+                                bg='#FF9800', fg='white', font=('Arial', 12),
+                                padx=15, pady=10)
         clear_button.pack(side=tk.LEFT, padx=5)
 
         # Output area
-        output_label = tk.Label(bottom_frame, text="Output:", anchor='w', font=('Arial', 10, 'bold'))
-        output_label.pack(fill=tk.X, padx=5, pady=(5, 0))
+        output_label = tk.Label(bottom_frame, text="Output:", anchor='w',
+                               font=('Arial', 12, 'bold'), bg='white', fg='black')
+        output_label.pack(fill=tk.X, pady=(0, 5))
 
-        self.output_text = scrolledtext.ScrolledText(bottom_frame, height=12, wrap=tk.WORD,
-                                                     bg='#2b2b2b', fg='#ffffff',
-                                                     font=('Courier', 10))
-        self.output_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.output_text = scrolledtext.ScrolledText(bottom_frame, height=10, wrap=tk.WORD,
+                                                     bg='#2b2b2b', fg='#00ff00',
+                                                     font=('Courier', 11),
+                                                     insertbackground='white')
+        self.output_text.pack(fill=tk.BOTH, expand=True)
 
         # Force initial render
         self.root.update()
 
+    def _create_argument_widget_pack(self, parent, arg):
+        """Create appropriate widget for an argument - USING PACK (NO CANVAS)"""
+        # Container for this argument with visible border
+        container = tk.Frame(parent, bg='white', relief=tk.RAISED, borderwidth=2)
+        container.pack(fill=tk.X, padx=5, pady=5)
+
+        # Label row
+        label_frame = tk.Frame(container, bg='white')
+        label_frame.pack(fill=tk.X, padx=10, pady=(10, 5))
+
+        label_text = arg.name.replace('-', ' ').title()
+        if arg.required:
+            label_text += " *"
+
+        label = tk.Label(label_frame, text=label_text, anchor='w',
+                        bg='white', fg='black', font=('Arial', 11, 'bold'))
+        label.pack(side=tk.LEFT)
+
+        # Help text on its own row if present
+        if arg.help_text:
+            help_frame = tk.Frame(container, bg='white')
+            help_frame.pack(fill=tk.X, padx=10, pady=(0, 5))
+            help_label = tk.Label(help_frame, text=arg.help_text, fg='#666666',
+                                 font=('Arial', 9), bg='white', anchor='w', wraplength=800)
+            help_label.pack(fill=tk.X)
+
+        # Widget row
+        widget_frame = tk.Frame(container, bg='white')
+        widget_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
+
+        # Create appropriate widget based on type
+        if arg.arg_type == 'bool':
+            var = tk.BooleanVar(value=arg.default if arg.default is not None else False)
+            widget = tk.Checkbutton(widget_frame, variable=var, bg='white', fg='black',
+                                   selectcolor='white', activebackground='white',
+                                   font=('Arial', 10))
+            widget.pack(side=tk.LEFT)
+            self.values[arg.name] = var
+
+        elif arg.choices:
+            var = tk.StringVar(value=arg.default if arg.default else (arg.choices[0] if arg.choices else ''))
+            widget = tk.OptionMenu(widget_frame, var, *arg.choices)
+            widget.config(width=20, bg='white', fg='black', activebackground='#e0e0e0',
+                         font=('Arial', 10))
+            menu = widget['menu']
+            menu.config(bg='white', fg='black', font=('Arial', 10))
+            widget.pack(side=tk.LEFT, padx=5)
+            self.values[arg.name] = var
+
+        elif arg.is_file_argument() and arg.is_multiple():
+            var = tk.StringVar(value='')
+            self.values[arg.name] = var
+
+            listbox = tk.Listbox(widget_frame, height=3, width=60, bg='white', fg='black',
+                                font=('Arial', 10))
+            listbox.pack(side=tk.LEFT, padx=5)
+
+            btn_frame = tk.Frame(widget_frame, bg='white')
+            btn_frame.pack(side=tk.LEFT, padx=5)
+
+            def add_file():
+                files = filedialog.askopenfilenames(title=f"Select {arg.name}")
+                for file in files:
+                    listbox.insert(tk.END, file)
+                self._update_file_list(arg.name, listbox, var)
+
+            def remove_file():
+                selection = listbox.curselection()
+                for index in reversed(selection):
+                    listbox.delete(index)
+                self._update_file_list(arg.name, listbox, var)
+
+            tk.Button(btn_frame, text="Add Files", command=add_file,
+                     bg='#4CAF50', fg='white', font=('Arial', 10), padx=10).pack(pady=2)
+            tk.Button(btn_frame, text="Remove", command=remove_file,
+                     bg='#f44336', fg='white', font=('Arial', 10), padx=10).pack(pady=2)
+
+            self.widgets[arg.name] = listbox
+
+        elif arg.is_directory_argument():
+            var = tk.StringVar(value=arg.default if arg.default else '')
+            entry = tk.Entry(widget_frame, textvariable=var, width=60, bg='white', fg='black',
+                           insertbackground='black', font=('Arial', 10))
+            entry.pack(side=tk.LEFT, padx=5)
+
+            def browse_dir():
+                dirname = filedialog.askdirectory(title=f"Select {arg.name}")
+                if dirname:
+                    var.set(dirname)
+
+            browse_btn = tk.Button(widget_frame, text="Browse...", command=browse_dir,
+                                  bg='#2196F3', fg='white', font=('Arial', 10), padx=15)
+            browse_btn.pack(side=tk.LEFT, padx=5)
+
+            self.values[arg.name] = var
+
+        elif arg.is_file_argument():
+            var = tk.StringVar(value=arg.default if arg.default else '')
+            entry = tk.Entry(widget_frame, textvariable=var, width=60, bg='white', fg='black',
+                           insertbackground='black', font=('Arial', 10))
+            entry.pack(side=tk.LEFT, padx=5)
+
+            def browse():
+                if 'output' in arg.name.lower():
+                    filename = filedialog.asksaveasfilename(title=f"Select {arg.name}")
+                else:
+                    filename = filedialog.askopenfilename(title=f"Select {arg.name}")
+                if filename:
+                    var.set(filename)
+
+            browse_btn = tk.Button(widget_frame, text="Browse...", command=browse,
+                                  bg='#2196F3', fg='white', font=('Arial', 10), padx=15)
+            browse_btn.pack(side=tk.LEFT, padx=5)
+
+            self.values[arg.name] = var
+
+        else:
+            # Regular text entry for strings, ints, floats
+            var = tk.StringVar(value=str(arg.default) if arg.default is not None else '')
+            entry = tk.Entry(widget_frame, textvariable=var, width=40, bg='white', fg='black',
+                           insertbackground='black', font=('Arial', 10))
+            entry.pack(side=tk.LEFT, padx=5)
+            self.values[arg.name] = var
+
     def _create_argument_widget(self, parent, arg, row):
-        """Create appropriate widget for an argument"""
+        """Create appropriate widget for an argument - GRID VERSION"""
         frame = tk.Frame(parent, bg='white', pady=5, padx=5)
         frame.grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
         frame.columnconfigure(1, weight=1)
