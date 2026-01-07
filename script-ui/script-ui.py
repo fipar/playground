@@ -217,9 +217,9 @@ class GUIGenerator:
         paned.add(args_frame_container, minsize=300)
 
         # Create scrollbar and text widget for arguments
-        args_canvas = tk.Canvas(args_frame_container, bg='#f0f0f0')
+        args_canvas = tk.Canvas(args_frame_container, bg='white')
         scrollbar = tk.Scrollbar(args_frame_container, orient=tk.VERTICAL, command=args_canvas.yview)
-        args_frame = tk.Frame(args_canvas, bg='#f0f0f0')
+        args_frame = tk.Frame(args_canvas, bg='white')
 
         args_canvas.configure(yscrollcommand=scrollbar.set)
 
@@ -280,28 +280,29 @@ class GUIGenerator:
 
     def _create_argument_widget(self, parent, arg, row):
         """Create appropriate widget for an argument"""
-        frame = tk.Frame(parent, bg='#f0f0f0', pady=5)
+        frame = tk.Frame(parent, bg='white', pady=5, padx=5)
         frame.grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
         frame.columnconfigure(1, weight=1)
 
-        # Label with help text
+        # Label with help text - EXPLICIT COLORS FOR VISIBILITY
         label_text = arg.name.replace('-', ' ').title()
         if arg.required:
             label_text += " *"
         label = tk.Label(frame, text=label_text, width=20, anchor='w',
-                        bg='#f0f0f0', font=('Arial', 10, 'bold'))
+                        bg='white', fg='black', font=('Arial', 10, 'bold'))
         label.grid(row=0, column=0, sticky=tk.W, padx=5)
 
         # Add help text as tooltip (simplified - just show in label)
         if arg.help_text:
-            help_label = tk.Label(frame, text=arg.help_text, foreground="gray",
-                                 font=('Arial', 9), bg='#f0f0f0', anchor='w')
+            help_label = tk.Label(frame, text=arg.help_text, fg='#555555',
+                                 font=('Arial', 9), bg='white', anchor='w')
             help_label.grid(row=1, column=0, columnspan=3, sticky=tk.W, padx=5)
 
-        # Create appropriate widget based on type
+        # Create appropriate widget based on type - ALL WITH EXPLICIT COLORS
         if arg.arg_type == 'bool':
             var = tk.BooleanVar(value=arg.default if arg.default is not None else False)
-            widget = tk.Checkbutton(frame, variable=var, bg='#f0f0f0')
+            widget = tk.Checkbutton(frame, variable=var, bg='white', fg='black',
+                                   selectcolor='white', activebackground='white')
             widget.grid(row=0, column=1, sticky=tk.W)
             self.values[arg.name] = var
 
@@ -309,7 +310,10 @@ class GUIGenerator:
             var = tk.StringVar(value=arg.default if arg.default else (arg.choices[0] if arg.choices else ''))
             # Use OptionMenu instead of Combobox for better compatibility
             widget = tk.OptionMenu(frame, var, *arg.choices)
-            widget.config(width=15)
+            widget.config(width=15, bg='white', fg='black', activebackground='#e0e0e0')
+            # Also style the menu
+            menu = widget['menu']
+            menu.config(bg='white', fg='black')
             widget.grid(row=0, column=1, sticky=tk.W, padx=5)
             self.values[arg.name] = var
 
@@ -318,14 +322,14 @@ class GUIGenerator:
             var = tk.StringVar(value='')
             self.values[arg.name] = var
 
-            listbox_frame = tk.Frame(frame, bg='#f0f0f0')
+            listbox_frame = tk.Frame(frame, bg='white')
             listbox_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
             listbox_frame.columnconfigure(0, weight=1)
 
-            listbox = tk.Listbox(listbox_frame, height=3, width=40)
+            listbox = tk.Listbox(listbox_frame, height=3, width=40, bg='white', fg='black')
             listbox.grid(row=0, column=0, sticky=(tk.W, tk.E))
 
-            btn_frame = tk.Frame(listbox_frame, bg='#f0f0f0')
+            btn_frame = tk.Frame(listbox_frame, bg='white')
             btn_frame.grid(row=0, column=1, padx=5)
 
             def add_file():
@@ -340,15 +344,16 @@ class GUIGenerator:
                     listbox.delete(index)
                 self._update_file_list(arg.name, listbox, var)
 
-            tk.Button(btn_frame, text="Add Files", command=add_file).pack(pady=2, fill=tk.X)
-            tk.Button(btn_frame, text="Remove", command=remove_file).pack(pady=2, fill=tk.X)
+            tk.Button(btn_frame, text="Add Files", command=add_file, bg='#4CAF50', fg='white').pack(pady=2, fill=tk.X)
+            tk.Button(btn_frame, text="Remove", command=remove_file, bg='#f44336', fg='white').pack(pady=2, fill=tk.X)
 
             self.widgets[arg.name] = listbox
 
         elif arg.is_directory_argument():
             # Directory - use entry with browse button
             var = tk.StringVar(value=arg.default if arg.default else '')
-            entry = tk.Entry(frame, textvariable=var, width=50)
+            entry = tk.Entry(frame, textvariable=var, width=50, bg='white', fg='black',
+                           insertbackground='black')
             entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
 
             def browse_dir():
@@ -356,7 +361,8 @@ class GUIGenerator:
                 if dirname:
                     var.set(dirname)
 
-            browse_btn = tk.Button(frame, text="Browse...", command=browse_dir)
+            browse_btn = tk.Button(frame, text="Browse...", command=browse_dir,
+                                  bg='#2196F3', fg='white')
             browse_btn.grid(row=0, column=2, padx=5)
 
             self.values[arg.name] = var
@@ -364,7 +370,8 @@ class GUIGenerator:
         elif arg.is_file_argument():
             # Single file - use entry with browse button
             var = tk.StringVar(value=arg.default if arg.default else '')
-            entry = tk.Entry(frame, textvariable=var, width=50)
+            entry = tk.Entry(frame, textvariable=var, width=50, bg='white', fg='black',
+                           insertbackground='black')
             entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
 
             def browse():
@@ -375,7 +382,8 @@ class GUIGenerator:
                 if filename:
                     var.set(filename)
 
-            browse_btn = tk.Button(frame, text="Browse...", command=browse)
+            browse_btn = tk.Button(frame, text="Browse...", command=browse,
+                                  bg='#2196F3', fg='white')
             browse_btn.grid(row=0, column=2, padx=5)
 
             self.values[arg.name] = var
@@ -383,7 +391,8 @@ class GUIGenerator:
         else:
             # Regular text entry for strings, ints, floats
             var = tk.StringVar(value=str(arg.default) if arg.default is not None else '')
-            entry = tk.Entry(frame, textvariable=var, width=30)
+            entry = tk.Entry(frame, textvariable=var, width=30, bg='white', fg='black',
+                           insertbackground='black')
             entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
             self.values[arg.name] = var
 
