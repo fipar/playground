@@ -371,6 +371,23 @@ class GUIGenerator:
 
     def _run_script(self):
         """Execute the wrapped script with collected arguments"""
+        # Validate required fields first
+        missing_fields = []
+        for arg in self.arguments:
+            if arg.required:
+                value = self.values[arg.name].get()
+                if not value or (isinstance(value, str) and not value.strip()):
+                    missing_fields.append(arg.name)
+
+        if missing_fields:
+            from tkinter import messagebox
+            messagebox.showerror(
+                "Missing Required Fields",
+                f"Please fill in the following required fields:\n\n" +
+                "\n".join(f"  • {field}" for field in missing_fields)
+            )
+            return
+
         # Build command line
         cmd = [sys.executable, self.script_path]
 
