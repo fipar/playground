@@ -44,10 +44,15 @@ class ArgumentInfo:
 
     def is_file_argument(self):
         """Detect if this argument should be treated as a file path"""
-        file_keywords = ['file', 'path', 'input', 'output', 'reference',
-                        'source', 'sources', 'dir', 'directory']
+        file_keywords = ['file', 'path', 'input', 'output', 'reference', 'source', 'sources']
         name_lower = self.name.lower()
         return any(keyword in name_lower for keyword in file_keywords)
+
+    def is_directory_argument(self):
+        """Detect if this argument should be treated as a directory path"""
+        dir_keywords = ['dir', 'directory', 'folder']
+        name_lower = self.name.lower()
+        return any(keyword in name_lower for keyword in dir_keywords)
 
     def is_multiple(self):
         """Check if this argument accepts multiple values"""
@@ -121,6 +126,10 @@ class ScriptAnalyzer:
             key = keyword.arg
             value = self._extract_value(keyword.value)
             kwargs[key] = value
+
+        # Use 'dest' if specified (for args like --no-crossfade with dest='crossfade')
+        if 'dest' in kwargs:
+            arg_name = kwargs['dest']
 
         # Build ArgumentInfo
         arg_type = self._determine_type(kwargs)
@@ -312,6 +321,22 @@ class GUIGenerator:
             ttk.Button(btn_frame, text="Remove", command=remove_file).pack(pady=2)
 
             self.widgets[arg.name] = listbox
+
+        elif arg.is_directory_argument():
+            # Directory - use entry with browse button
+            var = tk.StringVar(value=arg.default if arg.default else '')
+            entry = ttk.Entry(frame, textvariable=var)
+            entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
+
+            def browse_dir():
+                dirname = filedialog.askdirectory(title=f"Select {arg.name}")
+                if dirname:
+                    var.set(dirname)
+
+            browse_btn = ttk.Button(frame, text="Browse...", command=browse_dir)
+            browse_btn.grid(row=0, column=2, padx=5)
+
+            self.values[arg.name] = var
 
         elif arg.is_file_argument():
             # Single file - use entry with browse button
