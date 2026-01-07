@@ -207,6 +207,7 @@ class GUIGenerator:
         script_name = Path(self.script_path).name
         self.root.title(f"GUI Wrapper - {script_name}")
         self.root.geometry("800x600")
+        self.root.minsize(600, 400)
 
         # Create main container with scrollbar
         main_frame = ttk.Frame(self.root, padding="10")
@@ -217,7 +218,7 @@ class GUIGenerator:
         self.root.rowconfigure(0, weight=1)
 
         # Create canvas with scrollbar for arguments
-        canvas = tk.Canvas(main_frame)
+        canvas = tk.Canvas(main_frame, bg='white', highlightthickness=0)
         scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
 
@@ -258,6 +259,9 @@ class GUIGenerator:
 
         clear_button = ttk.Button(button_frame, text="Clear Output", command=self._clear_output)
         clear_button.pack(side=tk.LEFT, padx=5)
+
+        # Force window update on macOS
+        self.root.update_idletasks()
 
     def _create_argument_widget(self, parent, arg, row):
         """Create appropriate widget for an argument"""
