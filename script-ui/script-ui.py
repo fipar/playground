@@ -166,6 +166,10 @@ class ScriptAnalyzer:
         if action in ['store_true', 'store_false']:
             return 'bool'
 
+        # Check if it has choices (should be dropdown) - prioritize this
+        if kwargs.get('choices'):
+            return 'choice'
+
         # Check explicit type
         arg_type = kwargs.get('type')
         if arg_type == 'int':
@@ -174,10 +178,6 @@ class ScriptAnalyzer:
             return 'float'
         elif arg_type == 'str':
             return 'str'
-
-        # Check if it has choices (should be dropdown)
-        if kwargs.get('choices'):
-            return 'choice'
 
         # Default to string
         return 'str'
