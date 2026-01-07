@@ -33,6 +33,29 @@ No installation needed! Just requires Python 3 with tkinter (usually included by
 chmod +x script-ui.py
 ```
 
+### macOS Note: Tk Deprecation Warning
+
+On macOS, you may see this warning:
+```
+DEPRECATION WARNING: The system version of Tk is deprecated and may be removed in a future release.
+```
+
+**The tool will still work**, but for the best experience, consider using Python from Homebrew or python.org:
+
+```bash
+# Option 1: Install Python via Homebrew (recommended)
+brew install python-tk@3.12
+
+# Then run with:
+python3 script-ui.py example.py
+
+# Option 2: Silence the warning (if using system Python)
+export TK_SILENCE_DEPRECATION=1
+python3 script-ui.py example.py
+```
+
+The current version has been optimized to work with the deprecated system Tk, using standard tk widgets instead of ttk for maximum compatibility.
+
 ## Usage
 
 ### Basic Usage
