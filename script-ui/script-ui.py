@@ -206,92 +206,111 @@ class GUIGenerator:
         """Create the GUI window"""
         script_name = Path(self.script_path).name
         self.root.title(f"GUI Wrapper - {script_name}")
-        self.root.geometry("800x600")
-        self.root.minsize(600, 400)
+        self.root.geometry("900x700")
 
-        # Create main container with scrollbar
-        main_frame = ttk.Frame(self.root, padding="10")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Create a simple paned window for better compatibility
+        paned = tk.PanedWindow(self.root, orient=tk.VERTICAL)
+        paned.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Configure grid weights
-        self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(0, weight=1)
+        # Top section: Arguments with scrollbar
+        args_frame_container = tk.Frame(paned)
+        paned.add(args_frame_container, minsize=300)
 
-        # Create canvas with scrollbar for arguments
-        canvas = tk.Canvas(main_frame, bg='white', highlightthickness=0)
-        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas)
+        # Create scrollbar and text widget for arguments
+        args_canvas = tk.Canvas(args_frame_container, bg='#f0f0f0')
+        scrollbar = tk.Scrollbar(args_frame_container, orient=tk.VERTICAL, command=args_canvas.yview)
+        args_frame = tk.Frame(args_canvas, bg='#f0f0f0')
 
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
+        args_canvas.configure(yscrollcommand=scrollbar.set)
 
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
+        # Pack scrollbar and canvas
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        args_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # Pack canvas and scrollbar
-        canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        # Create window in canvas
+        canvas_frame = args_canvas.create_window((0, 0), window=args_frame, anchor='nw')
 
-        main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(0, weight=1)
+        # Update scroll region when frame changes
+        def on_frame_configure(event):
+            args_canvas.configure(scrollregion=args_canvas.bbox("all"))
+            # Also update the width of the frame to match canvas
+            canvas_width = args_canvas.winfo_width()
+            args_canvas.itemconfig(canvas_frame, width=canvas_width)
+
+        args_frame.bind("<Configure>", on_frame_configure)
+        args_canvas.bind("<Configure>", lambda e: args_canvas.itemconfig(canvas_frame, width=e.width))
+
+        # Enable mousewheel scrolling
+        def on_mousewheel(event):
+            args_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        args_canvas.bind_all("<MouseWheel>", on_mousewheel)
 
         # Create widgets for each argument
         for i, arg in enumerate(self.arguments):
-            self._create_argument_widget(scrollable_frame, arg, i)
+            self._create_argument_widget(args_frame, arg, i)
 
-        # Create output area
-        output_frame = ttk.LabelFrame(main_frame, text="Output", padding="5")
-        output_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
+        # Bottom section: Output and buttons
+        bottom_frame = tk.Frame(paned)
+        paned.add(bottom_frame, minsize=200)
 
-        self.output_text = scrolledtext.ScrolledText(output_frame, height=10, wrap=tk.WORD)
-        self.output_text.pack(fill=tk.BOTH, expand=True)
+        # Run button at top of bottom section
+        button_frame = tk.Frame(bottom_frame)
+        button_frame.pack(fill=tk.X, pady=5)
 
-        main_frame.rowconfigure(1, weight=1)
-
-        # Create run button
-        button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=2, column=0, columnspan=2, pady=10)
-
-        run_button = ttk.Button(button_frame, text="Run Script", command=self._run_script)
+        run_button = tk.Button(button_frame, text="▶ Run Script", command=self._run_script,
+                              bg='#4CAF50', fg='white', font=('Arial', 12, 'bold'),
+                              padx=20, pady=5)
         run_button.pack(side=tk.LEFT, padx=5)
 
-        clear_button = ttk.Button(button_frame, text="Clear Output", command=self._clear_output)
+        clear_button = tk.Button(button_frame, text="Clear Output", command=self._clear_output,
+                                padx=10, pady=5)
         clear_button.pack(side=tk.LEFT, padx=5)
 
-        # Force window update on macOS
-        self.root.update_idletasks()
+        # Output area
+        output_label = tk.Label(bottom_frame, text="Output:", anchor='w', font=('Arial', 10, 'bold'))
+        output_label.pack(fill=tk.X, padx=5, pady=(5, 0))
+
+        self.output_text = scrolledtext.ScrolledText(bottom_frame, height=12, wrap=tk.WORD,
+                                                     bg='#2b2b2b', fg='#ffffff',
+                                                     font=('Courier', 10))
+        self.output_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # Force initial render
+        self.root.update()
 
     def _create_argument_widget(self, parent, arg, row):
         """Create appropriate widget for an argument"""
-        frame = ttk.Frame(parent, padding="5")
-        frame.grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2)
+        frame = tk.Frame(parent, bg='#f0f0f0', pady=5)
+        frame.grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2, padx=5)
         frame.columnconfigure(1, weight=1)
 
         # Label with help text
         label_text = arg.name.replace('-', ' ').title()
         if arg.required:
             label_text += " *"
-        label = ttk.Label(frame, text=label_text, width=20)
+        label = tk.Label(frame, text=label_text, width=20, anchor='w',
+                        bg='#f0f0f0', font=('Arial', 10, 'bold'))
         label.grid(row=0, column=0, sticky=tk.W, padx=5)
 
         # Add help text as tooltip (simplified - just show in label)
         if arg.help_text:
-            help_label = ttk.Label(frame, text=arg.help_text, foreground="gray", font=('TkDefaultFont', 9))
+            help_label = tk.Label(frame, text=arg.help_text, foreground="gray",
+                                 font=('Arial', 9), bg='#f0f0f0', anchor='w')
             help_label.grid(row=1, column=0, columnspan=3, sticky=tk.W, padx=5)
 
         # Create appropriate widget based on type
         if arg.arg_type == 'bool':
             var = tk.BooleanVar(value=arg.default if arg.default is not None else False)
-            widget = ttk.Checkbutton(frame, variable=var)
+            widget = tk.Checkbutton(frame, variable=var, bg='#f0f0f0')
             widget.grid(row=0, column=1, sticky=tk.W)
             self.values[arg.name] = var
 
         elif arg.choices:
             var = tk.StringVar(value=arg.default if arg.default else (arg.choices[0] if arg.choices else ''))
-            widget = ttk.Combobox(frame, textvariable=var, values=arg.choices, state='readonly')
-            widget.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
+            # Use OptionMenu instead of Combobox for better compatibility
+            widget = tk.OptionMenu(frame, var, *arg.choices)
+            widget.config(width=15)
+            widget.grid(row=0, column=1, sticky=tk.W, padx=5)
             self.values[arg.name] = var
 
         elif arg.is_file_argument() and arg.is_multiple():
@@ -329,7 +348,7 @@ class GUIGenerator:
         elif arg.is_directory_argument():
             # Directory - use entry with browse button
             var = tk.StringVar(value=arg.default if arg.default else '')
-            entry = ttk.Entry(frame, textvariable=var)
+            entry = tk.Entry(frame, textvariable=var, width=50)
             entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
 
             def browse_dir():
@@ -337,7 +356,7 @@ class GUIGenerator:
                 if dirname:
                     var.set(dirname)
 
-            browse_btn = ttk.Button(frame, text="Browse...", command=browse_dir)
+            browse_btn = tk.Button(frame, text="Browse...", command=browse_dir)
             browse_btn.grid(row=0, column=2, padx=5)
 
             self.values[arg.name] = var
@@ -345,7 +364,7 @@ class GUIGenerator:
         elif arg.is_file_argument():
             # Single file - use entry with browse button
             var = tk.StringVar(value=arg.default if arg.default else '')
-            entry = ttk.Entry(frame, textvariable=var)
+            entry = tk.Entry(frame, textvariable=var, width=50)
             entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
 
             def browse():
@@ -356,7 +375,7 @@ class GUIGenerator:
                 if filename:
                     var.set(filename)
 
-            browse_btn = ttk.Button(frame, text="Browse...", command=browse)
+            browse_btn = tk.Button(frame, text="Browse...", command=browse)
             browse_btn.grid(row=0, column=2, padx=5)
 
             self.values[arg.name] = var
@@ -364,7 +383,7 @@ class GUIGenerator:
         else:
             # Regular text entry for strings, ints, floats
             var = tk.StringVar(value=str(arg.default) if arg.default is not None else '')
-            entry = ttk.Entry(frame, textvariable=var)
+            entry = tk.Entry(frame, textvariable=var, width=30)
             entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
             self.values[arg.name] = var
 
