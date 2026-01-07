@@ -1,0 +1,469 @@
+#!/usr/bin/env python3
+"""
+Script-UI: Generate GUI wrappers for command-line Python scripts
+
+This tool analyzes a Python script that uses argparse and generates a GUI wrapper
+that provides an intuitive interface for all command-line arguments.
+
+Features:
+- Automatically detects argument types (files, strings, numbers, booleans)
+- Provides file/directory selector dialogs for file-based arguments
+- Generates appropriate widgets (text entry, checkboxes, dropdowns)
+- Executes the wrapped script and displays output
+- Intelligently handles required vs optional arguments
+
+Usage:
+    python script-ui.py <target_script.py>
+
+Example:
+    python script-ui.py ../music/llm-generated/tuned-mosaic.py
+"""
+
+import sys
+import ast
+import re
+import tkinter as tk
+from tkinter import ttk, filedialog, scrolledtext
+import subprocess
+import threading
+from pathlib import Path
+
+
+class ArgumentInfo:
+    """Stores information about a command-line argument"""
+    def __init__(self, name, arg_type='str', required=False, default=None,
+                 help_text='', choices=None, nargs=None, action=None):
+        self.name = name
+        self.arg_type = arg_type  # 'str', 'int', 'float', 'bool', 'file', 'dir'
+        self.required = required
+        self.default = default
+        self.help_text = help_text
+        self.choices = choices  # List of valid choices
+        self.nargs = nargs  # '+', '*', or number
+        self.action = action  # 'store_true', 'store_false', etc.
+
+    def is_file_argument(self):
+        """Detect if this argument should be treated as a file path"""
+        file_keywords = ['file', 'path', 'input', 'output', 'reference',
+                        'source', 'sources', 'dir', 'directory']
+        name_lower = self.name.lower()
+        return any(keyword in name_lower for keyword in file_keywords)
+
+    def is_multiple(self):
+        """Check if this argument accepts multiple values"""
+        return self.nargs in ['+', '*'] or (isinstance(self.nargs, int) and self.nargs > 1)
+
+
+class ScriptAnalyzer:
+    """Analyzes a Python script to extract argparse argument definitions"""
+
+    def __init__(self, script_path):
+        self.script_path = script_path
+        self.arguments = []
+
+    def analyze(self):
+        """Parse the script and extract argument information"""
+        with open(self.script_path, 'r') as f:
+            source = f.read()
+
+        try:
+            tree = ast.parse(source)
+            self._visit_ast(tree)
+        except SyntaxError as e:
+            print(f"Error parsing script: {e}")
+            return []
+
+        return self.arguments
+
+    def _visit_ast(self, node):
+        """Recursively visit AST nodes to find argparse calls"""
+        for child in ast.walk(node):
+            # Look for parser.add_argument() calls
+            if isinstance(child, ast.Call):
+                if self._is_add_argument_call(child):
+                    arg_info = self._extract_argument_info(child)
+                    if arg_info:
+                        self.arguments.append(arg_info)
+
+    def _is_add_argument_call(self, node):
+        """Check if this is a parser.add_argument() call"""
+        if isinstance(node.func, ast.Attribute):
+            return node.func.attr == 'add_argument'
+        return False
+
+    def _extract_argument_info(self, call_node):
+        """Extract argument details from add_argument() call"""
+        # Get the argument name (first positional argument)
+        if not call_node.args:
+            return None
+
+        # Handle both short and long form: add_argument('-r', '--reference', ...)
+        arg_names = []
+        for arg in call_node.args:
+            if isinstance(arg, ast.Constant):
+                arg_names.append(arg.value)
+
+        if not arg_names:
+            return None
+
+        # Prefer the long form (--name) over short form (-n)
+        arg_name = None
+        for name in arg_names:
+            if name.startswith('--'):
+                arg_name = name[2:]  # Remove '--' prefix
+                break
+        if not arg_name and arg_names:
+            arg_name = arg_names[0].lstrip('-')
+
+        # Extract keyword arguments
+        kwargs = {}
+        for keyword in call_node.keywords:
+            key = keyword.arg
+            value = self._extract_value(keyword.value)
+            kwargs[key] = value
+
+        # Build ArgumentInfo
+        arg_type = self._determine_type(kwargs)
+        required = kwargs.get('required', False)
+        default = kwargs.get('default')
+        help_text = kwargs.get('help', '')
+        choices = kwargs.get('choices')
+        nargs = kwargs.get('nargs')
+        action = kwargs.get('action')
+
+        return ArgumentInfo(
+            name=arg_name,
+            arg_type=arg_type,
+            required=required,
+            default=default,
+            help_text=help_text,
+            choices=choices,
+            nargs=nargs,
+            action=action
+        )
+
+    def _extract_value(self, node):
+        """Extract Python value from AST node"""
+        if isinstance(node, ast.Constant):
+            return node.value
+        elif isinstance(node, ast.List):
+            return [self._extract_value(elt) for elt in node.elts]
+        elif isinstance(node, ast.Name):
+            # Handle references like type=str, type=int
+            if node.id in ['str', 'int', 'float', 'bool']:
+                return node.id
+            return None
+        elif isinstance(node, ast.Attribute):
+            # Handle things like action='store_true'
+            return None
+        else:
+            return None
+
+    def _determine_type(self, kwargs):
+        """Determine the argument type from kwargs"""
+        # Check action first (for boolean flags)
+        action = kwargs.get('action')
+        if action in ['store_true', 'store_false']:
+            return 'bool'
+
+        # Check explicit type
+        arg_type = kwargs.get('type')
+        if arg_type == 'int':
+            return 'int'
+        elif arg_type == 'float':
+            return 'float'
+        elif arg_type == 'str':
+            return 'str'
+
+        # Check if it has choices (should be dropdown)
+        if kwargs.get('choices'):
+            return 'choice'
+
+        # Default to string
+        return 'str'
+
+
+class GUIGenerator:
+    """Generates a tkinter GUI for a script's arguments"""
+
+    def __init__(self, script_path, arguments):
+        self.script_path = script_path
+        self.arguments = arguments
+        self.root = tk.Tk()
+        self.widgets = {}  # Map argument name to widget
+        self.values = {}   # Map argument name to StringVar/IntVar/etc
+
+    def create_gui(self):
+        """Create the GUI window"""
+        script_name = Path(self.script_path).name
+        self.root.title(f"GUI Wrapper - {script_name}")
+        self.root.geometry("800x600")
+
+        # Create main container with scrollbar
+        main_frame = ttk.Frame(self.root, padding="10")
+        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        # Configure grid weights
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+
+        # Create canvas with scrollbar for arguments
+        canvas = tk.Canvas(main_frame)
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Pack canvas and scrollbar
+        canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(0, weight=1)
+
+        # Create widgets for each argument
+        for i, arg in enumerate(self.arguments):
+            self._create_argument_widget(scrollable_frame, arg, i)
+
+        # Create output area
+        output_frame = ttk.LabelFrame(main_frame, text="Output", padding="5")
+        output_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
+
+        self.output_text = scrolledtext.ScrolledText(output_frame, height=10, wrap=tk.WORD)
+        self.output_text.pack(fill=tk.BOTH, expand=True)
+
+        main_frame.rowconfigure(1, weight=1)
+
+        # Create run button
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=2, column=0, columnspan=2, pady=10)
+
+        run_button = ttk.Button(button_frame, text="Run Script", command=self._run_script)
+        run_button.pack(side=tk.LEFT, padx=5)
+
+        clear_button = ttk.Button(button_frame, text="Clear Output", command=self._clear_output)
+        clear_button.pack(side=tk.LEFT, padx=5)
+
+    def _create_argument_widget(self, parent, arg, row):
+        """Create appropriate widget for an argument"""
+        frame = ttk.Frame(parent, padding="5")
+        frame.grid(row=row, column=0, sticky=(tk.W, tk.E), pady=2)
+        frame.columnconfigure(1, weight=1)
+
+        # Label with help text
+        label_text = arg.name.replace('-', ' ').title()
+        if arg.required:
+            label_text += " *"
+        label = ttk.Label(frame, text=label_text, width=20)
+        label.grid(row=0, column=0, sticky=tk.W, padx=5)
+
+        # Add help text as tooltip (simplified - just show in label)
+        if arg.help_text:
+            help_label = ttk.Label(frame, text=arg.help_text, foreground="gray", font=('TkDefaultFont', 9))
+            help_label.grid(row=1, column=0, columnspan=3, sticky=tk.W, padx=5)
+
+        # Create appropriate widget based on type
+        if arg.arg_type == 'bool':
+            var = tk.BooleanVar(value=arg.default if arg.default is not None else False)
+            widget = ttk.Checkbutton(frame, variable=var)
+            widget.grid(row=0, column=1, sticky=tk.W)
+            self.values[arg.name] = var
+
+        elif arg.choices:
+            var = tk.StringVar(value=arg.default if arg.default else (arg.choices[0] if arg.choices else ''))
+            widget = ttk.Combobox(frame, textvariable=var, values=arg.choices, state='readonly')
+            widget.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
+            self.values[arg.name] = var
+
+        elif arg.is_file_argument() and arg.is_multiple():
+            # Multiple files - use listbox with add/remove buttons
+            var = tk.StringVar(value='')
+            self.values[arg.name] = var
+
+            listbox_frame = ttk.Frame(frame)
+            listbox_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
+            listbox_frame.columnconfigure(0, weight=1)
+
+            listbox = tk.Listbox(listbox_frame, height=3)
+            listbox.grid(row=0, column=0, sticky=(tk.W, tk.E))
+
+            btn_frame = ttk.Frame(listbox_frame)
+            btn_frame.grid(row=0, column=1, padx=5)
+
+            def add_file():
+                files = filedialog.askopenfilenames(title=f"Select {arg.name}")
+                for file in files:
+                    listbox.insert(tk.END, file)
+                self._update_file_list(arg.name, listbox, var)
+
+            def remove_file():
+                selection = listbox.curselection()
+                for index in reversed(selection):
+                    listbox.delete(index)
+                self._update_file_list(arg.name, listbox, var)
+
+            ttk.Button(btn_frame, text="Add", command=add_file).pack(pady=2)
+            ttk.Button(btn_frame, text="Remove", command=remove_file).pack(pady=2)
+
+            self.widgets[arg.name] = listbox
+
+        elif arg.is_file_argument():
+            # Single file - use entry with browse button
+            var = tk.StringVar(value=arg.default if arg.default else '')
+            entry = ttk.Entry(frame, textvariable=var)
+            entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
+
+            def browse():
+                if 'output' in arg.name.lower():
+                    filename = filedialog.asksaveasfilename(title=f"Select {arg.name}")
+                else:
+                    filename = filedialog.askopenfilename(title=f"Select {arg.name}")
+                if filename:
+                    var.set(filename)
+
+            browse_btn = ttk.Button(frame, text="Browse...", command=browse)
+            browse_btn.grid(row=0, column=2, padx=5)
+
+            self.values[arg.name] = var
+
+        else:
+            # Regular text entry for strings, ints, floats
+            var = tk.StringVar(value=str(arg.default) if arg.default is not None else '')
+            entry = ttk.Entry(frame, textvariable=var)
+            entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
+            self.values[arg.name] = var
+
+    def _update_file_list(self, arg_name, listbox, var):
+        """Update the StringVar with space-separated file list"""
+        files = [listbox.get(i) for i in range(listbox.size())]
+        var.set(' '.join(f'"{f}"' for f in files))
+
+    def _run_script(self):
+        """Execute the wrapped script with collected arguments"""
+        # Build command line
+        cmd = [sys.executable, self.script_path]
+
+        for arg in self.arguments:
+            value = self.values[arg.name].get()
+
+            # Skip if empty and not required
+            if not value and not arg.required:
+                continue
+
+            # Handle boolean flags
+            if arg.arg_type == 'bool':
+                if value:  # Only add flag if True
+                    cmd.append(f'--{arg.name}')
+                continue
+
+            # Handle multiple files (already formatted with quotes)
+            if arg.is_file_argument() and arg.is_multiple():
+                if value:
+                    # Value is already space-separated with quotes
+                    cmd.append(f'--{arg.name}')
+                    # Parse the quoted strings
+                    import shlex
+                    files = shlex.split(value)
+                    cmd.extend(files)
+                continue
+
+            # Handle regular arguments
+            if value:
+                cmd.append(f'--{arg.name}')
+                cmd.append(value)
+
+        # Display command
+        self._clear_output()
+        self.output_text.insert(tk.END, f"Running: {' '.join(cmd)}\n\n")
+        self.output_text.see(tk.END)
+
+        # Run in separate thread to avoid blocking GUI
+        thread = threading.Thread(target=self._execute_command, args=(cmd,))
+        thread.daemon = True
+        thread.start()
+
+    def _execute_command(self, cmd):
+        """Execute command and capture output"""
+        try:
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1
+            )
+
+            # Stream output
+            for line in process.stdout:
+                self.root.after(0, self._append_output, line)
+
+            process.wait()
+
+            if process.returncode == 0:
+                self.root.after(0, self._append_output, "\n--- Completed successfully ---\n")
+            else:
+                self.root.after(0, self._append_output, f"\n--- Exited with code {process.returncode} ---\n")
+
+        except Exception as e:
+            self.root.after(0, self._append_output, f"\nError: {str(e)}\n")
+
+    def _append_output(self, text):
+        """Append text to output (called from main thread)"""
+        self.output_text.insert(tk.END, text)
+        self.output_text.see(tk.END)
+
+    def _clear_output(self):
+        """Clear the output text area"""
+        self.output_text.delete(1.0, tk.END)
+
+    def run(self):
+        """Start the GUI main loop"""
+        self.root.mainloop()
+
+
+def generate_gui_wrapper(script_path):
+    """Main function to generate and run GUI wrapper"""
+    # Analyze the script
+    print(f"Analyzing {script_path}...")
+    analyzer = ScriptAnalyzer(script_path)
+    arguments = analyzer.analyze()
+
+    if not arguments:
+        print("No arguments found in script!")
+        return
+
+    print(f"Found {len(arguments)} arguments:")
+    for arg in arguments:
+        print(f"  - {arg.name} ({arg.arg_type}){' [required]' if arg.required else ''}")
+
+    # Create and run GUI
+    print("\nLaunching GUI...")
+    gui = GUIGenerator(script_path, arguments)
+    gui.create_gui()
+    gui.run()
+
+
+def main():
+    if len(sys.argv) != 2:
+        print("Usage: python script-ui.py <target_script.py>")
+        print("\nExample:")
+        print("  python script-ui.py ../music/llm-generated/tuned-mosaic.py")
+        sys.exit(1)
+
+    script_path = sys.argv[1]
+
+    if not Path(script_path).exists():
+        print(f"Error: Script not found: {script_path}")
+        sys.exit(1)
+
+    generate_gui_wrapper(script_path)
+
+
+if __name__ == '__main__':
+    main()
