@@ -1,15 +1,27 @@
 # Quick Start Guide
 
+## Prerequisites (macOS ONLY)
+
+**System Python's Tk is broken on macOS.** You must use Homebrew Python:
+
+```bash
+# Install Homebrew Python with Tk (one-time setup)
+brew install python-tk@3.12
+
+# Verify it works
+/opt/homebrew/bin/python3.12 -c "import tkinter; print('✓ Tkinter OK')"
+```
+
 ## Testing the GUI Wrapper
 
 ### 1. Test with the example script (recommended):
 
 ```bash
-# Silence the Tk deprecation warning
-export TK_SILENCE_DEPRECATION=1
+# Easy way - use the convenience script
+./run-gui.sh example.py
 
-# Launch the GUI
-python3 script-ui.py example.py
+# Or run directly with Homebrew Python
+/opt/homebrew/bin/python3.12 script-ui.py example.py
 ```
 
 You should see a window with:
@@ -25,8 +37,7 @@ You should see a window with:
 ### 2. Try it with the complex audio script:
 
 ```bash
-export TK_SILENCE_DEPRECATION=1
-python3 script-ui.py ../music/llm-generated/tuned-mosaic.py
+./run-gui.sh ../music/llm-generated/tuned-mosaic.py
 ```
 
 This will show 22 arguments including:
@@ -52,11 +63,8 @@ This will show 22 arguments including:
 - ✅ Validation works for required fields
 - ✅ Output displays in terminal area
 
-### Known Tk Deprecation Warning:
-```
-DEPRECATION WARNING: The system version of Tk is deprecated...
-```
-This is expected and harmless. The tool has been optimized to work with the old Tk version.
+### Using System Python (NOT RECOMMENDED):
+System Python's Tk on macOS is completely broken - only buttons will be visible, no labels or text fields. **Always use Homebrew Python.**
 
 ## Troubleshooting
 
