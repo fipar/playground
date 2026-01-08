@@ -33,43 +33,54 @@ No installation needed! Just requires Python 3 with tkinter (usually included by
 chmod +x script-ui.py
 ```
 
-### macOS Note: Tk Deprecation Warning
+### macOS IMPORTANT: System Python's Tk is Broken
 
-On macOS, you may see this warning:
-```
-DEPRECATION WARNING: The system version of Tk is deprecated and may be removed in a future release.
-```
+**The deprecated system Python's Tkinter on macOS does not work** - it will show only buttons with no labels or other widgets visible.
 
-**The tool will still work**, but for the best experience, consider using Python from Homebrew or python.org:
+**You MUST use Homebrew Python:**
 
 ```bash
-# Option 1: Install Python via Homebrew (recommended)
+# Install Python with Tk support (required on macOS)
 brew install python-tk@3.12
 
-# Then run with:
-python3 script-ui.py example.py
-
-# Option 2: Silence the warning (if using system Python)
-export TK_SILENCE_DEPRECATION=1
-python3 script-ui.py example.py
+# Verify installation
+/opt/homebrew/bin/python3.12 -c "import tkinter; print('Tkinter OK')"
 ```
 
-The current version has been optimized to work with the deprecated system Tk, using standard tk widgets instead of ttk for maximum compatibility.
+Then use the convenience script:
+```bash
+# Easy way - use the provided run script
+./run-gui.sh example.py
+./run-gui.sh ../music/llm-generated/tuned-mosaic.py
+
+# Or run directly
+/opt/homebrew/bin/python3.12 script-ui.py example.py
+```
 
 ## Usage
 
 ### Basic Usage
 
+**macOS (required):**
 ```bash
-python script-ui.py <path_to_script.py>
+./run-gui.sh <path_to_script.py>
 ```
 
-### Example
+**Linux/Windows:**
+```bash
+python3 script-ui.py <path_to_script.py>
+```
 
-Using the included test case:
+### Examples
+
+Using the included test cases:
 
 ```bash
-python script-ui.py ../music/llm-generated/tuned-mosaic.py
+# Simple example with 14 arguments
+./run-gui.sh example.py
+
+# Complex audio processing script with 22 arguments
+./run-gui.sh ../music/llm-generated/tuned-mosaic.py
 ```
 
 This will:
