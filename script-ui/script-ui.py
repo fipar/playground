@@ -199,6 +199,20 @@ class GUIGenerator:
         self.script_path = script_path
         self.arguments = arguments
         self.root = tk.Tk()
+
+        # FORCE LIGHT COLORS GLOBALLY - override macOS dark mode
+        self.root.option_add('*Background', 'white')
+        self.root.option_add('*Foreground', 'black')
+        self.root.option_add('*Entry*Background', 'white')
+        self.root.option_add('*Entry*Foreground', 'black')
+        self.root.option_add('*Text*Background', 'white')
+        self.root.option_add('*Text*Foreground', 'black')
+        self.root.option_add('*Listbox*Background', 'white')
+        self.root.option_add('*Listbox*Foreground', 'black')
+        self.root.option_add('*Label*Background', 'white')
+        self.root.option_add('*Label*Foreground', 'black')
+        self.root.option_add('*Frame*Background', 'white')
+
         self.widgets = {}  # Map argument name to widget
         self.values = {}   # Map argument name to StringVar/IntVar/etc
 
