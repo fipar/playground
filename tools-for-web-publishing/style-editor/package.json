@@ -1,0 +1,19 @@
+{
+  "name": "style-editor",
+  "version": "1.0.0",
+  "description": "Visual WYSIWYG dual-pane CSS style generator for arbitrary HTML documents",
+  "main": "index.html",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "serve": "npx serve -p 8080"
+  },
+  "keywords": [
+    "css",
+    "wysiwyg",
+    "style-generator",
+    "html",
+    "design-tools"
+  ],
+  "author": "",
+  "license": "MIT"
+}

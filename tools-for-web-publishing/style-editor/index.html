@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WYSIWYG Style Studio</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body class="app-theme-dark">
+  <!-- Main App Header -->
+  <header class="app-topbar">
+    <div class="topbar-left">
+      <div class="logo">
+        <svg class="logo-icon" viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+        </svg>
+        <span class="logo-title">Style<strong>Studio</strong></span>
+      </div>
+
+      <div class="topbar-divider"></div>
+
+      <!-- File Controls -->
+      <div class="topbar-actions">
+        <label class="btn btn-sm btn-secondary file-upload-btn" title="Open local HTML file">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          <span>Open HTML</span>
+          <input type="file" id="html-file-input" accept=".html,.htm" style="display:none;">
+        </label>
+
+        <button id="btn-paste-html" class="btn btn-sm btn-secondary" title="Paste HTML markup">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+          <span>Paste HTML</span>
+        </button>
+
+        <div class="dropdown">
+          <button id="btn-samples-dropdown" class="btn btn-sm btn-secondary dropdown-toggle">
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+            <span>Load Sample</span>
+            <span class="chevron-down">▾</span>
+          </button>
+          <div class="dropdown-menu" id="samples-menu">
+            <a href="#" class="dropdown-item" data-sample="portfolio">Studio Numerozzi Portfolio</a>
+            <a href="#" class="dropdown-item" data-sample="blog-post">Editorial Blog Post</a>
+            <a href="#" class="dropdown-item" data-sample="components">Web Components & Cards</a>
+            <div class="dropdown-divider"></div>
+            <a href="#" class="dropdown-item" data-sample="minimal">Minimal Semantic Page</a>
+          </div>
+        </div>
+
+        <label class="checkbox-label" title="Strip existing style tags when loading new HTML">
+          <input type="checkbox" id="chk-strip-styles" checked>
+          <span>Start Unstyled</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Viewport Switcher -->
+    <div class="topbar-center">
+      <div class="segmented-control" id="viewport-control">
+        <button class="segmented-btn active" data-viewport="desktop" title="Desktop (100%)">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+          <span>Desktop</span>
+        </button>
+        <button class="segmented-btn" data-viewport="tablet" title="Tablet (768px)">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+          <span>Tablet</span>
+        </button>
+        <button class="segmented-btn" data-viewport="mobile" title="Mobile (390px)">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+          <span>Mobile</span>
+        </button>
+      </div>
+
+      <div class="topbar-divider"></div>
+
+      <!-- Inspect Mode Toggle -->
+      <button id="btn-toggle-inspect" class="btn btn-sm btn-icon-toggle active" title="Toggle Click-to-Inspect Mode">
+        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
+        <span>Inspect Mode</span>
+      </button>
+    </div>
+
+    <!-- Export & Actions -->
+    <div class="topbar-right">
+      <button id="btn-undo" class="btn btn-icon btn-secondary" title="Undo (Cmd/Ctrl+Z)" disabled>
+        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
+      </button>
+      <button id="btn-redo" class="btn btn-icon btn-secondary" title="Redo (Cmd/Ctrl+Y)" disabled>
+        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"></path></svg>
+      </button>
+
+      <div class="topbar-divider"></div>
+
+      <button id="btn-view-css" class="btn btn-sm btn-secondary" title="View & Edit Full Stylesheet">
+        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+        <span>Full CSS</span>
+      </button>
+
+      <div class="dropdown">
+        <button id="btn-export-dropdown" class="btn btn-sm btn-primary dropdown-toggle">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span>Export</span>
+          <span class="chevron-down">▾</span>
+        </button>
+        <div class="dropdown-menu dropdown-menu-right" id="export-menu">
+          <a href="#" class="dropdown-item" id="export-css-file">
+            <strong>Download style.css</strong>
+            <small>Export standalone clean CSS stylesheet</small>
+          </a>
+          <a href="#" class="dropdown-item" id="export-html-embedded">
+            <strong>Download HTML (Embedded CSS)</strong>
+            <small>Self-contained HTML with &lt;style&gt; block</small>
+          </a>
+          <a href="#" class="dropdown-item" id="export-html-linked">
+            <strong>Download HTML (Linked CSS)</strong>
+            <small>References &lt;link rel="stylesheet" href="style.css"&gt;</small>
+          </a>
+          <div class="dropdown-divider"></div>
+          <a href="#" class="dropdown-item" id="copy-css-clipboard">
+            <strong>Copy CSS to Clipboard</strong>
+          </a>
+          <a href="#" class="dropdown-item" id="export-project-json">
+            <strong>Save Project File (.json)</strong>
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Dual Pane Body -->
+  <main class="app-workspace">
+    <!-- LEFT PANE: Live HTML Preview -->
+    <section class="pane pane-preview" id="preview-pane">
+      <!-- Breadcrumb Navigation & Target Selector Bar -->
+      <div class="preview-toolbar">
+        <div class="element-breadcrumbs" id="element-breadcrumbs">
+          <span class="breadcrumb-item active" data-selector="body">body</span>
+        </div>
+
+        <div class="preview-toolbar-actions">
+          <span class="selection-indicator">Selected: <code id="active-tag-badge">body</code></span>
+        </div>
+      </div>
+
+      <!-- Preview Iframe Viewport Container -->
+      <div class="preview-viewport-wrapper" id="viewport-wrapper">
+        <div class="preview-viewport desktop" id="viewport-frame">
+          <iframe id="preview-frame"></iframe>
+        </div>
+      </div>
+
+      <!-- Quick Selector Target Bar -->
+      <div class="selector-target-bar">
+        <div class="selector-label">Apply styles to:</div>
+        <div class="selector-options" id="selector-options">
+          <button class="selector-chip active" data-selector="body">body</button>
+        </div>
+        <div class="custom-selector-input-wrapper">
+          <input type="text" id="custom-selector-input" placeholder="Or custom selector (e.g. .work h1)">
+          <button id="btn-apply-custom-selector" class="btn btn-xs btn-secondary">Apply</button>
+        </div>
+        <div class="pseudo-state-picker">
+          <label>State:</label>
+          <select id="pseudo-state-select">
+            <option value="">:normal</option>
+            <option value=":hover">:hover</option>
+            <option value=":focus">:focus</option>
+            <option value=":active">:active</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESIZER SPLITTER -->
+    <div class="pane-resizer" id="pane-resizer" title="Drag to resize panes"></div>
+
+    <!-- RIGHT PANE: WYSIWYG Style Controls -->
+    <aside class="pane pane-inspector" id="inspector-pane">
+      <!-- Inspector Header / Current Selector -->
+      <div class="inspector-header">
+        <div class="inspector-title">
+          <span class="target-prefix">Editing:</span>
+          <span class="target-selector-name" id="current-selector-display">body</span>
+        </div>
+        <div class="inspector-actions">
+          <button id="btn-reset-rule" class="btn btn-xs btn-ghost text-danger" title="Clear all styles for this selector">Reset Rule</button>
+        </div>
+      </div>
+
+      <!-- Quick Presets Carousel / Bar -->
+      <div class="preset-theme-bar">
+        <div class="preset-label">Theme Starters:</div>
+        <div class="preset-buttons">
+          <button class="btn-preset" data-preset="studio-dark" title="Dark slate aesthetic like Studio Numerozzi">Studio Dark</button>
+          <button class="btn-preset" data-preset="editorial" title="Warm paper serif editorial typography">Editorial</button>
+          <button class="btn-preset" data-preset="modern-clean" title="Clean light mode modern UI">Clean Light</button>
+          <button class="btn-preset" data-preset="terminal" title="High contrast cyber terminal">Cyber Terminal</button>
+          <button class="btn-preset" data-preset="minimal-reset" title="Base semantic typography reset">Clean Reset</button>
+        </div>
+      </div>
+
+      <!-- Accordion Style Groups -->
+      <div class="inspector-scroll-area">
+        
+        <!-- GROUP 1: Typography -->
+        <details class="style-group" open>
+          <summary class="style-group-summary">
+            <span class="summary-left">
+              <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
+              <strong>Typography</strong>
+            </span>
+            <span class="group-badge" id="badge-typography">0</span>
+          </summary>
+          <div class="style-group-content">
+            <!-- Font Family -->
+            <div class="control-row">
+              <label>Font Family</label>
+              <div class="control-input-group">
+                <select id="css-font-family" class="form-select">
+                  <optgroup label="System Standard">
+                    <option value="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">System Sans-Serif</option>
+                    <option value="Georgia, Cambria, 'Times New Roman', Times, serif">System Serif (Georgia)</option>
+                    <option value="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">System Monospace</option>
+                  </optgroup>
+                  <optgroup label="Google Fonts (Web)">
+                    <option value="'Inter', sans-serif">Inter</option>
+                    <option value="'Playfair Display', serif">Playfair Display</option>
+                    <option value="'Merriweather', serif">Merriweather</option>
+                    <option value="'Lora', serif">Lora</option>
+                    <option value="'Plus Jakarta Sans', sans-serif">Plus Jakarta Sans</option>
+                    <option value="'Space Grotesk', sans-serif">Space Grotesk</option>
+                    <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+                    <option value="'Roboto', sans-serif">Roboto</option>
+                    <option value="'Cinzel', serif">Cinzel (Display)</option>
+                  </optgroup>
+                  <option value="custom">Custom Font...</option>
+                </select>
+                <input type="text" id="css-font-family-custom" class="form-input mt-1 hidden" placeholder="e.g. 'Helvetica Neue', Arial, sans-serif">
+              </div>
+            </div>
+
+            <!-- Font Size & Line Height -->
+            <div class="control-grid-2">
+              <div class="control-col">
+                <label>Font Size</label>
+                <div class="input-with-unit">
+                  <input type="number" id="css-font-size-val" step="0.05" min="0" placeholder="1">
+                  <select id="css-font-size-unit">
+                    <option value="rem">rem</option>
+                    <option value="px">px</option>
+                    <option value="em">em</option>
+                  </select>
+                </div>
+              </div>
+              <div class="control-col">
+                <label>Line Height</label>
+                <div class="input-with-unit">
+                  <input type="number" id="css-line-height-val" step="0.05" min="0.5" max="3" placeholder="1.6">
+                  <span class="unit-label">×</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Font Weight & Letter Spacing -->
+            <div class="control-grid-2">
+              <div class="control-col">
+                <label>Font Weight</label>
+                <select id="css-font-weight" class="form-select">
+                  <option value="">Default</option>
+                  <option value="300">300 (Light)</option>
+                  <option value="400">400 (Regular)</option>
+                  <option value="500">500 (Medium)</option>
+                  <option value="600">600 (Semi-Bold)</option>
+                  <option value="700">700 (Bold)</option>
+                  <option value="800">800 (Extra Bold)</option>
+                </select>
+              </div>
+              <div class="control-col">
+                <label>Letter Spacing</label>
+                <div class="input-with-unit">
+                  <input type="number" id="css-letter-spacing-val" step="0.01" placeholder="0">
+                  <select id="css-letter-spacing-unit">
+                    <option value="em">em</option>
+                    <option value="px">px</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Text Color -->
+            <div class="control-row">
+              <label>Text Color</label>
+              <div class="color-picker-wrapper">
+                <input type="color" id="css-color-picker" class="color-swatch">
+                <input type="text" id="css-color-text" class="form-input font-mono" placeholder="#f3f4f6">
+                <button class="btn-clear-prop" data-prop="color" title="Clear">×</button>
+              </div>
+            </div>
+
+            <!-- Text Alignment & Transforms -->
+            <div class="control-row">
+              <label>Alignment</label>
+              <div class="segmented-control w-100" id="align-control">
+                <button class="segmented-btn" data-align="left" title="Align Left">
+                  <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2"><line x1="17" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg>
+                </button>
+                <button class="segmented-btn" data-align="center" title="Align Center">
+                  <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2"><line x1="18" y1="10" x2="6" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="18" y1="14" x2="6" y2="14"></line><line x1="21" y1="18" x2="3" y2="18"></line></svg>
+                </button>
+                <button class="segmented-btn" data-align="right" title="Align Right">
+                  <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2"><line x1="21" y1="10" x2="7" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="7" y2="14"></line><line x1="21" y1="18" x2="3" y2="18"></line></svg>
+                </button>
+                <button class="segmented-btn" data-align="justify" title="Justify">
+                  <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2"><line x1="21" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="21" y1="18" x2="3" y2="18"></line></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="control-grid-2">
+              <div class="control-col">
+                <label>Transform</label>
+                <select id="css-text-transform" class="form-select">
+                  <option value="">Normal</option>
+                  <option value="uppercase">UPPERCASE</option>
+                  <option value="lowercase">lowercase</option>
+                  <option value="capitalize">Capitalize</option>
+                </select>
+              </div>
+              <div class="control-col">
+                <label>Decoration</label>
+                <select id="css-text-decoration" class="form-select">
+                  <option value="">None</option>
+                  <option value="underline">Underline</option>
+                  <option value="line-through">Strikethrough</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- GROUP 2: Background & Surface -->
+        <details class="style-group" open>
+          <summary class="style-group-summary">
+            <span class="summary-left">
+              <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+              <strong>Background & Color</strong>
+            </span>
+            <span class="group-badge" id="badge-background">0</span>
+          </summary>
+          <div class="style-group-content">
+            <div class="control-row">
+              <label>Background Color</label>
+              <div class="color-picker-wrapper">
+                <input type="color" id="css-bg-color-picker" class="color-swatch">
+                <input type="text" id="css-bg-color-text" class="form-input font-mono" placeholder="#171b24">
+                <button class="btn-clear-prop" data-prop="background-color" title="Clear">×</button>
+              </div>
+            </div>
+
+            <!-- Quick Color Palette helper -->
+            <div class="control-row">
+              <label>Color Swatches</label>
+              <div class="quick-palette">
+                <span class="swatch" data-color="#0f1117" style="background:#0f1117" title="#0f1117"></span>
+                <span class="swatch" data-color="#171b24" style="background:#171b24" title="#171b24"></span>
+                <span class="swatch" data-color="#242b3a" style="background:#242b3a" title="#242b3a"></span>
+                <span class="swatch" data-color="#ffffff" style="background:#ffffff; border:1px solid #444;" title="#ffffff"></span>
+                <span class="swatch" data-color="#f3f4f6" style="background:#f3f4f6" title="#f3f4f6"></span>
+                <span class="swatch" data-color="#9ca3af" style="background:#9ca3af" title="#9ca3af"></span>
+                <span class="swatch" data-color="#3b82f6" style="background:#3b82f6" title="#3b82f6"></span>
+                <span class="swatch" data-color="#10b981" style="background:#10b981" title="#10b981"></span>
+                <span class="swatch" data-color="#f59e0b" style="background:#f59e0b" title="#f59e0b"></span>
+                <span class="swatch" data-color="#ef4444" style="background:#ef4444" title="#ef4444"></span>
+                <span class="swatch" data-color="transparent" style="background: repeating-conic-gradient(#555 0% 25%, #333 0% 50%) 50% / 8px 8px" title="transparent"></span>
+              </div>
+            </div>
+
+            <div class="control-row">
+              <label>Custom Background</label>
+              <input type="text" id="css-background-custom" class="form-input font-mono" placeholder="e.g. linear-gradient(...) or url(...)">
+            </div>
+          </div>
+        </details>
+
+        <!-- GROUP 3: Spacing (Visual Box Model) -->
+        <details class="style-group" open>
+          <summary class="style-group-summary">
+            <span class="summary-left">
+              <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path></svg>
+              <strong>Spacing (Box Model)</strong>
+            </span>
+            <span class="group-badge" id="badge-spacing">0</span>
+          </summary>
+          <div class="style-group-content">
+            <!-- Visual CSS Box Diagram -->
+            <div class="box-model-diagram">
+              <!-- Margin Layer -->
+              <div class="box-layer box-margin">
+                <span class="box-layer-label">MARGIN</span>
+                <input type="text" id="bm-margin-top" class="bm-input bm-top" placeholder="0">
+                <input type="text" id="bm-margin-right" class="bm-input bm-right" placeholder="0">
+                <input type="text" id="bm-margin-bottom" class="bm-input bm-bottom" placeholder="0">
+                <input type="text" id="bm-margin-left" class="bm-input bm-left" placeholder="0">
+
+                <!-- Padding Layer -->
+                <div class="box-layer box-padding">
+                  <span class="box-layer-label">PADDING</span>
+                  <input type="text" id="bm-padding-top" class="bm-input bm-top" placeholder="0">
+                  <input type="text" id="bm-padding-right" class="bm-input bm-right" placeholder="0">
+                  <input type="text" id="bm-padding-bottom" class="bm-input bm-bottom" placeholder="0">
+                  <input type="text" id="bm-padding-left" class="bm-input bm-left" placeholder="0">
+
+                  <!-- Center Content Box -->
+                  <div class="box-center-content">
+                    <span class="content-text">Content</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Sliders for Margin & Padding -->
+            <div class="control-grid-2 mt-2">
+              <div class="control-col">
+                <div class="d-flex justify-between align-center mb-1">
+                  <label>All Margin</label>
+                  <button class="btn-xs btn-ghost" id="btn-link-margin" title="Apply to all 4 sides">Link</button>
+                </div>
+                <input type="text" id="quick-margin-input" class="form-input" placeholder="e.g. 1.5rem auto">
+              </div>
+              <div class="control-col">
+                <div class="d-flex justify-between align-center mb-1">
+                  <label>All Padding</label>
+                  <button class="btn-xs btn-ghost" id="btn-link-padding" title="Apply to all 4 sides">Link</button>
+                </div>
+                <input type="text" id="quick-padding-input" class="form-input" placeholder="e.g. 1rem 2rem">
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- GROUP 4: Layout & Sizing -->
+        <details class="style-group" open>
+          <summary class="style-group-summary">
+            <span class="summary-left">
+              <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+              <strong>Layout & Dimensions</strong>
+            </span>
+            <span class="group-badge" id="badge-layout">0</span>
+          </summary>
+          <div class="style-group-content">
+            <!-- Display Property -->
+            <div class="control-row">
+              <label>Display</label>
+              <select id="css-display" class="form-select">
+                <option value="">Default (Browser)</option>
+                <option value="block">block</option>
+                <option value="flex">flex</option>
+                <option value="inline-flex">inline-flex</option>
+                <option value="grid">grid</option>
+                <option value="inline-block">inline-block</option>
+                <option value="inline">inline</option>
+                <option value="none">none</option>
+              </select>
+            </div>
+
+            <!-- Flexbox Controls (conditional) -->
+            <div id="flex-controls" class="sub-controls-box hidden">
+              <div class="sub-controls-header">Flex Settings</div>
+              <div class="control-grid-2">
+                <div class="control-col">
+                  <label>Direction</label>
+                  <select id="css-flex-direction" class="form-select">
+                    <option value="row">row (horizontal)</option>
+                    <option value="column">column (vertical)</option>
+                    <option value="row-reverse">row-reverse</option>
+                    <option value="column-reverse">column-reverse</option>
+                  </select>
+                </div>
+                <div class="control-col">
+                  <label>Wrap</label>
+                  <select id="css-flex-wrap" class="form-select">
+                    <option value="nowrap">nowrap</option>
+                    <option value="wrap">wrap</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="control-grid-2 mt-1">
+                <div class="control-col">
+                  <label>Justify Content</label>
+                  <select id="css-justify-content" class="form-select">
+                    <option value="flex-start">flex-start</option>
+                    <option value="center">center</option>
+                    <option value="flex-end">flex-end</option>
+                    <option value="space-between">space-between</option>
+                    <option value="space-around">space-around</option>
+                    <option value="space-evenly">space-evenly</option>
+                  </select>
+                </div>
+                <div class="control-col">
+                  <label>Align Items</label>
+                  <select id="css-align-items" class="form-select">
+                    <option value="stretch">stretch</option>
+                    <option value="center">center</option>
+                    <option value="flex-start">flex-start</option>
+                    <option value="flex-end">flex-end</option>
+                    <option value="baseline">baseline</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="control-row mt-1">
+                <label>Gap</label>
+                <div class="input-with-unit">
+                  <input type="number" id="css-gap-val" step="0.25" min="0" placeholder="1">
+                  <select id="css-gap-unit">
+                    <option value="rem">rem</option>
+                    <option value="px">px</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dimensions -->
+            <div class="control-grid-2">
+              <div class="control-col">
+                <label>Width</label>
+                <input type="text" id="css-width" class="form-input" placeholder="e.g. 100%, 960px">
+              </div>
+              <div class="control-col">
+                <label>Max Width</label>
+                <input type="text" id="css-max-width" class="form-input" placeholder="e.g. 960px, 100%">
+              </div>
+            </div>
+
+            <div class="control-grid-2 mt-1">
+              <div class="control-col">
+                <label>Min Height</label>
+                <input type="text" id="css-min-height" class="form-input" placeholder="e.g. 100vh">
+              </div>
+              <div class="control-col">
+                <label>Overflow</label>
+                <select id="css-overflow" class="form-select">
+                  <option value="">Default</option>
+                  <option value="visible">visible</option>
+                  <option value="hidden">hidden</option>
+                  <option value="auto">auto</option>
+                  <option value="scroll">scroll</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- GROUP 5: Borders & Corners -->
+        <details class="style-group">
+          <summary class="style-group-summary">
+            <span class="summary-left">
+              <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none"><rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect></svg>
+              <strong>Borders & Radius</strong>
+            </span>
+            <span class="group-badge" id="badge-borders">0</span>
+          </summary>
+          <div class="style-group-content">
+            <div class="control-grid-3">
+              <div class="control-col">
+                <label>Width</label>
+                <div class="input-with-unit">
+                  <input type="number" id="css-border-width-val" min="0" placeholder="1">
+                  <span class="unit-label">px</span>
+                </div>
+              </div>
+              <div class="control-col">
+                <label>Style</label>
+                <select id="css-border-style" class="form-select">
+                  <option value="none">none</option>
+                  <option value="solid">solid</option>
+                  <option value="dashed">dashed</option>
+                  <option value="dotted">dotted</option>
+                </select>
+              </div>
+              <div class="control-col">
+                <label>Color</label>
+                <div class="color-picker-wrapper">
+                  <input type="color" id="css-border-color-picker" class="color-swatch">
+                </div>
+              </div>
+            </div>
+
+            <div class="control-row mt-1">
+              <label>Border Color Hex</label>
+              <input type="text" id="css-border-color-text" class="form-input font-mono" placeholder="#242b3a">
+            </div>
+
+            <!-- Border Radius -->
+            <div class="control-row mt-2">
+              <div class="d-flex justify-between align-center mb-1">
+                <label>Border Radius</label>
+                <span class="font-mono text-xs text-muted" id="radius-preview-text">0px</span>
+              </div>
+              <div class="d-flex align-center gap-2">
+                <input type="range" id="css-border-radius-slider" min="0" max="40" value="0" class="form-range">
+                <input type="text" id="css-border-radius-text" class="form-input form-input-sm w-70" placeholder="0px">
+              </div>
+              <div class="preset-radius-pills mt-1">
+                <button class="pill-btn" data-radius="0px">0</button>
+                <button class="pill-btn" data-radius="4px">4px</button>
+                <button class="pill-btn" data-radius="8px">8px</button>
+                <button class="pill-btn" data-radius="12px">12px</button>
+                <button class="pill-btn" data-radius="16px">16px</button>
+                <button class="pill-btn" data-radius="9999px">Full</button>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- GROUP 6: Shadows & Effects -->
+        <details class="style-group">
+          <summary class="style-group-summary">
+            <span class="summary-left">
+              <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+              <strong>Shadows & Effects</strong>
+            </span>
+            <span class="group-badge" id="badge-effects">0</span>
+          </summary>
+          <div class="style-group-content">
+            <!-- Box Shadow Presets -->
+            <div class="control-row">
+              <label>Box Shadow Presets</label>
+              <div class="segmented-control w-100" id="shadow-presets">
+                <button class="segmented-btn" data-shadow="none">None</button>
+                <button class="segmented-btn" data-shadow="0 2px 8px rgba(0,0,0,0.15)">Soft</button>
+                <button class="segmented-btn" data-shadow="0 8px 30px rgba(0,0,0,0.4)">Elevated</button>
+                <button class="segmented-btn" data-shadow="0 4px 20px rgba(0,0,0,0.5)">Card</button>
+                <button class="segmented-btn" data-shadow="0 0 25px rgba(59,130,246,0.35)">Glow</button>
+              </div>
+            </div>
+
+            <div class="control-row">
+              <label>Custom Box Shadow</label>
+              <input type="text" id="css-box-shadow" class="form-input font-mono" placeholder="e.g. 0 8px 30px rgba(0,0,0,0.4)">
+            </div>
+
+            <div class="control-grid-2">
+              <div class="control-col">
+                <label>Opacity</label>
+                <input type="range" id="css-opacity-slider" min="0" max="1" step="0.05" value="1" class="form-range">
+              </div>
+              <div class="control-col">
+                <label>Cursor</label>
+                <select id="css-cursor" class="form-select">
+                  <option value="">Default</option>
+                  <option value="pointer">pointer</option>
+                  <option value="default">arrow</option>
+                  <option value="not-allowed">not-allowed</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="control-row mt-1">
+              <label>Transitions (for hover states)</label>
+              <input type="text" id="css-transition" class="form-input font-mono" placeholder="e.g. all 0.2s ease">
+            </div>
+          </div>
+        </details>
+
+        <!-- GROUP 7: Direct Raw CSS Editor for this selector -->
+        <details class="style-group" open>
+          <summary class="style-group-summary">
+            <span class="summary-left">
+              <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+              <strong>Direct CSS for this Selector</strong>
+            </span>
+          </summary>
+          <div class="style-group-content">
+            <div class="css-editor-container">
+              <div class="css-rule-header">
+                <span class="font-mono text-accent" id="raw-css-selector-label">body</span> {
+              </div>
+              <textarea id="raw-css-textarea" class="raw-css-textarea" spellcheck="false" placeholder="/* Add or edit CSS properties directly */&#10;margin: 0;&#10;color: #f3f4f6;"></textarea>
+              <div class="css-rule-footer">}</div>
+            </div>
+            <div class="d-flex justify-between align-center mt-1">
+              <small class="text-muted">Edits sync live with preview and controls</small>
+              <button id="btn-sync-raw-css" class="btn btn-xs btn-secondary">Apply Code</button>
+            </div>
+          </div>
+        </details>
+
+      </div>
+    </aside>
+  </main>
+
+  <!-- MODAL: Full CSS Stylesheet Inspector & Editor -->
+  <div class="modal-backdrop hidden" id="modal-full-css">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title">Full Generated Stylesheet</h3>
+        <div class="modal-actions">
+          <button id="btn-copy-css-modal" class="btn btn-sm btn-secondary">Copy CSS</button>
+          <button id="btn-download-css-modal" class="btn btn-sm btn-primary">Download style.css</button>
+          <button class="btn-close-modal" data-close="modal-full-css">×</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <p class="text-sm text-muted mb-2">You can edit the entire stylesheet below. Click <strong>Update Stylesheet</strong> to apply your changes to the live preview.</p>
+        <textarea id="full-css-editor" class="full-css-textarea" spellcheck="false"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sm btn-secondary" data-close="modal-full-css">Cancel</button>
+        <button id="btn-apply-full-css" class="btn btn-sm btn-primary">Update Stylesheet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Paste HTML Markup -->
+  <div class="modal-backdrop hidden" id="modal-paste-html">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Paste HTML Markup</h3>
+        <button class="btn-close-modal" data-close="modal-paste-html">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-sm text-muted mb-2">Paste any HTML document or markup snippet. The editor will load it into the preview canvas.</p>
+        <textarea id="paste-html-textarea" class="full-css-textarea" rows="12" placeholder="<!DOCTYPE html>&#10;<html>&#10;<body>&#10;  <h1>Hello World</h1>&#10;</body>&#10;</html>"></textarea>
+        <div class="mt-2">
+          <label class="checkbox-label">
+            <input type="checkbox" id="chk-paste-strip-styles" checked>
+            <span>Strip existing &lt;style&gt; and inline styles</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sm btn-secondary" data-close="modal-paste-html">Cancel</button>
+        <button id="btn-load-pasted-html" class="btn btn-sm btn-primary">Load into Editor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="app.js"></script>
+</body>
+</html>
